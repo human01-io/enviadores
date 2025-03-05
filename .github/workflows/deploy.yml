@@ -16,8 +16,8 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Build React App
-        run: npm run build
+      - name: Build Vite App
+        run: npm run build  # Vite creates 'dist/', not 'build/'
 
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@4.3.0
@@ -25,5 +25,5 @@ jobs:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: build/
+          local-dir: dist/  # Vite outputs to 'dist/', not 'build/'
           server-dir: public_html/
