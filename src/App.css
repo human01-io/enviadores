@@ -17,7 +17,7 @@
 /* Logo animation */
 .logo-container {
   display: flex;
-  gap: 2rem;
+  gap: 1rem;
   opacity: 0;
   transform: scale(0.9);
   transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);

@@ -6,7 +6,7 @@ export default {
       colors: {
         'blue-950': '#0A1128',
         'blue-900': '#001F54',
-        'red-500': '#FF3E1D',
+        'red-500': '#FB3010',
         'yellow-300': '#FFD60A',
       },
       fontFamily: {
