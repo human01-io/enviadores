@@ -26,4 +26,4 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: dist/  # Vite outputs to 'dist/', not 'build/'
-          server-dir: public_html/
+          server-dir: public_html/ # Updated FTP user directory
