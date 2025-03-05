@@ -25,5 +25,7 @@ jobs:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps  # Enforce FTPS
+          passive: true
           local-dir: dist/  # Vite outputs to 'dist/', not 'build/'
           server-dir: public_html/ # Updated FTP user directory
