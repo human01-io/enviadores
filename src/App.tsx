@@ -21,7 +21,6 @@ function KeywordsCloud(): JSX.Element {
     { text: "MANEJO DE DEVOLUCIONES" },
     { text: "VENTA DE GUIAS ELECTRONICAS MULTIMARCA" },
     { text: "RECOLECCIONES" },
-    { text: "LOGÍSTICA PARA PYMES" },
     { text: "TARIFAS COMPETITIVAS" },
     { text: "SOLUCIONES LOGISTICAS PERSONALIZADAS" },
   ];
