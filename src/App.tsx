@@ -1,7 +1,11 @@
+// run this first npm install react-router-dom
+
 import { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { MapPin, Mail, Phone, MessageSquare } from 'lucide-react';
 import EnviadoresLogo from './assets/ENVIADORES-Logo.png';
 import './App.css';
+import Cotizador from "./components/Cotizador";
 
 interface HeaderProps {
   activeSection: string;
@@ -115,39 +119,42 @@ function Header({ activeSection }: HeaderProps): JSX.Element {
   );
 }
 
-function App(): JSX.Element {
-  
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<MainPage />} />
+        <Route path="/cotizador" element={<Cotizador />} />
+      </Routes>
+    </Router>
+  );
+}
+
+/**
+ * MainPage Component
+ */
+function MainPage() {
   const [activeSection, setActiveSection] = useState<string>('home');
 
-
-
-  // Listen for scroll events to update the active section
   useEffect(() => {
     const sectionIds = ['home', 'products', 'contact'];
-    const options = {
-      root: null,
-      rootMargin: '-1% 0px -1% 0px', // Adjust so the section is considered active when roughly in the middle
-      threshold: 1,
-    };
-  
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setActiveSection(entry.target.id);
-        }
-      });
-    }, options);
-  
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      },
+      { rootMargin: '-1% 0px -1% 0px', threshold: 1 }
+    );
+
     sectionIds.forEach((id) => {
       const section = document.getElementById(id);
-      if (section) {
-        observer.observe(section);
-      }
+      if (section) observer.observe(section);
     });
-  
-    return () => {
-      observer.disconnect();
-    };
+
+    return () => observer.disconnect();
   }, []);
 
   return (
