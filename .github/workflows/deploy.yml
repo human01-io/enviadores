@@ -28,4 +28,3 @@ jobs:
           local-dir: dist/  # Make sure it's 'dist/' for Vite builds
           server-dir: /  # Upload directly to public_html
           protocol: ftps
-          passive: true
