@@ -15,6 +15,16 @@ interface DeliveryFrequency {
     garantia_maxima: string;
     error?: string;
   }
+interface EstafetaResult {
+    cost: string;
+    success: boolean;
+    error?: string;
+    ocurreForzoso?: string;
+    estafetaDeliveryDays?: {
+        [key: string]: boolean;
+      };
+    htmlSnippet?: string;
+  }
 
 function Cotizador() {
     const [originZip, setOriginZip] = useState("");
@@ -23,6 +33,9 @@ function Cotizador() {
 
     const [deliveryFrequency, setDeliveryFrequency] = useState<DeliveryFrequency | null>(null);
     const [loadingFrequency, setLoadingFrequency] = useState(false);
+
+    const [estafetaResult, setEstafetaResult] = useState<EstafetaResult | null>(null);
+    const [loadingEstafeta, setLoadingEstafeta] = useState(false);
     
     const [originState, setOriginState] = useState("");
     const [originMunicipio, setOriginMunicipio] = useState("");
@@ -46,6 +59,91 @@ function Cotizador() {
 
     const [isValidated, setIsValidated] = useState(false);
     const [services, setServices] = useState<{ name: string; price: number }[] | null>(null);
+
+    const [reportSubmitted, setReportSubmitted] = useState(false);
+
+    // Add to your component file
+const ArrowRightIcon = ({ className }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+    </svg>
+  );
+  
+  const FlagIcon = ({ className = "" }) => (
+    <svg 
+      className={`w-4 h-4 ${className}`} 
+      fill="none" 
+      stroke="currentColor" 
+      viewBox="0 0 24 24"
+    >
+      <path 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        strokeWidth={2} 
+        d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2z" 
+      />
+    </svg>
+  );
+
+  const Spinner = ({ className }: { className?: string }) => (
+    <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+  );
+
+const ExclamationTriangleIcon = ({ className = "" }: { className?: string }) => (
+  <svg
+    className={`w-5 h-5 ${className}`}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+    />
+  </svg>
+);
+
+const ArrowPathIcon = ({ className = "" }: { className?: string }) => (
+    <svg
+      className={`w-5 h-5 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+      />
+    </svg>
+  );
+
+  const CheckIcon = ({ className = "" }: { className?: string }) => (
+    <svg
+      className={`w-5 h-5 ${className}`}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M5 13l4 4L19 7"
+      />
+    </svg>
+  );
+
+
 
     // Function to fetch ZIP code data
     const fetchZipCodeData = async (zip: string, isOrigin: boolean) => {
@@ -122,6 +220,10 @@ function Cotizador() {
 
     // Function to validate both ZIP codes
     const validateZipCodes = () => {
+        // Reset Estafeta results when validating new ZIP codes
+        setEstafetaResult(null);
+        setLoadingEstafeta(false);
+
         if (originZip.length === 5 && destZip.length === 5) {
             // Reset the zone before new validation
             setZone(null);
@@ -146,48 +248,60 @@ function Cotizador() {
         }
     };
 
-    const validateOnExternalSite = () => {
-        // Create a form dynamically
-        const form = document.createElement('form');
-        form.action = 'https://frecuenciaentregasitecorecms.azurewebsites.net/';
-        form.method = 'POST';
-        form.target = '_blank'; // Open in new tab
-        form.style.display = 'none';
+    const validateOnExternalSite = async () => {
+        setLoadingEstafeta(true);
+        setEstafetaResult(null);
+        
+        try {
+          const formData = new FormData();
+          formData.append('originZipCode', originZip);
+          formData.append('destinationZipCode', destZip);
+          formData.append('country', 'MEX');
+          formData.append('language', '0');
       
-        // Add origin ZIP
-        const originInput = document.createElement('input');
-        originInput.type = 'hidden';
-        originInput.name = 'originZipCode';
-        originInput.value = originZip;
-        form.appendChild(originInput);
+          const response = await fetch('https://eproxy.alejandro-sarmiento-pa.workers.dev/', {
+            method: 'POST',
+            body: new URLSearchParams(formData as any),
+          });
       
-        // Add destination ZIP
-        const destInput = document.createElement('input');
-        destInput.type = 'hidden';
-        destInput.name = 'destinationZipCode';
-        destInput.value = destZip;
-        form.appendChild(destInput);
-      
-        // Add country
-        const countryInput = document.createElement('input');
-        countryInput.type = 'hidden';
-        countryInput.name = 'country';
-        countryInput.value = 'MEX';
-        form.appendChild(countryInput);
-      
-        // Add language
-        const langInput = document.createElement('input');
-        langInput.type = 'hidden';
-        langInput.name = 'language';
-        langInput.value = '0';
-        form.appendChild(langInput);
-      
-        // Add to DOM and submit
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+          const data = await response.json();
+          setEstafetaResult(data);
+        } catch (error) {
+          setEstafetaResult({
+            cost: 'No',
+            success: false,
+            error: 'Error al conectar con Estafeta'
+          });
+        } finally {
+          setLoadingEstafeta(false);
+        }
       };
 
+      const handleReport = async () => {
+        try {
+          const response = await fetch('/api/report-outdated', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              originZip,
+              destZip,
+              estafetaData: {
+                cost: estafetaResult?.cost,
+                ocurreForzoso: estafetaResult?.ocurreForzoso,
+                deliveryDays: estafetaResult?.estafetaDeliveryDays
+              },
+              timestamp: new Date().toISOString()
+            })
+          });
+          
+          setReportSubmitted(true);
+          setTimeout(() => setReportSubmitted(false), 3000); // Reset after 3 seconds
+        } catch (error) {
+          console.error("Report failed:", error);
+        }
+      };
+
+      
       const renderDeliveryDays = (frequency: DeliveryFrequency) => {
         const days = [
             { name: 'Lunes', key: 'lunes', short: 'L' },
@@ -267,6 +381,97 @@ function Cotizador() {
             </div>
         );
     };
+
+    const renderEstafetaDeliveryDays = (deliveryDays: { [key: string]: boolean } | undefined) => {
+        if (!deliveryDays) return null;
+      
+        const days = [
+          { name: 'Lunes', key: 'lunes' },
+          { name: 'Martes', key: 'martes' },
+          { name: 'Miercoles', key: 'miercoles' },
+          { name: 'Jueves', key: 'jueves' },
+          { name: 'Viernes', key: 'viernes' },
+          { name: 'Sábado', key: 's&#225;bado' },
+          { name: 'Domingo', key: 'domingo' }
+        ];
+      
+        return (
+          <div className="mt-4">
+            <h4 className="font-semibold mb-2">Días de entrega disponibles:</h4>
+            <div className="flex flex-wrap gap-2">
+              {days.map(day => (
+                <div 
+                  key={day.key}
+                  className={`px-3 py-1 rounded-full ${
+                    deliveryDays[day.key] 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    {deliveryDays[day.key] ? (
+                      <svg className="w-4 h-4 mr-1 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    )}
+                    {day.name}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      };
+
+      
+    const renderEstafetaResults = () => {
+        if (loadingEstafeta) {
+          return <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+            <p className="text-blue-600">Consultando precios de Estafeta...</p>
+          </div>;
+        }
+      
+        if (!estafetaResult) return null;
+      
+  // Log the delivery days data to verify its content
+        console.log('Estafeta Delivery Days:', estafetaResult.estafetaDeliveryDays);
+
+        return (
+          <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+            <h3 className="font-semibold text-lg mb-3 text-blue-600">Resultados de Estafeta</h3>
+            
+            {/* Cost Information */}
+            <div className="mb-3">
+              <p className="font-medium">Costo de Reexpedición:</p>
+              <p className={`text-lg ${
+                estafetaResult.cost === 'No' ? 'text-green-600' : 'text-blue-600'
+              }`}>
+                {estafetaResult.cost === 'No' ? 'Sin costo adicional' : estafetaResult.cost}
+              </p>
+            </div>
+      
+            {/* NEW: Ocurre Forzoso Information */}
+            <div>
+              <p className="font-medium">Ocurre Forzoso:</p>
+              <p className={`${
+                estafetaResult.ocurreForzoso === 'No' ? 'text-green-600' : 'text-yellow-600'
+              }`}>
+                {estafetaResult.ocurreForzoso || 'No disponible'}
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                {estafetaResult.ocurreForzoso === 'No' 
+                  ? 'No se requiere recolección en sucursal' 
+                  : 'Se requiere recolección en sucursal'}
+              </p>
+            </div>
+            {renderEstafetaDeliveryDays(estafetaResult.estafetaDeliveryDays)}
+          </div>
+        );
+      };
 
     // Function to fetch available shipping services
     const fetchQuote = () => {
@@ -379,6 +584,7 @@ function Cotizador() {
                         </div>
                          )}
                          {renderFrequencyInfo()}
+                         {renderEstafetaResults()}
                     </>
                 )}
                 
@@ -386,36 +592,67 @@ function Cotizador() {
 
             {/* Validate Button */}
             <div className="flex flex-wrap items-center gap-2 mt-2">
-    {/* Existing validation button */}
-    <button 
-        onClick={validateZipCodes} 
-        className={`text-white px-4 py-2 rounded ${originZip.length === 5 && destZip.length === 5 ? "bg-red-500" : "bg-gray-500 cursor-not-allowed"}`} 
-        disabled={!(originZip.length === 5 && destZip.length === 5)}
-    >
-        Validar Códigos Postales
-    </button>
+  {/* Existing validation button */}
+  <button 
+    onClick={validateZipCodes} 
+    className={`text-white px-4 py-2 rounded ${originZip.length === 5 && destZip.length === 5 ? "bg-red-500" : "bg-gray-500 cursor-not-allowed"}`} 
+    disabled={!(originZip.length === 5 && destZip.length === 5)}
+  >
+    Validar Códigos Postales
+  </button>
 
-    {/* External validation button - only shows after validation */}
-    {isValidated && destZip && (
-        <button
-            onClick={validateOnExternalSite}
-            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors flex items-center"
-        >
-            <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className="h-5 w-5 mr-2" 
-                viewBox="0 0 20 20" 
-                fill="currentColor"
-            >
-                <path 
-                    fillRule="evenodd" 
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" 
-                    clipRule="evenodd" 
-                />
-            </svg>
-            Verificar en Estafeta
-        </button>
-    )}
+  {/* External validation button - only shows after validation */}
+  {isValidated && destZip && (
+    <button
+      onClick={validateOnExternalSite}
+      disabled={loadingEstafeta}
+      className={`px-4 py-2 text-white rounded flex items-center ${
+        loadingEstafeta ? 'bg-purple-400' : 'bg-purple-600 hover:bg-purple-700'
+      } transition-colors`}
+    >
+      <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        className="h-5 w-5 mr-2" 
+        viewBox="0 0 20 20" 
+        fill="currentColor"
+      >
+        <path 
+          fillRule="evenodd" 
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" 
+          clipRule="evenodd" 
+        />
+      </svg>
+      {loadingEstafeta ? 'Consultando...' : 'Verificar en Estafeta'}
+    </button>
+  )}
+  {estafetaResult && (
+  <div className="mt-4">
+    <button
+      onClick={handleReport}
+      disabled={reportSubmitted}
+      className={`flex items-center px-4 py-2 rounded ${
+        reportSubmitted 
+          ? 'bg-green-100 text-green-800' 
+          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+      }`}
+    >
+      {reportSubmitted ? (
+        <>
+          <CheckIcon className="h-4 w-4 mr-2" />
+          Reporte Enviado!
+        </>
+      ) : (
+        <>
+          <FlagIcon className="h-4 w-4 mr-2" />
+          Reportar Información Desactualizada
+        </>
+      )}
+    </button>
+    <p className="text-xs text-gray-500 mt-1">
+      Verificaremos y actualizaremos la información de la base de datos para el codigo postal de destino.
+    </p>
+  </div>
+)}
 </div>
 
             {/* Package Details */}
