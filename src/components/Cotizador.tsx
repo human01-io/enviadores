@@ -324,7 +324,7 @@ const ArrowPathIcon = ({ className = "" }: { className?: string }) => (
 
           const apiUrl = import.meta.env.DEV
   ? `https://${location.hostname.replace('5173', '3000')}/api/report-outdated`
-  : 'https://enviadores.com.mx/report-data.php';
+  : 'https://enviadores.com.mx/api/report-data.php';
           console.log("Making API call with:", {
             originZip,
             destZip,
