@@ -8,14 +8,26 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   server: {
-    port: 5173, // Ensures the development server runs on a specific port
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        headers: {
+          Connection: 'keep-alive'
+        },
+        ws: true
+      }
+    }
   },
   resolve: {
     alias: {
-      '@': '/src', // Allows using '@' to refer to 'src' for cleaner imports
+      '@': '/src',
     },
   },
   define: {
-    'process.env': {}, // Ensures compatibility with libraries expecting process.env
+    'process.env': {},
   },
 });

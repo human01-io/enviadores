@@ -16,7 +16,7 @@ interface DeliveryFrequency {
     error?: string;
   }
 interface EstafetaResult {
-    cost: string;
+    reexpe: string;
     success: boolean;
     error?: string;
     ocurreForzoso?: string;
@@ -268,7 +268,7 @@ const ArrowPathIcon = ({ className = "" }: { className?: string }) => (
           setEstafetaResult(data);
         } catch (error) {
           setEstafetaResult({
-            cost: 'No',
+            reexpe: 'No',
             success: false,
             error: 'Error al conectar con Estafeta'
           });
@@ -277,27 +277,95 @@ const ArrowPathIcon = ({ className = "" }: { className?: string }) => (
         }
       };
 
+      const validateThreeTimes = () => {
+        // Create a form dynamically
+        const form = document.createElement('form');
+        form.action = 'https://frecuenciaentregasitecorecms.azurewebsites.net/';
+        form.method = 'POST';
+        form.target = '_blank'; // Open in new tab
+        form.style.display = 'none';
+      
+        // Add origin ZIP
+        const originInput = document.createElement('input');
+        originInput.type = 'hidden';
+        originInput.name = 'originZipCode';
+        originInput.value = originZip;
+        form.appendChild(originInput);
+      
+        // Add destination ZIP
+        const destInput = document.createElement('input');
+        destInput.type = 'hidden';
+        destInput.name = 'destinationZipCode';
+        destInput.value = destZip;
+        form.appendChild(destInput);
+      
+        // Add country
+        const countryInput = document.createElement('input');
+        countryInput.type = 'hidden';
+        countryInput.name = 'country';
+        countryInput.value = 'MEX';
+        form.appendChild(countryInput);
+      
+        // Add language
+        const langInput = document.createElement('input');
+        langInput.type = 'hidden';
+        langInput.name = 'language';
+        langInput.value = '0';
+        form.appendChild(langInput);
+      
+        // Add to DOM and submit
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+      };
+
       const handleReport = async () => {
         try {
-          const response = await fetch('/api/report-outdated', {
+
+          const apiUrl = import.meta.env.DEV
+  ? `https://${location.hostname.replace('5173', '3000')}/api/report-outdated`
+  : '/api/report-outdated';
+          console.log("Making API call with:", {
+            originZip,
+            destZip,
+            estafetaData: {
+              reexpe: estafetaResult?.reexpe,
+              ocurreForzoso: estafetaResult?.ocurreForzoso,
+              deliveryDays: estafetaResult?.estafetaDeliveryDays
+            }
+          });
+      
+          const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               originZip,
               destZip,
               estafetaData: {
-                cost: estafetaResult?.cost,
-                ocurreForzoso: estafetaResult?.ocurreForzoso,
-                deliveryDays: estafetaResult?.estafetaDeliveryDays
-              },
-              timestamp: new Date().toISOString()
+                reexpe: estafetaResult?.reexpe || 'N/A',
+                ocurreForzoso: estafetaResult?.ocurreForzoso || 'N/A',
+                deliveryDays: estafetaResult?.estafetaDeliveryDays || {}
+              }
             })
+            ,
+      credentials: 'include'
           });
+      
+          console.log("Response status:", response.status);
+          const responseBody = await response.text(); // First get as text
+          console.log("Raw response:", responseBody);
           
+          try {
+            const jsonData = JSON.parse(responseBody);
+            console.log("Parsed JSON:", jsonData);
+          } catch (e) {
+            console.error("Failed to parse JSON:", e);
+          }
+      
           setReportSubmitted(true);
-          setTimeout(() => setReportSubmitted(false), 3000); // Reset after 3 seconds
+          setTimeout(() => setReportSubmitted(false), 3000);
         } catch (error) {
-          console.error("Report failed:", error);
+          console.error("Full error:", error);
         }
       };
 
@@ -428,7 +496,7 @@ const ArrowPathIcon = ({ className = "" }: { className?: string }) => (
       };
 
       
-    const renderEstafetaResults = () => {
+      const renderEstafetaResults = () => {
         if (loadingEstafeta) {
           return <div className="mt-4 p-4 bg-blue-50 rounded-lg">
             <p className="text-blue-600">Consultando precios de Estafeta...</p>
@@ -437,20 +505,17 @@ const ArrowPathIcon = ({ className = "" }: { className?: string }) => (
       
         if (!estafetaResult) return null;
       
-  // Log the delivery days data to verify its content
-        console.log('Estafeta Delivery Days:', estafetaResult.estafetaDeliveryDays);
-
         return (
-          <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+          <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200 relative">
             <h3 className="font-semibold text-lg mb-3 text-blue-600">Resultados de Estafeta</h3>
             
             {/* Cost Information */}
             <div className="mb-3">
               <p className="font-medium">Costo de Reexpedición:</p>
               <p className={`text-lg ${
-                estafetaResult.cost === 'No' ? 'text-green-600' : 'text-blue-600'
+                estafetaResult.reexpe === 'No' ? 'text-green-600' : 'text-blue-600'
               }`}>
-                {estafetaResult.cost === 'No' ? 'Sin costo adicional' : estafetaResult.cost}
+                {estafetaResult.reexpe === 'No' ? 'Sin costo adicional' : estafetaResult.reexpe}
               </p>
             </div>
       
@@ -469,6 +534,14 @@ const ArrowPathIcon = ({ className = "" }: { className?: string }) => (
               </p>
             </div>
             {renderEstafetaDeliveryDays(estafetaResult.estafetaDeliveryDays)}
+            
+            {/* Added validation button */}
+            <button 
+              onClick={validateThreeTimes}
+              className="absolute bottom-2 right-2 text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              Validar tres veces
+            </button>
           </div>
         );
       };
