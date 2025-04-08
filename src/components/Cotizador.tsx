@@ -338,6 +338,7 @@ const ArrowPathIcon = ({ className = "" }: { className?: string }) => (
           const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({
               originZip,
               destZip,
@@ -347,8 +348,6 @@ const ArrowPathIcon = ({ className = "" }: { className?: string }) => (
                 deliveryDays: estafetaResult?.estafetaDeliveryDays || {}
               }
             })
-            ,
-      credentials: 'include'
           });
       
           console.log("Response status:", response.status);
