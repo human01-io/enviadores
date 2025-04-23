@@ -154,3 +154,199 @@
   background-color: var(--chip-color);
   color: #fff;
 }
+
+/* Account Modal Styles */
+.account-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.account-modal-container {
+  background-color: rgb(255, 255, 255);
+  border-radius: 0.5rem;
+  width: 100%;
+  max-width: 28rem;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.account-modal-header {
+  background-color: #2563eb; /* blue-600 */
+  padding: 1rem;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.account-modal-close-btn {
+  color: white;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.account-modal-body {
+  padding: 1.5rem;
+}
+
+.account-modal-user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.account-modal-icon-container {
+  background-color: #dbeafe; /* blue-100 */
+  padding: 0.5rem;
+  border-radius: 9999px;
+  display: flex;
+}
+
+.account-modal-actions {
+  border-top: 1px solid #e5e7eb; /* gray-200 */
+  padding-top: 1rem;
+}
+
+.account-modal-action-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  transition: background-color 0.2s;
+}
+
+.account-modal-action-btn:hover {
+  background-color: #f3f4f6; /* gray-100 */
+}
+
+.account-modal-footer {
+  border-top: 1px solid #e5e7eb; /* gray-200 */
+  padding: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.account-modal-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #dc2626; /* red-600 */
+  transition: color 0.2s;
+}
+
+.account-modal-logout-btn:hover {
+  color: #991b1b; /* red-800 */
+}
+
+/* Animation Classes */
+.modal-enter {
+  opacity: 0;
+  transform: scale(1.01);
+}
+
+.modal-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 200ms, transform 200ms;
+}
+
+.modal-exit {
+  opacity: 0.5;
+  transform: scale(1);
+}
+
+.modal-exit-active {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 200ms, transform 200ms;
+}
+
+/* User Creation Modal Specific Styles */
+.user-creation-modal {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.user-creation-modal-content {
+  background-color: white;
+  border-radius: 0.5rem;
+  width: 100%;
+  max-width: 32rem;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  transform-origin: center;
+}
+
+.user-creation-modal-header {
+  padding: 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.user-creation-modal-body {
+  padding: 1.5rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.user-creation-modal-footer {
+  padding: 1.25rem;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.slide-enter {
+  opacity: 0;
+  transform: translateX(20px);
+}
+.slide-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: all 300ms ease-out;
+}
+.slide-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+.slide-exit-active {
+  opacity: 0;
+  transform: translateX(-20px);
+  transition: all 300ms ease-in;
+}
+
+.fade-enter {
+  opacity: 0;
+}
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 300ms ease-out;
+}
+.fade-exit {
+  opacity: 1;
+}
+.fade-exit-active {
+  opacity: 0;
+  transition: opacity 300ms ease-in;
+}

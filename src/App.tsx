@@ -6,6 +6,12 @@ import { MapPin, Mail, Phone, MessageSquare } from 'lucide-react';
 import EnviadoresLogo from './assets/ENVIADORES-Logo.png';
 import './App.css';
 import Cotizador from "./components/Cotizador";
+import { ShipmentTracker } from './components/ShipmentTracker';
+import Login from './components/Login';
+import Dashboard from './components/Dashboard';
+import { PrivateRoute } from './components/PrivateRoute';
+import  Clientes from './components/Clientes'
+
 
 interface HeaderProps {
   activeSection: string;
@@ -119,28 +125,51 @@ function Header({ activeSection }: HeaderProps): JSX.Element {
   );
 }
 
+
+
 function App() {
-    // Check if we're on the cotizador subdomain
-const isCotizadorSubdomain = window.location.hostname.startsWith('cotizador.');
+  // Get the hostname (e.g., "login.enviadores.com.mx")
+  const hostname = window.location.hostname;
+  
+  // Check which subdomain we're on
+  const isCotizadorSubdomain = hostname.startsWith('cotizador.');
+  const isLoginSubdomain = hostname.startsWith('login.');
+  const isAppSubdomain = hostname.startsWith('app.');
   
   return (
     <Router>
       <Routes>
-        {/* Subdomain handling */}
         {isCotizadorSubdomain ? (
           <Route path="*" element={<Cotizador />} />
+        ) : isLoginSubdomain ? (
+          <Route path="*" element={<Login />} />
+        ) : isAppSubdomain ? (
+          <>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/clientes" element={<Clientes />} />
+          </>
         ) : (
           <>
-            {/* Regular routing */}
             <Route path="/" element={<MainPage />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/dashboard" element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            } />
+            <Route path="/dashboard/clientes" element={
+              <PrivateRoute>
+                <Clientes />
+              </PrivateRoute>
+            } />
             <Route path="/cotizador" element={<Cotizador />} />
+            <Route path="/tracking" element={<ShipmentTracker />} />
           </>
         )}
       </Routes>
     </Router>
   );
 }
-
 
 /**
  * MainPage Component
