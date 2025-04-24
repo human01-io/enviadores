@@ -22,7 +22,20 @@ const api = axios.create({
 
 
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('auth_token');
+  // Check localStorage first
+  let token = localStorage.getItem('auth_token');
+  
+  // Then check cookies if no token in localStorage
+  if (!token) {
+    const cookies = document.cookie.split(';')
+      .map(cookie => cookie.trim());
+    const tokenCookie = cookies
+      .find(cookie => cookie.startsWith('auth_token='));
+    if (tokenCookie) {
+      token = tokenCookie.split('=')[1];
+    }
+  }
+  
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
