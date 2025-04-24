@@ -10,7 +10,9 @@ import { ShipmentTracker } from './components/ShipmentTracker';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import { PrivateRoute } from './components/PrivateRoute';
-import  Clientes from './components/Clientes'
+import Clientes from './components/Clientes';
+import Destinos from './components/Destinos';
+import Envios from './components/Envios';
 
 
 interface HeaderProps {
@@ -145,8 +147,25 @@ function App() {
           <Route path="*" element={<Login />} />
         ) : isAppSubdomain ? (
           <>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/clientes" element={<Clientes />} />
+            <Route path="/" element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>} />
+            <Route path="/clientes" element={
+              <PrivateRoute>
+              <Clientes />
+            </PrivateRoute>
+            } />
+            <Route path="/destinos" element={
+              <PrivateRoute>
+              <Destinos />
+            </PrivateRoute>
+            } />
+            <Route path="/envios" element={
+              <PrivateRoute>
+              <Envios />
+            </PrivateRoute>
+            } />
           </>
         ) : (
           <>
@@ -160,6 +179,16 @@ function App() {
             <Route path="/dashboard/clientes" element={
               <PrivateRoute>
                 <Clientes />
+              </PrivateRoute>
+            } />
+            <Route path="/dashboard/destinos" element={
+              <PrivateRoute>
+                <Destinos />
+              </PrivateRoute>
+            } />
+            <Route path="/dashboard/envios" element={
+              <PrivateRoute>
+                <Envios />
               </PrivateRoute>
             } />
             <Route path="/cotizador" element={<Cotizador />} />

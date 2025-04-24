@@ -350,3 +350,50 @@
   opacity: 0;
   transition: opacity 300ms ease-in;
 }
+
+
+/* Container styling to properly handle sticky columns */
+.table-container {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+/* Make the table columns properly sized */
+.sticky-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+/* Styling for the sticky destinatario column */
+.sticky-destinatario {
+  position: sticky;
+  left: 0;
+  z-index: 2; /* Above most content but below sticky actions */
+  background-color: white; /* Prevents content from showing through */
+  /* Add shadow to indicate stickiness */
+  box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+}
+
+/* Styling for the sticky actions column */
+.sticky-actions {
+  position: sticky;
+  right: 0;
+  z-index: 3; /* Above all other content */
+  background-color: white;
+  /* Add shadow to indicate stickiness */
+  box-shadow: -2px 0 5px -2px rgba(0,0,0,0.1);
+}
+
+/* For the header cells in the sticky columns */
+.sticky-header {
+  background-color: #f9fafb; /* Matches the thead background color */
+}
+
+/* Hover state for sticky columns */
+tr:hover .sticky-destinatario,
+tr:hover .sticky-actions {
+  background-color: #f9fafb; /* Match your hover background color */
+}

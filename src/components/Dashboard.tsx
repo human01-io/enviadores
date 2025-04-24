@@ -10,6 +10,7 @@ import { AccountModal } from './AccountModal';
 import { CSSTransition } from 'react-transition-group';
 import { apiService } from '../services/apiService';
 import { ClientModal } from './ClientModal';
+import { DestinoModal } from './DestinoModal';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -22,6 +23,9 @@ export default function Dashboard() {
   const [showClientModal, setShowClientModal] = useState(false);
   const [showClientOptions, setShowClientOptions] = useState(false);
   const [clientOptionsPosition, setClientOptionsPosition] = useState({ top: 0, left: 0 });
+  const [showDestinoModal, setShowDestinoModal] = useState(false);
+  const [showDestinoOptions, setShowDestinoOptions] = useState(false);
+  const [destinoOptionsPosition, setDestinoOptionsPosition] = useState({ top: 0, left: 0 });
 
   const [userData, setUserData] = useState<{
     name: string;
@@ -83,12 +87,32 @@ export default function Dashboard() {
           // Handle receive guides action
           break;
         case "Historial de envíos":
-          navigate('/shipment-history');
+          const isProd = window.location.hostname === 'app.enviadores.com.mx';
+
+
+          if (isProd) {
+            window.location.href = 'https://app.enviadores.com.mx/envios';
+          } else {
+            navigate('/dashboard/envios');
+          }
           break;
         case "Destinatarios":
           navigate('/destinos');
           break;
       }
+    }
+  };
+
+  const handleDestinatariosClick = (item: string, event: React.MouseEvent) => {
+    if (item === "Destinatarios") {
+      const rect = event.currentTarget.getBoundingClientRect();
+      setDestinoOptionsPosition({
+        top: rect.bottom + window.scrollY + 5,
+        left: rect.left + window.scrollX
+      });
+      setShowDestinoOptions(prev => !prev);
+    } else {
+      // Handle other items
     }
   };
 
@@ -153,7 +177,15 @@ export default function Dashboard() {
               "Recibir guías externas",
               "Rastrear envío",
             ]}
-            onItemClick={handleClientItemClick}
+            onItemClick={(item, e) => {
+              if (item === "Destinatarios") {
+                handleDestinatariosClick(item, e);
+              } else if (item === "Clientes / Remitentes") {
+                handleClientItemClick(item, e);
+              } else {
+                handleClientItemClick(item, e)
+              }
+            }}
           />
           <DashboardCard
             title="Proveedores"
@@ -218,6 +250,47 @@ export default function Dashboard() {
         isOpen={showClientModal}
         onClose={() => setShowClientModal(false)}
         onClientSaved={handleClientSaved}
+      />
+
+      {/* Destino Options Dropdown */}
+      {showDestinoOptions && (
+        <div
+          className="fixed z-40 bg-white shadow-lg rounded-md py-1 w-48"
+          style={{
+            top: `${destinoOptionsPosition.top}px`,
+            left: `${destinoOptionsPosition.left}px`
+          }}
+        >
+          <button
+            onClick={() => {
+              setShowDestinoModal(true);
+              setShowDestinoOptions(false);
+            }}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100"
+          >
+            Crear o Modificar rápido
+          </button>
+          <button
+            onClick={() => {
+              navigate('/dashboard/destinos');
+              setShowDestinoOptions(false);
+            }}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100"
+          >
+            Ver todos los destinos
+          </button>
+        </div>
+      )}
+
+      {/* Destino Modal */}
+      <DestinoModal
+        isOpen={showDestinoModal}
+        onClose={() => setShowDestinoModal(false)}
+        onDestinoSaved={(destino) => {
+          // Handle success (show notification, etc.)
+          setSuccessMessage(`Destino ${destino.id ? 'actualizado' : 'creado'} correctamente`);
+          setShowDestinoModal(false);
+        }}
       />
 
       {/* User Creation Modal */}

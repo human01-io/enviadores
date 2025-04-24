@@ -124,6 +124,53 @@ export interface ServicioCotizado {
     updated_at?: string;              // Last update timestamp
     created_by?: number;              // ID of user who created the shipment (int)
   }
+
+  // Add this to your types.ts file
+
+  export interface Envio {
+    id: string;
+    cliente_id: string;
+    destino_id: string;
+    servicio_id: string;
+    guia: string | null;
+    estatus: EnvioEstatus;
+    peso_real: number;
+    peso_volumetrico: number;
+    peso_facturable: number;
+    largo: number | null;
+    ancho: number | null;
+    alto: number | null;
+    valor_declarado: number;
+    costo_seguro: number;
+    costo_envio: number;
+    iva: number;
+    total: number;
+    tipo_paquete: 'sobre' | 'paquete';
+    opcion_empaque: string | null;
+    requiere_recoleccion: boolean;
+    fecha_recoleccion: string | null;
+    fecha_entrega_estimada: string | null;
+    fecha_entrega_real: string | null;
+    incidencia: string | null;
+    evidencia_entrega: string | null;
+    notas: string | null;
+    created_at: string;
+    updated_at: string;
+    created_by: number | null;
+    metodo_creacion: 'interno' | 'externo' | 'manuable';
+    paqueteria_externa: string | null;
+    numero_guia_externa: string | null;
+    ruta_etiqueta: string | null;
+    uuid_manuable: string | null;
+    servicio_manuable: string | null;
+    costo_neto: number;
+  }
+
+  export interface EnvioWithDetails extends Envio {
+    cliente_nombre: string;
+    nombre_destinatario: string;
+    username?: string;
+  }
   
   /**
    * Shipment status enum type
@@ -197,7 +244,7 @@ export interface ServicioCotizado {
 export interface DashboardCardProps {
   title: string;
   items: string[];
-  onItemClick?: (item: string) => void;
+  onItemClick?: (item: string, event: React.MouseEvent) => void;
 }
 
 export type UserRole = 'admin_user' | 'customer_user';

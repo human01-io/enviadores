@@ -6,7 +6,9 @@ import {
   ShipmentDetails,
   EnvioResponse,
   ApiResponse,
-  UserProfile
+  UserProfile,
+  Envio,
+  EnvioWithDetails
   
 } from '../types';
 
@@ -46,7 +48,6 @@ export const apiService = {
         params: { q: query }
       });
 
-      // Handle the specific response format you shared
       if (response.data && response.data.success === true) {
         if (Array.isArray(response.data.data)) {
           return response.data.data;
@@ -54,16 +55,41 @@ export const apiService = {
         throw new Error('Invalid data format in response');
       }
       throw new Error(response.data.error || 'Search request failed');
-
     } catch (error) {
-      console.error('Search error:', {
-        request: error.config,
-        response: error.response?.data,
-        message: error.message
-      });
+      console.error('Search error:', error);
       throw new Error('Failed to search customers. Please try again.');
     }
   },
+
+// Advanced search with multiple criteria
+advancedSearchCustomers: async (filters: Record<string, string>, mode: 'all' | 'any' = 'all'): Promise<{ data: Cliente[]; total: number }> => {
+  try {
+    // Convert filters to a format that works with our backend
+    const queryParams = new URLSearchParams();
+    
+    // Add each filter to the params
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) queryParams.append(key, value);
+    });
+    
+    // Add advanced=true flag and search mode
+    queryParams.append('advanced', 'true');
+    queryParams.append('mode', mode);
+    
+    const response = await api.get(`/customers.php?${queryParams.toString()}`);
+    
+    if (response.data?.success) {
+      return {
+        data: response.data.data || [],
+        total: response.data.total || 0
+      };
+    }
+    throw new Error(response.data?.error || 'Advanced search request failed');
+  } catch (error) {
+    console.error('Advanced search error:', error);
+    throw new Error('Failed to search customers. Please try again.');
+  }
+},
 
   // Add this to your apiService.ts
   getCustomers: async (page: number, limit: number): Promise<{ data: Cliente[]; total: number }> => {
@@ -72,7 +98,6 @@ export const apiService = {
         params: { 
           page,
           limit
-          // Remove list_all parameter as it's not needed anymore
         }
       });
   
@@ -84,73 +109,195 @@ export const apiService = {
       }
       throw new Error(response.data?.error || 'Failed to fetch customers');
     } catch (error) {
-      console.error('Get customers error:', {
-        request: error.config,
-        response: error.response?.data,
-        message: error.message
-      });
+      console.error('Get customers error:', error);
       throw new Error('Failed to fetch customers. Please try again.');
     }
   },
 
-  createCustomer: async (customerData: Omit<Cliente, 'id'>): Promise<Cliente> => {
-    const response = await api.post('/customers.php', customerData);
+  toggleCustomerActive: async (customerId: string, active: boolean): Promise<void> => {
+    try {
+      await api.put(`/customers.php?id=${customerId}`, {
+        activo: active ? 1 : 0
+      });
+    } catch (error) {
+      console.error('Toggle customer active error:', error);
+      throw new Error('Failed to update customer status. Please try again.');
+    }
+  },
 
-    const responseId = response.data?.id ||
-        response.data?.data?.id ||
-        null;
-    return { ...customerData, id: responseId }; // Return full customer with ID
+
+  createCustomer: async (customerData: Omit<Cliente, 'id'>): Promise<Cliente> => {
+    try {
+      const response = await api.post('/customers.php', customerData);
+
+      const responseId = response.data?.id || response.data?.data?.id || null;
+      if (!responseId) {
+        throw new Error('Server did not return customer ID');
+      }
+      
+      return { ...customerData, id: responseId };
+    } catch (error) {
+      console.error('Create customer error:', error);
+      throw new Error('Failed to create customer. Please try again.');
+    }
   },
 
   updateCustomer: async (id: string, updates: Partial<Cliente>): Promise<void> => {
     try {
       await api.put(`/customers.php?id=${id}`, updates);
     } catch (error) {
-      handleApiError(error);
+      console.error('Update customer error:', error);
+      throw new Error('Failed to update customer. Please try again.');
+    }
+  },
+
+  getDestinations: async (page: number, limit: number, clienteId?: string): Promise<{ data: Destino[]; total: number }> => {
+    try {
+      const params: Record<string, string | number> = { 
+        page,
+        limit
+      };
+      
+      // Add cliente_id filter if provided
+      if (clienteId) {
+        params.cliente_id = clienteId;
+      }
+      
+      const response = await api.get('/destinations.php', { params });
+  
+      if (response.data?.success) {
+        return {
+          data: response.data.data || [],
+          total: response.data.total || 0
+        };
+      }
+      throw new Error(response.data?.error || 'Failed to fetch destinations');
+    } catch (error) {
+      console.error('Get destinations error:', error);
+      throw new Error('Failed to fetch destinations. Please try again.');
     }
   },
 
   // Destination endpoints
   getCustomerDestinations: async (customerId: string, query?: string): Promise<Destino[]> => {
     try {
-      const response = await api.get('/destinations.php', {
-        params: {
-          customer_id: customerId,
-          q: query
-        }
-      });
-      return response.data;
+      const params: Record<string, string> = { customer_id: customerId };
+      if (query) params.q = query;
+      
+      const response = await api.get('/destinations.php', { params });
+      
+      // Handle different response formats
+      if (Array.isArray(response.data)) {
+        return response.data;
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      } else {
+        console.warn('Unexpected response format from destinations API:', response.data);
+        return [];
+      }
     } catch (error) {
-      return handleApiError(error);
+      console.error('Get destinations error:', error);
+      throw new Error('Failed to fetch destinations. Please try again.');
     }
   },
 
-  createDestination: async (destinationData: Omit<Destino, 'id'>): Promise<Destino> => {
-    const payload = {
-      cliente_id: destinationData.cliente_id,
-      nombre_destinatario: destinationData.nombre_destinatario,
-      direccion: destinationData.direccion,
-      colonia: destinationData.colonia,
-      ciudad: destinationData.ciudad,
-      estado: destinationData.estado,
-      codigo_postal: destinationData.codigo_postal,
-      pais: destinationData.pais || 'México',
-      telefono: destinationData.telefono,
-      // Optional fields explicitly set to null
-      alias: destinationData.alias || null,
-      email: destinationData.email || null,
-      referencia: destinationData.referencia || null,
-      instrucciones_entrega: destinationData.instrucciones_entrega || null
-    };
-
+  advancedSearchDestinations: async (filters: Record<string, string>, mode: 'all' | 'any' = 'all'): Promise<{ data: Destino[]; total: number }> => {
     try {
-      const response = await api.post('/destinations.php', payload, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
+      // Convert filters to a format that works with our backend
+      const queryParams = new URLSearchParams();
+      
+      // Add each filter to the params
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value);
       });
+      
+      // Add advanced=true flag and search mode
+      queryParams.append('advanced', 'true');
+      queryParams.append('mode', mode);
+      
+      const response = await api.get(`/destinations.php?${queryParams.toString()}`);
+      
+      if (response.data?.success) {
+        return {
+          data: response.data.data || [],
+          total: response.data.total || 0
+        };
+      }
+      throw new Error(response.data?.error || 'Advanced search request failed');
+    } catch (error) {
+      console.error('Advanced search error:', error);
+      throw new Error('Failed to search destinations. Please try again.');
+    }
+  },
 
-      const responseId = response.data?.id ||
+  // Delete destination
+  deleteDestination: async (destinoId: string): Promise<void> => {
+    try {
+      const response = await api.delete(`/destinations.php?id=${destinoId}`);
+      
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Failed to delete destination');
+      }
+    } catch (error) {
+      console.error('Delete destination error:', error);
+      throw new Error(error.response?.data?.error || 'Failed to delete destination. Please try again.');
+    }
+  },
+  
+  // Add method to get last shipments for a destination
+  getDestinationLastShipments: async (destinoId: string): Promise<any[]> => {
+    try {
+      const response = await api.get('/shipments.php', {
+        params: { destino_id: destinoId, limit: 10 }
+      });
+      return response.data.data || [];
+    } catch (error) {
+      console.error('Get last shipments error:', error);
+      throw new Error('Failed to fetch last shipments. Please try again.');
+    }
+  },
+
+    // Get shipments by destination ID
+    getShipmentsByDestination: async (destinoId: string): Promise<Envio[]> => {
+      try {
+        const response = await api.get('/shipments.php', {
+          params: { destino_id: destinoId, limit: 10 } // Only get the last 10 shipments
+        });
+        
+        if (response.data?.success) {
+          return response.data.data || [];
+        }
+        
+        return [];
+      } catch (error) {
+        console.error('Get shipments by destination error:', error);
+        return []; // Return empty array instead of throwing
+      }
+    },
+
+  createDestination: async (destinationData: Omit<Destino, 'id'>): Promise<Destino> => {
+    try {
+      const payload = {
+        cliente_id: destinationData.cliente_id,
+        nombre_destinatario: destinationData.nombre_destinatario,
+        direccion: destinationData.direccion,
+        colonia: destinationData.colonia,
+        ciudad: destinationData.ciudad,
+        estado: destinationData.estado,
+        codigo_postal: destinationData.codigo_postal,
+        pais: destinationData.pais || 'México',
+        telefono: destinationData.telefono,
+        alias: destinationData.alias || null,
+        email: destinationData.email || null,
+        referencia: destinationData.referencia || null,
+        instrucciones_entrega: destinationData.instrucciones_entrega || null
+      };
+
+      const response = await api.post('/destinations.php', payload);
+
+      // Handle different response formats
+      const responseId = 
+        response.data?.id ||
         response.data?.data?.id ||
         null;
 
@@ -161,24 +308,113 @@ export const apiService = {
 
       return { ...destinationData, id: responseId };
     } catch (error) {
-      console.error('Full error context:', {
-        payload,
-        config: error.config,
-        response: error.response?.data,
-        stack: error.stack
-      });
-      throw new Error(`Destination creation failed: ${error.response?.data?.error || error.message}`);
+      console.error('Create destination error:', error);
+      throw new Error('Failed to create destination. Please try again.');
     }
   },
 
   updateDestination: async (id: string, updates: Partial<Destino>): Promise<void> => {
     try {
-      await api.put(`/destinations.php?id=${id}`, updates);
+      // Include the ID in the payload as required by the API
+      const payload = { id, ...updates };
+      await api.put('/destinations.php', payload);
     } catch (error) {
-      handleApiError(error);
+      console.error('Update destination error:', error);
+      throw new Error('Failed to update destination. Please try again.');
     }
   },
 
+    // Validation helpers
+    validateCustomer: (customer: Partial<Cliente>): customer is Cliente => {
+      const requiredFields: Array<keyof Cliente> = [
+        'nombre', 'telefono', 'calle', 'colonia',
+        'municipio', 'estado', 'codigo_postal'
+      ];
+      return requiredFields.every(field => customer[field]);
+    },
+  
+    validateDestination: (destination: Partial<Destino>): destination is Destino => {
+      const requiredFields: Array<keyof Destino> = [
+        'nombre_destinatario', 'direccion', 'colonia',
+        'ciudad', 'estado', 'codigo_postal', 'telefono'
+      ];
+      return requiredFields.every(field => destination[field]);
+    },
+
+
+  // Get paginated shipments with optional filters
+getShipments: async (
+  page: number, 
+  limit: number, 
+  options?: {
+    cliente_id?: string;
+    estatus?: string;
+    date_start?: string;
+    date_end?: string;
+    sort_by?: string;
+    sort_direction?: 'asc' | 'desc';
+  }
+): Promise<{ data: EnvioWithDetails[]; total: number }> => {
+  try {
+    const params: Record<string, string | number> = { 
+      page,
+      limit
+    };
+    
+    // Add optional filters if provided
+    if (options) {
+      Object.entries(options).forEach(([key, value]) => {
+        if (value) params[key] = value;
+      });
+    }
+    
+    const response = await api.get('/shipments.php', { params });
+
+    if (response.data?.success) {
+      return {
+        data: response.data.data || [],
+        total: response.data.total || 0
+      };
+    }
+    throw new Error(response.data?.error || 'Failed to fetch shipments');
+  } catch (error) {
+    console.error('Get shipments error:', error);
+    throw new Error('Failed to fetch shipments. Please try again.');
+  }
+},
+
+// Advanced search with multiple criteria
+advancedSearchShipments: async (
+  filters: Record<string, string>, 
+  mode: 'all' | 'any' = 'all'
+): Promise<{ data: EnvioWithDetails[]; total: number }> => {
+  try {
+    // Convert filters to a format that works with our backend
+    const queryParams = new URLSearchParams();
+    
+    // Add each filter to the params
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) queryParams.append(key, value);
+    });
+    
+    // Add advanced=true flag and search mode
+    queryParams.append('advanced', 'true');
+    queryParams.append('mode', mode);
+    
+    const response = await api.get(`/shipments.php?${queryParams.toString()}`);
+    
+    if (response.data?.success) {
+      return {
+        data: response.data.data || [],
+        total: response.data.total || 0
+      };
+    }
+    throw new Error(response.data?.error || 'Advanced search request failed');
+  } catch (error) {
+    console.error('Advanced search error:', error);
+    throw new Error('Failed to search shipments. Please try again.');
+  }
+},
   // Shipment endpoints
   createShipment: async (shipmentData: {
     cliente_id: string;
