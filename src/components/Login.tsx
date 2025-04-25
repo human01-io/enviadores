@@ -9,31 +9,68 @@ export default function Login() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   // Check if user is already authenticated
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+// Modified Login.tsx useEffect
+useEffect(() => {
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  // Check for explicit logout parameter
   if (urlParams.has('logout')) {
-    // Just logged out, don't check authentication or redirect
+    // Just logged out, ensure we don't redirect immediately
+    console.log("Logged out, staying on login page");
+    
+    // Clear any lingering authentication state
+    localStorage.clear();
+    sessionStorage.removeItem('logged_out_at');
+    
+    // Don't check authentication or redirect
     return;
   }
-
-    // First check localStorage
-    if (checkAuth()) {
-      redirectToDashboard();
+  
+  // Get the logout timestamp from sessionStorage
+  const logoutTimestamp = sessionStorage.getItem('logged_out_at');
+  if (logoutTimestamp) {
+    const logoutTime = parseInt(logoutTimestamp, 10);
+    const currentTime = Date.now();
+    
+    // If logged out within the last 3 seconds, stay on login page
+    if (currentTime - logoutTime < 3000) {
+      console.log("Recent logout detected, staying on login page");
       return;
     }
     
-    // Then check cookies
+    // Clear the logout timestamp
+    sessionStorage.removeItem('logged_out_at');
+  }
+
+  // First check localStorage
+  if (checkAuth()) {
+    redirectToDashboard();
+    return;
+  }
+  
+  // Then check cookies - but be more careful with them
+  try {
     const cookies = document.cookie.split(';').map(c => c.trim());
     const authCookie = cookies.find(c => c.startsWith('auth_token='));
     const roleCookie = cookies.find(c => c.startsWith('user_role='));
     
+    // Only redirect if we have both required cookies with valid values
     if (authCookie && roleCookie) {
-      // If auth cookies exist, store them in localStorage for consistency
+      const authToken = authCookie.split('=')[1];
       const role = roleCookie.split('=')[1];
-      localStorage.setItem('user_role', role);
-      redirectToDashboard();
+      
+      // Only proceed if cookies actually have values
+      if (authToken && role && authToken.length > 10) {
+        // If auth cookies exist, store them in localStorage for consistency
+        localStorage.setItem('user_role', role);
+        localStorage.setItem('auth_token', authToken);
+        redirectToDashboard();
+      }
     }
-  }, [navigate]);
+  } catch (error) {
+    console.error('Error checking auth cookies:', error);
+  }
+}, [navigate]);
   
   const redirectToDashboard = () => {
     if (import.meta.env.PROD) {
