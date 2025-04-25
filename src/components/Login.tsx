@@ -24,17 +24,7 @@ export default function Login() {
       return;
     }
     
-    // Then check cookies
-    const cookies = document.cookie.split(';').map(c => c.trim());
-    const authCookie = cookies.find(c => c.startsWith('auth_token='));
-    const roleCookie = cookies.find(c => c.startsWith('user_role='));
     
-    if (authCookie && roleCookie) {
-      // If auth cookies exist, store them in localStorage for consistency
-      const role = roleCookie.split('=')[1];
-      localStorage.setItem('user_role', role);
-      redirectToDashboard();
-    }
   }, [navigate]);
   
   const redirectToDashboard = () => {
