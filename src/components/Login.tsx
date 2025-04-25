@@ -28,17 +28,16 @@ export default function Login() {
   }, [navigate]);
   
   const redirectToDashboard = () => {
-    // Set a flag in sessionStorage to indicate we're in login->redirect flow
-    sessionStorage.setItem('login_redirect', 'true');
+   
     
     // Add a slight delay to ensure cookies are properly set
-    setTimeout(() => {
+    
       if (import.meta.env.PROD) {
         window.location.href = 'https://app.enviadores.com.mx';
       } else {
         navigate('/dashboard');
       }
-    }, 100);
+   
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
