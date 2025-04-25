@@ -92,9 +92,7 @@ export default function Dashboard() {
             navigate('/dashboard/envios');
           }
           break;
-        case "Destinatarios":
-          navigate('/destinos');
-          break;
+       
       }
     }
   };
@@ -268,8 +266,17 @@ export default function Dashboard() {
           </button>
           <button
             onClick={() => {
-              navigate('/dashboard/destinos');
-              setShowDestinoOptions(false);
+              // Check if we're in production (subdomain app.enviadores.com.mx)
+              const isProd = window.location.hostname === 'app.enviadores.com.mx';
+
+              // Navigate to the appropriate path based on environment
+              if (isProd) {
+                navigate('/destinos'); // In production, just use /clientes since we're already on app subdomain
+              } else {
+                navigate('/dashboard/destinos'); // In development, use the full path
+              }
+
+              setShowClientOptions(false);
             }}
             className="w-full text-left px-4 py-2 hover:bg-gray-100"
           >

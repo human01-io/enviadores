@@ -151,6 +151,10 @@ function App() {
               <PrivateRoute>
                 <Dashboard />
               </PrivateRoute>} />
+            <Route path="/cotizador" element={
+              <PrivateRoute>
+                <Cotizador />
+              </PrivateRoute>} />
             <Route path="/clientes" element={
               <PrivateRoute>
               <Clientes />

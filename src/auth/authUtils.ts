@@ -57,7 +57,7 @@ export const logout = async (): Promise<void> => {
     'login.enviadores.com.mx'
   ];
   
-  const paths = ['/', '/dashboard', '/login', ''];
+  const paths = ['/', '/dashboard', '/login',  ''];
   
   const cookiesToClear = ['auth_token', 'user_role'];
   
