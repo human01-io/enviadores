@@ -18,7 +18,14 @@ export const isAuthenticated = (): boolean => {
   return !!getCurrentRole();
 };
   
-  export const logout = (): void => {
-    localStorage.removeItem('user_role');
-    // Add any other cleanup here
-  };
+export const logout = (): void => {
+  // Clear localStorage
+  localStorage.removeItem('user_role');
+  localStorage.removeItem('auth_token');
+  
+  // Also clear cookies (important for cross-subdomain auth)
+  document.cookie = "auth_token=; domain=.enviadores.com.mx; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  document.cookie = "user_role=; domain=.enviadores.com.mx; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  
+  // Add any other cleanup here
+};

@@ -22,23 +22,28 @@ const api = axios.create({
 
 
 api.interceptors.request.use(config => {
-  // Check localStorage first
+  // First check localStorage
   let token = localStorage.getItem('auth_token');
   
-  // Then check cookies if no token in localStorage
+  // If not found in localStorage, check cookies
   if (!token) {
-    const cookies = document.cookie.split(';')
-      .map(cookie => cookie.trim());
-    const tokenCookie = cookies
-      .find(cookie => cookie.startsWith('auth_token='));
-    if (tokenCookie) {
-      token = tokenCookie.split('=')[1];
+    const cookies = document.cookie.split(';').map(c => c.trim());
+    const authCookie = cookies.find(c => c.startsWith('auth_token='));
+    if (authCookie) {
+      token = authCookie.split('=')[1];
+      // Optionally store in localStorage for consistency
+      localStorage.setItem('auth_token', token);
     }
   }
   
   if (token) {
+    // Make sure headers exists before setting Authorization
+    if (!config.headers) {
+      config.headers = {};
+    }
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
   return config;
 });
 // Error handling utility
@@ -506,22 +511,6 @@ advancedSearchShipments: async (
     }
   },
 
-  // Additional utility methods
-  validateCustomer: (customer: Partial<Cliente>): customer is Cliente => {
-    const requiredFields: Array<keyof Cliente> = [
-      'nombre', 'telefono', 'calle', 'colonia',
-      'municipio', 'estado', 'codigo_postal'
-    ];
-    return requiredFields.every(field => customer[field]);
-  },
-
-  validateDestination: (destination: Partial<Destino>): destination is Destino => {
-    const requiredFields: Array<keyof Destino> = [
-      'nombre_destinatario', 'direccion', 'colonia',
-      'ciudad', 'estado', 'codigo_postal', 'telefono'
-    ];
-    return requiredFields.every(field => destination[field]);
-  },
 
   searchUsers: async (query: string): Promise<any[]> => {
     try {

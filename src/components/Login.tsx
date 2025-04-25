@@ -10,14 +10,32 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   // Check if user is already authenticated
   useEffect(() => {
-    if (checkAuth()) {  // Using the renamed import
-      if (import.meta.env.PROD) {
-        window.location.href = 'https://app.enviadores.com.mx';
-      } else {
-        navigate('/dashboard');
-      }
+    // First check localStorage
+    if (checkAuth()) {
+      redirectToDashboard();
+      return;
+    }
+    
+    // Then check cookies
+    const cookies = document.cookie.split(';').map(c => c.trim());
+    const authCookie = cookies.find(c => c.startsWith('auth_token='));
+    const roleCookie = cookies.find(c => c.startsWith('user_role='));
+    
+    if (authCookie && roleCookie) {
+      // If auth cookies exist, store them in localStorage for consistency
+      const role = roleCookie.split('=')[1];
+      localStorage.setItem('user_role', role);
+      redirectToDashboard();
     }
   }, [navigate]);
+  
+  const redirectToDashboard = () => {
+    if (import.meta.env.PROD) {
+      window.location.href = 'https://app.enviadores.com.mx';
+    } else {
+      navigate('/dashboard');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
