@@ -13,8 +13,9 @@ import {
 } from '../types';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://enviadores.com.mx/api',
+  baseURL: 'https://enviadores.com.mx/api',
   timeout: 10000,
+  withCredentials: true, // This is crucial for sending cookies cross-domain
   headers: {
     'Content-Type': 'application/json',
   }
@@ -22,25 +23,23 @@ const api = axios.create({
 
 
 api.interceptors.request.use(config => {
-  // First check localStorage
-  let token = localStorage.getItem('auth_token');
-  
-  // If not found in localStorage, check cookies
-  if (!token) {
-    const cookies = document.cookie.split(';').map(c => c.trim());
-    const authCookie = cookies.find(c => c.startsWith('auth_token='));
-    if (authCookie) {
-      token = authCookie.split('=')[1];
-      // Optionally store in localStorage for consistency
-      localStorage.setItem('auth_token', token);
-    }
+  if (!config.headers) {
+    config.headers = {};
   }
   
+  // First try to get token from cookies
+  const cookies = document.cookie.split(';').map(c => c.trim());
+  const authCookie = cookies.find(c => c.startsWith('auth_token='));
+  
+  if (authCookie) {
+    const token = authCookie.split('=')[1];
+    config.headers.Authorization = `Bearer ${token}`;
+    return config;
+  }
+  
+  // If no cookie, try localStorage
+  const token = localStorage.getItem('auth_token');
   if (token) {
-    // Make sure headers exists before setting Authorization
-    if (!config.headers) {
-      config.headers = {};
-    }
     config.headers.Authorization = `Bearer ${token}`;
   }
   
