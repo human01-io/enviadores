@@ -15,6 +15,9 @@ export const getCurrentRole = (): string | null => {
 };
 
 export const isAuthenticated = (): boolean => {
+  console.log("Checking auth on:", window.location.href);
+console.log("Document cookie:", document.cookie);
+console.log("localStorage user_role:", localStorage.getItem('user_role'));
   return !!getCurrentRole();
 };
   
