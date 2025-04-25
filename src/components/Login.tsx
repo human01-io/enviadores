@@ -8,76 +8,60 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  // Check if user is already authenticated
-// Modified Login.tsx useEffect
-useEffect(() => {
-  const urlParams = new URLSearchParams(window.location.search);
+  const [isLoginSuccess, setIsLoginSuccess] = useState(false);
   
-  // Check for explicit logout parameter
-  if (urlParams.has('logout')) {
-    // Just logged out, ensure we don't redirect immediately
-    console.log("Logged out, staying on login page");
-    
-    // Clear any lingering authentication state
-    localStorage.clear();
+  // Check if user is already authenticated
+  useEffect(() => {
+    // Clear any lingering logout state
     sessionStorage.removeItem('logged_out_at');
     
-    // Don't check authentication or redirect
-    return;
-  }
-  
-  // Get the logout timestamp from sessionStorage
-  const logoutTimestamp = sessionStorage.getItem('logged_out_at');
-  if (logoutTimestamp) {
-    const logoutTime = parseInt(logoutTimestamp, 10);
-    const currentTime = Date.now();
-    
-    // If logged out within the last 3 seconds, stay on login page
-    if (currentTime - logoutTime < 3000) {
-      console.log("Recent logout detected, staying on login page");
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('logout')) {
+      // Just logged out, don't check authentication or redirect
+      console.log("Logout parameter detected, staying on login page");
+      return;
+    }
+
+    // First check localStorage
+    if (checkAuth()) {
+      redirectToDashboard();
       return;
     }
     
-    // Clear the logout timestamp
-    sessionStorage.removeItem('logged_out_at');
-  }
-
-  // First check localStorage
-  if (checkAuth()) {
-    redirectToDashboard();
-    return;
-  }
-  
-  // Then check cookies - but be more careful with them
-  try {
-    const cookies = document.cookie.split(';').map(c => c.trim());
-    const authCookie = cookies.find(c => c.startsWith('auth_token='));
-    const roleCookie = cookies.find(c => c.startsWith('user_role='));
+    // Then check cookies
+    const cookies = document.cookie.split(';')
+      .map(c => c.trim());
+    const authCookie = cookies
+      .find(cookie => cookie.startsWith('auth_token='));
+    const roleCookie = cookies
+      .find(cookie => cookie.startsWith('user_role='));
     
-    // Only redirect if we have both required cookies with valid values
+    // Only redirect if we have both cookies with valid values
     if (authCookie && roleCookie) {
       const authToken = authCookie.split('=')[1];
       const role = roleCookie.split('=')[1];
       
-      // Only proceed if cookies actually have values
-      if (authToken && role && authToken.length > 10) {
+      if (authToken && authToken.length > 10) {
         // If auth cookies exist, store them in localStorage for consistency
         localStorage.setItem('user_role', role);
         localStorage.setItem('auth_token', authToken);
         redirectToDashboard();
       }
     }
-  } catch (error) {
-    console.error('Error checking auth cookies:', error);
-  }
-}, [navigate]);
+  }, [navigate]);
   
   const redirectToDashboard = () => {
-    if (import.meta.env.PROD) {
-      window.location.href = 'https://app.enviadores.com.mx';
-    } else {
-      navigate('/dashboard');
-    }
+    // Set a flag in sessionStorage to indicate we're in login->redirect flow
+    sessionStorage.setItem('login_redirect', 'true');
+    
+    // Add a slight delay to ensure cookies are properly set
+    setTimeout(() => {
+      if (import.meta.env.PROD) {
+        window.location.href = 'https://app.enviadores.com.mx';
+      } else {
+        navigate('/dashboard');
+      }
+    }, 100);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -129,14 +113,22 @@ useEffect(() => {
         }
       }
   
-      // Redirect
-      if (import.meta.env.PROD) {
-        window.location.href = 'https://app.enviadores.com.mx';
-      } else {
-        navigate('/dashboard');
-      }
+      // Mark login as successful
+      setIsLoginSuccess(true);
+      
+      // Add a short delay before redirect to ensure cookies are set
+      setTimeout(() => {
+        // Redirect
+        if (import.meta.env.PROD) {
+          window.location.href = 'https://app.enviadores.com.mx';
+        } else {
+          navigate('/dashboard');
+        }
+      }, 200);
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
+      setIsLoginSuccess(false);
     } finally {
       setIsLoading(false); // Reset loading state
     }
@@ -147,6 +139,7 @@ useEffect(() => {
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded shadow-md w-full max-w-md">
         <h1 className="text-2xl font-bold mb-6 text-center">Centro de Envíos</h1>
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+        {isLoginSuccess && <p className="text-green-500 text-sm mb-4">Login successful, redirecting...</p>}
         <div className="mb-4">
           <label htmlFor="email" className="block text-sm font-medium mb-1">
             Correo electrónico
@@ -157,7 +150,7 @@ useEffect(() => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="w-full p-2 border rounded"
-            disabled={isLoading}
+            disabled={isLoading || isLoginSuccess}
             required
             autoComplete="username"
           />
@@ -172,17 +165,17 @@ useEffect(() => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full p-2 border rounded"
-            disabled={isLoading}
+            disabled={isLoading || isLoginSuccess}
             required
             autoComplete="current-password"
           />
         </div>
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition-colors"
-          disabled={isLoading}
+          className={`w-full ${isLoginSuccess ? 'bg-green-600' : 'bg-blue-600'} text-white p-2 rounded hover:bg-blue-700 transition-colors`}
+          disabled={isLoading || isLoginSuccess}
         >
-          Iniciar sesión
+          {isLoading ? 'Procesando...' : isLoginSuccess ? 'Redirigiendo...' : 'Iniciar sesión'}
         </button>
       </form>
     </div>

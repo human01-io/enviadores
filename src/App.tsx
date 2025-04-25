@@ -1,7 +1,7 @@
 // run this first npm install react-router-dom
 
 import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { MapPin, Mail, Phone, MessageSquare } from 'lucide-react';
 import EnviadoresLogo from './assets/ENVIADORES-Logo.png';
 import './App.css';
@@ -13,11 +13,13 @@ import { PrivateRoute } from './components/PrivateRoute';
 import Clientes from './components/Clientes';
 import Destinos from './components/Destinos';
 import Envios from './components/Envios';
+import { ProtectedRouteProps } from './types';
 
 
 interface HeaderProps {
   activeSection: string;
 }
+
 
 /**
  * Renders your keywords as a simple "chip" layout.
@@ -138,34 +140,53 @@ function App() {
   const isLoginSubdomain = hostname.startsWith('login.');
   const isAppSubdomain = hostname.startsWith('app.');
   
+  // Anti-loop protection: Check if we just logged in and were redirected
+  const [isJustRedirected, setIsJustRedirected] = useState(false);
+
+  useEffect(() => {
+    // Check for login redirect flag
+    const isLoginRedirect = sessionStorage.getItem('login_redirect') === 'true';
+    if (isLoginRedirect) {
+      setIsJustRedirected(true);
+      // Clear the flag to prevent future checks in this session
+      sessionStorage.removeItem('login_redirect');
+    }
+  }, []);
+
   return (
     <Router>
       <Routes>
         {isCotizadorSubdomain ? (
           <Route path="*" element={<Cotizador />} />
         ) : isLoginSubdomain ? (
-          <Route path="*" element={<Login />} />
+          <>
+            <Route path="/" element={<Login />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </>
         ) : isAppSubdomain ? (
           <>
             <Route path="/" element={
-              <PrivateRoute>
+              <ProtectedRoute isJustRedirected={isJustRedirected}>
                 <Dashboard />
-              </PrivateRoute>} />
+              </ProtectedRoute>
+            } />
             <Route path="/clientes" element={
-              <PrivateRoute>
-              <Clientes />
-            </PrivateRoute>
+              <ProtectedRoute>
+                <Clientes />
+              </ProtectedRoute>
             } />
             <Route path="/destinos" element={
-              <PrivateRoute>
-              <Destinos />
-            </PrivateRoute>
+              <ProtectedRoute>
+                <Destinos />
+              </ProtectedRoute>
             } />
             <Route path="/envios" element={
-              <PrivateRoute>
-              <Envios />
-            </PrivateRoute>
+              <ProtectedRoute>
+                <Envios />
+              </ProtectedRoute>
             } />
+            {/* Add fallback for any other paths on app subdomain */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </>
         ) : (
           <>
@@ -199,6 +220,97 @@ function App() {
     </Router>
   );
 }
+
+// New ProtectedRoute component with protection against redirect loops
+function ProtectedRoute({ children, isJustRedirected = false, requiredRole }: ProtectedRouteProps) {
+  // Check if we're coming from a login redirect
+  const [isAuthenticated, setIsAuthenticated] = useState(isJustRedirected);
+  const [isLoading, setIsLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // If we're marked as just redirected, trust the authentication
+    if (isJustRedirected) {
+      setIsAuthenticated(true);
+      setIsLoading(false);
+      return;
+    }
+    
+    // Function to check authentication
+    const checkAuthentication = () => {
+      // Check localStorage first
+      const storedRole = localStorage.getItem('user_role');
+      const authToken = localStorage.getItem('auth_token');
+      
+      if (storedRole && authToken) {
+        setIsAuthenticated(true);
+        setUserRole(storedRole);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Then check cookies
+      const cookies = document.cookie.split(';').map(c => c.trim());
+      const authCookie = cookies.find(c => c.startsWith('auth_token='));
+      const roleCookie = cookies.find(c => c.startsWith('user_role='));
+      
+      if (authCookie && roleCookie) {
+        // If found in cookies, synchronize with localStorage
+        const role = roleCookie.split('=')[1];
+        localStorage.setItem('user_role', role);
+        setUserRole(role);
+        
+        // Also try to get token if possible
+        const token = authCookie.split('=')[1];
+        if (token) localStorage.setItem('auth_token', token);
+        
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
+      }
+      
+      setIsLoading(false);
+    };
+    
+    // Short delay to ensure cookies are fully processed
+    const timer = setTimeout(() => {
+      checkAuthentication();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [isJustRedirected]);
+  
+  if (isLoading) {
+    // Show loading state
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
+    // Prevent redirecting immediately if we just came from login
+    if (window.location.hostname.startsWith('app.')) {
+      // Set a flag to prevent loops
+      sessionStorage.setItem('auth_redirect', 'true');
+      // Redirect to login subdomain
+      window.location.href = 'https://login.enviadores.com.mx';
+      return null;
+    } else {
+      return <Navigate to="/login" replace />;
+    }
+  }
+  
+  // Check for role-based access if a role is required
+  if (requiredRole && userRole !== requiredRole) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+  
+  return <>{children}</>;
+}
+
+
 
 /**
  * MainPage Component

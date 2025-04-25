@@ -286,3 +286,16 @@ export interface UserProfile {
   avatar?: string;
   last_login?: string;
 }
+
+// For the ProtectedRoute component
+export interface ProtectedRouteProps {
+  children: React.ReactNode;
+  isJustRedirected?: boolean;
+  requiredRole?: string;
+}
+
+// If you're modifying the existing PrivateRoute component
+export interface PrivateRouteProps {
+  children: React.ReactNode;
+  requiredRole?: string;
+}
