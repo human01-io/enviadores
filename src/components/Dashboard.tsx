@@ -58,13 +58,9 @@ export default function Dashboard() {
     fetchUserData();
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    if (import.meta.env.PROD) {
-      window.location.href = 'https://login.enviadores.com.mx';
-    } else {
-      navigate('/login');
-    }
+  const handleLogout = async () => {
+    await logout(); // Call the logout function and wait for it to complete
+    // No need to navigate here as the logout function handles it
   };
 
   const handleClientItemClick = (item: string, event: React.MouseEvent) => {

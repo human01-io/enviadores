@@ -10,6 +10,12 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   // Check if user is already authenticated
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('logout')) {
+    // Just logged out, don't check authentication or redirect
+    return;
+  }
+
     // First check localStorage
     if (checkAuth()) {
       redirectToDashboard();
