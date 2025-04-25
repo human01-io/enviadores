@@ -11,6 +11,7 @@ import { CSSTransition } from 'react-transition-group';
 import { apiService } from '../services/apiService';
 import { ClientModal } from './ClientModal';
 import { DestinoModal } from './DestinoModal';
+import logo from '../assets/logo.svg';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -124,7 +125,7 @@ export default function Dashboard() {
       {/* Header */}
       <header className="bg-white shadow-md p-4 flex justify-between items-center border-b">
         <div className="flex items-center gap-4">
-          <img src="/logo.svg" alt="Logo" className="w-8 h-8" />
+          <img src={logo} alt="Logo" className="w-8 h-8" />
           <h1 className="text-xl font-bold">
             Centro de Envíos
             <span className="text-sm font-light ml-2">
