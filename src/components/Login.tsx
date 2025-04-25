@@ -12,16 +12,12 @@ export default function Login() {
   
   // Check if user is already authenticated
   useEffect(() => {
-    // Clear any lingering logout state
-    sessionStorage.removeItem('logged_out_at');
-    
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('logout')) {
       // Just logged out, don't check authentication or redirect
-      console.log("Logout parameter detected, staying on login page");
       return;
     }
-
+  
     // First check localStorage
     if (checkAuth()) {
       redirectToDashboard();
@@ -29,24 +25,15 @@ export default function Login() {
     }
     
     // Then check cookies
-    const cookies = document.cookie.split(';')
-      .map(c => c.trim());
-    const authCookie = cookies
-      .find(cookie => cookie.startsWith('auth_token='));
-    const roleCookie = cookies
-      .find(cookie => cookie.startsWith('user_role='));
+    const cookies = document.cookie.split(';').map(c => c.trim());
+    const authCookie = cookies.find(c => c.startsWith('auth_token='));
+    const roleCookie = cookies.find(c => c.startsWith('user_role='));
     
-    // Only redirect if we have both cookies with valid values
     if (authCookie && roleCookie) {
-      const authToken = authCookie.split('=')[1];
+      // If auth cookies exist, store them in localStorage for consistency
       const role = roleCookie.split('=')[1];
-      
-      if (authToken && authToken.length > 10) {
-        // If auth cookies exist, store them in localStorage for consistency
-        localStorage.setItem('user_role', role);
-        localStorage.setItem('auth_token', authToken);
-        redirectToDashboard();
-      }
+      localStorage.setItem('user_role', role);
+      redirectToDashboard();
     }
   }, [navigate]);
   
