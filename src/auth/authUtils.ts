@@ -16,8 +16,15 @@ export const getCurrentRole = (): string | null => {
 
 export const isAuthenticated = (): boolean => {
   console.log("Checking auth on:", window.location.href);
-console.log("Document cookie:", document.cookie);
-console.log("localStorage user_role:", localStorage.getItem('user_role'));
+  console.log("Document cookie:", document.cookie);
+  console.log("localStorage user_role:", localStorage.getItem('user_role'));
+  
+  // If URL has logout parameter, ALWAYS return false
+  if (window.location.search.includes('logout')) {
+    console.log("Logout parameter detected, returning false");
+    return false;
+  }
+  
   return !!getCurrentRole();
 };
   
@@ -38,11 +45,32 @@ export const logout = async (): Promise<void> => {
   localStorage.removeItem('auth_token');
   localStorage.removeItem('username');
   localStorage.removeItem('user_id');
+  localStorage.removeItem('auth_token_expiry');
   // Add any other items you might have stored
   
   // Clear cookies on client side as a backup
-  document.cookie = "auth_token=; domain=.enviadores.com.mx; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-  document.cookie = "user_role=; domain=.enviadores.com.mx; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  // Try multiple domain variations to ensure all cookies are cleared
+  const domains = [
+    '.enviadores.com.mx',  // Main domain with dot prefix
+    'enviadores.com.mx',   // Main domain without dot
+    'app.enviadores.com.mx',
+    'login.enviadores.com.mx'
+  ];
+  
+  const paths = ['/', '/dashboard', '/login', ''];
+  
+  const cookiesToClear = ['auth_token', 'user_role'];
+  
+  // Thorough cookie clearing
+  for (const domain of domains) {
+    for (const path of paths) {
+      for (const cookieName of cookiesToClear) {
+        document.cookie = `${cookieName}=; domain=${domain}; path=${path}; expires=Thu, 01 Jan 1970 00:00:00 GMT; secure; samesite=strict`;
+      }
+    }
+  }
+  
+  console.log("After logout - cookies:", document.cookie);
   
   // Perform a clean redirect to login page
   if (import.meta.env.PROD) {

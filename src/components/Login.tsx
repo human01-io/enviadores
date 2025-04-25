@@ -13,31 +13,39 @@ export default function Login() {
   // Check if user is already authenticated
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('logout')) {
-      // Just logged out, don't check authentication or redirect
+    const isLogout = urlParams.has('logout');
+    
+    // If we just logged out, don't check authentication or redirect
+    if (isLogout) {
+      // Force clear any possible remaining cookies or localStorage items
+      // This is a safety measure to ensure clean state after logout
+      localStorage.removeItem('user_role');
+      localStorage.removeItem('auth_token');
+      document.cookie = "auth_token=; domain=.enviadores.com.mx; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "user_role=; domain=.enviadores.com.mx; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      console.log("Login - logout param detected, skipping auth check");
       return;
     }
   
-    // First check localStorage
+    // Check if the user is authenticated
+    console.log("Login - checking auth without logout param");
     if (checkAuth()) {
+      console.log("Login - user is authenticated, redirecting to dashboard");
       redirectToDashboard();
-      return;
+    } else {
+      console.log("Login - user is not authenticated, staying on login page");
     }
-    
-    
   }, [navigate]);
   
   const redirectToDashboard = () => {
-   
-    
     // Add a slight delay to ensure cookies are properly set
-    
+    setTimeout(() => {
       if (import.meta.env.PROD) {
         window.location.href = 'https://app.enviadores.com.mx';
       } else {
         navigate('/dashboard');
       }
-   
+    }, 200);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
