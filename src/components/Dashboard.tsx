@@ -202,7 +202,12 @@ export default function Dashboard() {
               if (item === "Crear nuevo") {
                 setShowUserModal(true);
               } else if (item === "Administrar") {
-                navigate('/user-management');
+                const isProd = window.location.hostname === 'app.enviadores.com.mx';
+                if (isProd) {
+                  navigate('/usuarios'); // In production, just use /clientes since we're already on app subdomain
+                } else {
+                  navigate('/dashboard/usuarios'); // In development, use the full path
+                }
               }
             }}
           />

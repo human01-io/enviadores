@@ -44,6 +44,11 @@ export function UserCreationModal({ onClose, onCreate }: UserCreationModalProps)
       return;
     }
 
+    if (userData.password !== userData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
     try {
       setIsLoading(true);
       const response = await apiService.createUser({
@@ -51,8 +56,8 @@ export function UserCreationModal({ onClose, onCreate }: UserCreationModalProps)
         username: selectedCustomer.email.split('@')[0],
         email: selectedCustomer.email,
         phone: selectedCustomer.telefono,
-        password: generateTempPassword(),
-        role: 'customer_user'
+        password: userData.password,
+        role: userData.role
       });
       onCreate(response.id);
     } catch (err) {
@@ -83,10 +88,6 @@ export function UserCreationModal({ onClose, onCreate }: UserCreationModalProps)
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const generateTempPassword = () => {
-    return Math.random().toString(36).slice(-8);
   };
 
   return (
@@ -158,7 +159,38 @@ export function UserCreationModal({ onClose, onCreate }: UserCreationModalProps)
                 <p>{selectedCustomer.email}</p>
                 <p>{selectedCustomer.telefono}</p>
               </div>
+              
             )}
+
+<div>
+              <label className="block text-sm font-medium mb-1">Contraseña</label>
+              <input
+                type="password"
+                value={userData.password}
+                onChange={(e) => setUserData({...userData, password: e.target.value})}
+                className="w-full p-2 border rounded"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Confirmar Contraseña</label>
+              <input
+                type="password"
+                value={userData.confirmPassword}
+                onChange={(e) => setUserData({...userData, confirmPassword: e.target.value})}
+                className="w-full p-2 border rounded"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Rol</label>
+              <select
+                value={userData.role}
+                onChange={(e) => setUserData({...userData, role: e.target.value as any})}
+                className="w-full p-2 border rounded"
+              >
+                <option value="customer_user">Cliente</option>
+                <option value="admin_user">Administrador</option>
+              </select>
+            </div>
 
             <div className="flex justify-end gap-2 mt-4">
               <button

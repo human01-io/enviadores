@@ -569,6 +569,177 @@ advancedSearchShipments: async (
     }
   },
 
+  getUsers: async (page: number, limit: number): Promise<{ data: User[]; total: number }> => {
+    try {
+      const response = await api.get('/users.php', {
+        params: { 
+          page,
+          limit
+        }
+      });
+  
+      if (response.data?.success) {
+        return {
+          data: response.data.data || [],
+          total: response.data.total || 0
+        };
+      }
+      throw new Error(response.data?.error || 'Failed to fetch users');
+    } catch (error) {
+      console.error('Get users error:', error);
+      throw new Error('Failed to fetch users. Please try again.');
+    }
+  },
+  
+  advancedSearchUsers: async (filters: Record<string, string>, mode: 'all' | 'any' = 'all'): Promise<{ data: User[]; total: number }> => {
+    try {
+      // Convert filters to a format that works with our backend
+      const queryParams = new URLSearchParams();
+      
+      // Add each filter to the params
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value);
+      });
+      
+      // Add advanced=true flag and search mode
+      queryParams.append('advanced', 'true');
+      queryParams.append('mode', mode);
+      
+      const response = await api.get(`/users.php?${queryParams.toString()}`);
+      
+      if (response.data?.success) {
+        return {
+          data: response.data.data || [],
+          total: response.data.total || 0
+        };
+      }
+      throw new Error(response.data?.error || 'Advanced search request failed');
+    } catch (error) {
+      console.error('Advanced search error:', error);
+      throw new Error('Failed to search users. Please try again.');
+    }
+  },
+  
+  updateUser: async (id: string, updates: Record<string, any>): Promise<void> => {
+    try {
+      await api.put(`/users.php?id=${id}`, updates);
+    } catch (error) {
+      console.error('Update user error:', error);
+      throw new Error('Failed to update user. Please try again.');
+    }
+  },
+  
+  getUserActivity: async (userId: string): Promise<UserToken[]> => {
+    try {
+      const response = await api.get(`/user-tokens.php`, {
+        params: { user_id: userId }
+      });
+  
+      if (response.data?.success) {
+        return response.data.data || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Get user activity error:', error);
+      throw new Error('Failed to fetch user activity. Please try again.');
+    }
+  },
+  
+  invalidateUserToken: async (tokenId: number): Promise<void> => {
+    try {
+      await api.put(`/user-tokens.php?id=${tokenId}`, {
+        is_valid: 0
+      });
+    } catch (error) {
+      console.error('Invalidate token error:', error);
+      throw new Error('Failed to invalidate token. Please try again.');
+    }
+  },
+  
+  invalidateAllUserTokens: async (userId: string): Promise<void> => {
+    try {
+      await api.put(`/user-tokens.php`, {
+        user_id: userId,
+        is_valid: 0
+      });
+    } catch (error) {
+      console.error('Invalidate all tokens error:', error);
+      throw new Error('Failed to invalidate all tokens. Please try again.');
+    }
+  },
+  
+  resetUserPassword: async (userId: string, newPassword: string): Promise<void> => {
+    try {
+      await api.put(`/users.php?id=${userId}`, {
+        password: newPassword,
+        password_reset: true
+      });
+    } catch (error) {
+      console.error('Reset password error:', error);
+      throw new Error('Failed to reset password. Please try again.');
+    }
+  },
+
+  /**
+ * Gets user preferences from the server
+ */
+getUserPreferences: async (): Promise<{
+  theme: 'light' | 'dark' | 'system';
+  language: 'es' | 'en';
+  emailNotifications: boolean;
+}> => {
+  try {
+    const response = await api.get('/user-preferences.php');
+    
+    if (response.data?.success) {
+      return {
+        theme: response.data.data.theme || 'system',
+        language: response.data.data.language || 'es',
+        emailNotifications: response.data.data.email_notifications === 1
+      };
+    }
+    
+    throw new Error(response.data?.error || 'Failed to fetch preferences');
+  } catch (error) {
+    console.error('Error fetching user preferences:', error);
+    
+    // Return defaults if fetching fails
+    return {
+      theme: 'light',
+      language: 'es',
+      emailNotifications: true
+    };
+  }
+},
+
+/**
+ * Saves user preferences to the server
+ */
+saveUserPreferences: async (preferences: {
+  theme: 'light' | 'dark' | 'system';
+  language: 'es' | 'en';
+  emailNotifications: boolean;
+}): Promise<void> => {
+  try {
+    // Convert to format expected by the server
+    const payload = {
+      theme: preferences.theme,
+      language: preferences.language,
+      email_notifications: preferences.emailNotifications ? 1 : 0
+    };
+    
+    const response = await api.post('/user-preferences.php', payload);
+    
+    if (!response.data?.success) {
+      throw new Error(response.data?.error || 'Failed to save preferences');
+    }
+  } catch (error) {
+    console.error('Error saving user preferences:', error);
+    throw new Error('Failed to save preferences. Please try again.');
+  }
+},
+  
+  // This function extends your existing createUser method
   createUser: async (userData: {
     cliente_id?: string;
     username: string;
@@ -579,9 +750,16 @@ advancedSearchShipments: async (
   }): Promise<{ id: string }> => {
     try {
       const response = await api.post('/users.php', userData);
-      return response.data;
+      
+      if (response.data?.success) {
+        return { 
+          id: response.data.id || response.data.data?.id 
+        };
+      }
+      throw new Error(response.data?.error || 'User creation failed');
     } catch (error) {
-      throw new Error(`User creation failed: ${error.response?.data?.error || error.message}`);
+      console.error('Create user error:', error);
+      throw new Error('Failed to create user. Please try again.');
     }
   }
 

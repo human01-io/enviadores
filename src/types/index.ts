@@ -258,6 +258,7 @@ export interface User {
   cliente_id?: string;
   is_active: boolean;
   created_at: string;
+  updated_at: string;
   last_login?: string;
 }
 
@@ -282,7 +283,7 @@ export interface UserProfile {
   name: string;
   email: string;
   phone: string;
-  role: 'admin_user' | 'customer_user';
+  role: UserRole;
   avatar?: string;
   last_login?: string;
 }
@@ -298,4 +299,17 @@ export interface ProtectedRouteProps {
 export interface PrivateRouteProps {
   children: React.ReactNode;
   requiredRole?: string;
+}
+
+
+export interface UserToken {
+  id: number;
+  user_id: string;
+  token: string;
+  issued_at: string;
+  expires_at: string;
+  last_used_at: string;
+  user_agent: string | null;
+  ip_address: string | null;
+  is_valid: boolean;
 }

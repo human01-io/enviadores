@@ -397,3 +397,647 @@ tr:hover .sticky-destinatario,
 tr:hover .sticky-actions {
   background-color: #f9fafb; /* Match your hover background color */
 }
+
+/* Add these classes to your CSS or in a separate dark-mode.css file */
+
+:root {
+  --dark-background: #121827;
+  --dark-surface: #1a2136;
+  --dark-surface-hover: #232c43;
+  --dark-border: #2c3757;
+  --dark-text-primary: #e6e7f0;
+  --dark-text-secondary: #a9adc1;
+  --dark-text-muted: #8890ad;
+  --dark-accent-blue: #4d80f0;
+  --dark-accent-blue-hover: #5f8ff2;
+  --dark-card-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  --dark-button-bg: #1e293b;
+  --dark-button-hover-bg: #2b3a52;
+  --dark-success: #86efac;
+  --dark-warning: #fcd34d;
+  --dark-error: #f87171;
+  --dark-input-bg: #1a2136;
+  --dark-input-border: #2c3757;
+  --dark-input-text: #e6e7f0;
+  --dark-input-placeholder: #8890ad;
+}
+
+.dark body {
+  background-color: var(--dark-background);
+  color: var(--dark-text-primary);
+}
+
+/* Dashboard Cards */
+.dark .bg-white {
+  background-color: var(--dark-surface);
+  color: var(--dark-text-primary);
+}
+
+.dark .shadow,
+.dark .shadow-md,
+.dark .shadow-lg,
+.dark .shadow-xl {
+  box-shadow: var(--dark-card-shadow);
+}
+
+/* Dashboard Cards Hover */
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-gray-50:hover {
+  background-color: var(--dark-surface-hover);
+}
+
+/* Text Colors */
+.dark .text-gray-700,
+.dark .text-gray-800,
+.dark .text-gray-900 {
+  color: var(--dark-text-primary);
+}
+
+.dark .text-gray-500,
+.dark .text-gray-600 {
+  color: var(--dark-text-secondary);
+}
+
+.dark .text-gray-400 {
+  color: var(--dark-text-muted);
+}
+
+/* Borders */
+.dark .border,
+.dark .border-t,
+.dark .border-b,
+.dark .border-l,
+.dark .border-r,
+.dark .border-gray-200,
+.dark .border-gray-300 {
+  border-color: var(--dark-border);
+}
+
+/* Headers */
+.dark header.bg-white {
+  background-color: var(--dark-surface);
+  border-color: var(--dark-border);
+}
+
+/* Search Inputs */
+.dark input[type="text"],
+.dark input[type="search"] {
+  background-color: var(--dark-input-bg);
+  color: var(--dark-input-text);
+  border-color: var(--dark-input-border);
+}
+
+.dark input::placeholder {
+  color: var(--dark-input-placeholder);
+}
+
+/* Links and Buttons */
+.dark .text-blue-600 {
+  color: var(--dark-accent-blue);
+}
+
+.dark .hover\:text-blue-800:hover {
+  color: var(--dark-accent-blue-hover);
+}
+
+.dark .bg-blue-600 {
+  background-color: var(--dark-accent-blue);
+}
+
+.dark .hover\:bg-blue-700:hover {
+  background-color: var(--dark-accent-blue-hover);
+}
+
+/* Specific to Dashboard Structure */
+.dark .min-h-screen.bg-gray-50 {
+  background-color: var(--dark-background);
+}
+
+.dark .bg-gray-50 {
+  background-color: var(--dark-background);
+}
+
+/* Dashboard Cards */
+.dark .p-4.bg-white.shadow.rounded.relative.group {
+  background-color: var(--dark-surface);
+  border: 1px solid var(--dark-border);
+}
+
+/* Card Headers */
+.dark .text-lg.font-bold.mb-2 {
+  color: var(--dark-text-primary);
+}
+
+/* Card Items */
+.dark .p-2.hover\:bg-gray-100.cursor-pointer.rounded {
+  color: var(--dark-text-secondary);
+}
+
+.dark .p-2.hover\:bg-gray-100.cursor-pointer.rounded:hover {
+  background-color: var(--dark-surface-hover);
+  color: var(--dark-text-primary);
+}
+
+/* Modal Styles */
+.dark .account-modal-overlay {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.dark .account-modal-container {
+  background-color: var(--dark-surface);
+  color: var(--dark-text-primary);
+  border: 1px solid var(--dark-border);
+}
+
+.dark .account-modal-header {
+  border-bottom-color: var(--dark-border);
+}
+
+.dark .account-modal-footer {
+  border-top-color: var(--dark-border);
+}
+
+.dark .account-modal-close-btn {
+  color: var(--dark-text-secondary);
+}
+
+.dark .account-modal-close-btn:hover {
+  color: var(--dark-text-primary);
+}
+
+.dark .account-modal-icon-container {
+  background-color: var(--dark-button-bg);
+  color: var(--dark-text-primary);
+}
+
+.dark .account-modal-user-info h3 {
+  color: var(--dark-text-primary);
+}
+
+.dark .account-modal-user-info p {
+  color: var(--dark-text-secondary);
+}
+
+.dark .account-modal-action-btn {
+  background-color: var(--dark-button-bg);
+  color: var(--dark-text-primary);
+  border-color: var(--dark-border);
+}
+
+.dark .account-modal-action-btn:hover {
+  background-color: var(--dark-button-hover-bg);
+}
+
+.dark .account-modal-logout-btn {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.dark .account-modal-logout-btn:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+}
+
+/* Form elements in modals */
+.dark label {
+  color: var(--dark-text-secondary);
+}
+
+.dark input[type="radio"],
+.dark input[type="checkbox"] {
+  accent-color: var(--dark-accent-blue);
+}
+
+/* User Management Table */
+.dark table thead {
+  background-color: var(--dark-button-bg);
+}
+
+.dark table thead th {
+  color: var(--dark-text-secondary);
+}
+
+.dark table tbody {
+  background-color: var(--dark-surface);
+}
+
+.dark table tbody tr {
+  border-color: var(--dark-border);
+}
+
+.dark table tbody tr:hover {
+  background-color: var(--dark-surface-hover);
+}
+
+/* Pagination */
+.dark nav[aria-label="Pagination"] button {
+  background-color: var(--dark-button-bg);
+  border-color: var(--dark-border);
+  color: var(--dark-text-secondary);
+}
+
+.dark nav[aria-label="Pagination"] button:hover:not(:disabled) {
+  background-color: var(--dark-button-hover-bg);
+}
+
+.dark nav[aria-label="Pagination"] button:disabled {
+  color: var(--dark-text-muted);
+  background-color: var(--dark-background);
+}
+
+/* Status indicators */
+.dark .bg-green-100.text-green-800 {
+  background-color: rgba(134, 239, 172, 0.1);
+  color: var(--dark-success);
+}
+
+.dark .bg-red-100.text-red-800 {
+  background-color: rgba(248, 113, 113, 0.1);
+  color: var(--dark-error);
+}
+
+.dark .bg-yellow-100.text-yellow-800 {
+  background-color: rgba(252, 211, 77, 0.1);
+  color: var(--dark-warning);
+}
+
+/* Fix for specific dashboard elements */
+.dark .container.mx-auto.py-1.px-16,
+.dark .container.mx-auto.py-1.flex.justify-center,
+.dark .container.mx-auto.px-4.py-4,
+.dark .grid.grid-cols-1.md\:grid-cols-3.gap-6 {
+  background-color: transparent;
+}
+
+/* Additional Dark Mode Fixes for Tables, Sticky Columns, Forms and Modals */
+
+/* Fix sticky columns in tables */
+.dark .sticky-id,
+.dark .sticky-destinatario,
+.dark .sticky-actions {
+  background-color: var(--dark-surface);
+}
+
+.dark tr:hover .sticky-id,
+.dark tr:hover .sticky-destinatario,
+.dark tr:hover .sticky-actions {
+  background-color: var(--dark-surface-hover);
+}
+
+.dark .sticky-header {
+  background-color: var(--dark-button-bg);
+}
+
+/* Fix table headers and cells */
+.dark thead {
+  background-color: var(--dark-button-bg);
+}
+
+.dark thead th {
+  color: var(--dark-text-secondary);
+  border-color: var(--dark-border);
+}
+
+.dark tbody tr {
+  border-color: var(--dark-border);
+}
+
+.dark td, 
+.dark th {
+  border-color: var(--dark-border);
+}
+
+/* Fix form elements */
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="number"],
+.dark input[type="date"],
+.dark input[type="search"],
+.dark select,
+.dark textarea {
+  background-color: var(--dark-input-bg);
+  color: var(--dark-input-text);
+  border-color: var(--dark-border);
+}
+
+.dark input[type="text"]:focus,
+.dark input[type="email"]:focus,
+.dark input[type="password"]:focus,
+.dark input[type="number"]:focus,
+.dark input[type="date"]:focus,
+.dark input[type="search"]:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: var(--dark-accent-blue);
+  box-shadow: 0 0 0 1px var(--dark-accent-blue);
+}
+
+/* Fix form select dropdowns */
+.dark option {
+  background-color: var(--dark-input-bg);
+  color: var(--dark-input-text);
+}
+
+/* Fix modal for details views */
+.dark .fixed.inset-0.bg-black.bg-opacity-50 .bg-white {
+  background-color: var(--dark-surface);
+  color: var(--dark-text-primary);
+  border-color: var(--dark-border);
+}
+
+.dark .fixed.inset-0.bg-black.bg-opacity-50 .font-bold.text-gray-800,
+.dark .fixed.inset-0.bg-black.bg-opacity-50 .font-semibold.text-gray-800 {
+  color: var(--dark-text-primary);
+}
+
+.dark .fixed.inset-0.bg-black.bg-opacity-50 .text-gray-700 {
+  color: var(--dark-text-secondary);
+}
+
+.dark .fixed.inset-0.bg-black.bg-opacity-50 .text-gray-900 {
+  color: var(--dark-text-primary);
+}
+
+.dark .fixed.inset-0.bg-black.bg-opacity-50 .text-gray-500 {
+  color: var(--dark-text-muted);
+}
+
+.dark .fixed.inset-0.bg-black.bg-opacity-50 .border-gray-300 {
+  border-color: var(--dark-border);
+}
+
+/* Fix special backgrounds in modals */
+.dark .bg-gray-50 {
+  background-color: var(--dark-button-bg);
+}
+
+/* Fix dropdown menus */
+.dark .absolute.bg-white.shadow-lg {
+  background-color: var(--dark-surface);
+  border: 1px solid var(--dark-border);
+}
+
+.dark .absolute.bg-white.shadow-lg button,
+.dark .absolute.bg-white.shadow-lg a {
+  color: var(--dark-text-primary);
+}
+
+.dark .absolute.bg-white.shadow-lg button:hover,
+.dark .absolute.bg-white.shadow-lg a:hover {
+  background-color: var(--dark-surface-hover);
+}
+
+/* Fix filter area buttons */
+.dark .bg-gray-200.text-gray-800 {
+  background-color: var(--dark-button-bg);
+  color: var(--dark-text-primary);
+}
+
+.dark .hover\:bg-gray-300:hover {
+  background-color: var(--dark-button-hover-bg);
+}
+
+/* Fix Clients page specific elements */
+.dark .text-green-100.text-green-800 {
+  background-color: rgba(134, 239, 172, 0.1);
+  color: var(--dark-success);
+}
+
+.dark .text-red-100.text-red-800 {
+  background-color: rgba(248, 113, 113, 0.1);
+  color: var(--dark-error);
+}
+
+/* Fix all text colors in dark mode */
+.dark .text-sm.text-gray-700,
+.dark .text-sm.text-gray-500,
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .whitespace-nowrap.text-sm.text-gray-500 {
+  color: var(--dark-text-secondary);
+}
+
+.dark .text-sm.font-medium.text-gray-900,
+.dark .text-sm.font-medium.text-gray-700 {
+  color: var(--dark-text-primary);
+}
+
+/* Fix pagination */
+.dark .border-gray-200 {
+  border-color: var(--dark-border);
+}
+
+.dark .bg-white.px-4.py-3.flex.items-center.justify-between.border-t.border-gray-200 {
+  background-color: var(--dark-surface);
+  border-color: var(--dark-border);
+}
+
+.dark .bg-blue-50.border-blue-500.text-blue-600 {
+  background-color: rgba(77, 128, 240, 0.2);
+  border-color: var(--dark-accent-blue);
+  color: var(--dark-accent-blue);
+}
+
+/* Add a subtle border to cards in dark mode for better definition */
+.dark .bg-white.shadow.rounded-lg {
+  border: 1px solid var(--dark-border);
+}
+
+/* Fix color for specific action buttons */
+.dark .bg-red-100.text-red-700 {
+  background-color: rgba(248, 113, 113, 0.1);
+  color: var(--dark-error);
+}
+
+.dark .hover\:bg-red-200:hover {
+  background-color: rgba(248, 113, 113, 0.2);
+}
+
+.dark .bg-green-100.text-green-700 {
+  background-color: rgba(134, 239, 172, 0.1);
+  color: var(--dark-success);
+}
+
+.dark .hover\:bg-green-200:hover {
+  background-color: rgba(134, 239, 172, 0.2);
+}
+
+/* Fix blue button hover states */
+.dark .bg-blue-600.text-white.hover\:bg-blue-700:hover {
+  background-color: var(--dark-accent-blue-hover);
+}
+
+/* Fix table row alternating colors */
+.dark .bg-white.divide-y.divide-gray-200 tr:nth-child(even) {
+  background-color: rgba(30, 41, 59, 0.5);
+}
+
+/* Fix button styling in tables */
+.dark .text-blue-600.hover\:text-blue-900:hover,
+.dark .text-indigo-600.hover\:text-indigo-900:hover,
+.dark .text-purple-600.hover\:text-purple-900:hover,
+.dark .text-green-600.hover\:text-green-900:hover {
+  color: var(--dark-accent-blue);
+}
+
+.dark .text-red-600.hover\:text-red-900:hover {
+  color: var(--dark-error);
+}
+
+/* Fix hover styles in dark mode - more visible */
+.dark .hover\:bg-gray-50:hover {
+  background-color: var(--dark-surface-hover);
+}
+
+/* Standard form input styles */
+.dark .mt-1.block.w-full.border.border-gray-300.rounded-md.p-2,
+.dark .block.w-full.px-3.py-2.border.border-gray-300.rounded-md.shadow-sm,
+.dark .w-full.p-2.border.border-gray-300.rounded-md {
+  background-color: var(--dark-input-bg);
+  color: var(--dark-input-text);
+  border-color: var(--dark-border);
+}
+
+.dark .mt-1.block.w-full.border.border-gray-300.rounded-md.p-2:focus,
+.dark .block.w-full.px-3.py-2.border.border-gray-300.rounded-md.shadow-sm:focus,
+.dark .w-full.p-2.border.border-gray-300.rounded-md:focus {
+  border-color: var(--dark-accent-blue);
+  box-shadow: 0 0 0 1px var(--dark-accent-blue);
+}
+
+/* DestinoModal specific styles */
+.dark .bg-white.rounded-lg.shadow-xl {
+  background-color: var(--dark-surface);
+  border-color: var(--dark-border);
+}
+
+.dark .p-4.border-b {
+  border-color: var(--dark-border);
+}
+
+.dark .text-xl.font-bold.text-gray-800 {
+  color: var(--dark-text-primary);
+}
+
+.dark .text-gray-600,
+.dark .text-sm.text-gray-500 {
+  color: var(--dark-text-secondary);
+}
+
+.dark .block.text-sm.font-medium.text-gray-700,
+.dark .block.text-sm.font-medium.text-gray-700.mb-1 {
+  color: var(--dark-text-secondary);
+}
+
+/* Combobox and dropdown styles */
+.dark .absolute.z-10.mt-1.max-h-60.w-full.overflow-auto.rounded-md.bg-white.py-1,
+.dark .absolute.z-10.mt-1.w-full.max-h-60.overflow-auto.rounded-md.bg-white {
+  background-color: var(--dark-surface);
+  border: 1px solid var(--dark-border);
+}
+
+.dark .cursor-default.select-none.py-2.pl-10.pr-4.text-gray-900 {
+  color: var(--dark-text-primary);
+}
+
+.dark .cursor-default.select-none.py-2.pl-10.pr-4.bg-blue-100.text-blue-900 {
+  background-color: var(--dark-button-hover-bg);
+  color: var(--dark-accent-blue);
+}
+
+.dark .sticky.top-0.bg-white.p-2.border-b {
+  background-color: var(--dark-surface);
+  border-color: var(--dark-border);
+}
+
+.dark .cursor-pointer.select-none.py-2.px-4.hover\:bg-blue-100 {
+  color: var(--dark-text-primary);
+}
+
+.dark .cursor-pointer.select-none.py-2.px-4.hover\:bg-blue-100:hover {
+  background-color: var(--dark-button-hover-bg);
+}
+
+.dark .font-medium {
+  color: var(--dark-text-primary);
+}
+
+.dark .py-2.px-4.text-gray-500.text-sm {
+  color: var(--dark-text-muted);
+}
+
+/* Footer styles */
+.dark .border-t.bg-gray-50.p-4 {
+  background-color: var(--dark-button-bg);
+  border-color: var(--dark-border);
+}
+
+.dark .px-4.py-2.border.border-gray-300.rounded-md.text-gray-700.hover\:bg-gray-100 {
+  background-color: var(--dark-button-bg);
+  color: var(--dark-text-primary);
+  border-color: var(--dark-border);
+}
+
+.dark .px-4.py-2.border.border-gray-300.rounded-md.text-gray-700.hover\:bg-gray-100:hover {
+  background-color: var(--dark-button-hover-bg);
+}
+
+/* Specific form element fixes */
+.dark select {
+  background-color: var(--dark-input-bg);
+  color: var(--dark-text-primary);
+  border-color: var(--dark-border);
+}
+
+.dark option {
+  background-color: var(--dark-input-bg);
+  color: var(--dark-text-primary);
+}
+
+/* Gradient fade effect */
+.dark .sticky.bottom-0.left-0.right-0.h-12.bg-gradient-to-t.from-white.to-transparent {
+  --tw-gradient-from: var(--dark-surface);
+  --tw-gradient-to: transparent;
+}
+
+.dark .sticky.bottom-0.left-0.right-0.h-12.bg-gradient-to-t.from-white.to-transparent svg {
+  color: var(--dark-text-secondary);
+}
+
+/* Invalid input styles */
+.dark .mt-1.block.w-full.border.border-red-500.rounded-md.p-2 {
+  background-color: var(--dark-input-bg);
+  color: var(--dark-input-text);
+  border-color: var(--dark-error);
+}
+
+.dark .text-red-500.text-sm {
+  color: var(--dark-error);
+}
+
+/* Fix text colors for dropdowns */
+.dark .text-sm.text-gray-500 {
+  color: var(--dark-text-muted);
+}
+
+/* Fix cursor pointers */
+.dark .cursor-pointer {
+  color: var(--dark-text-primary);
+}
+
+/* Fix backdrop color */
+.dark .fixed.inset-0.bg-black.bg-opacity-50 {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+/* Disabled button styles */
+.dark .bg-blue-300.cursor-not-allowed {
+  background-color: rgba(77, 128, 240, 0.4);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Fix scroll container background */
+.dark .flex-1.overflow-y-auto.p-4 {
+  background-color: var(--dark-surface);
+}

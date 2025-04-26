@@ -13,7 +13,8 @@ import { PrivateRoute } from './components/PrivateRoute';
 import Clientes from './components/Clientes';
 import Destinos from './components/Destinos';
 import Envios from './components/Envios';
-
+import UserManagement from './components/UserManagement';
+import { ThemeProvider } from './components/ThemeProvider';
 
 interface HeaderProps {
   activeSection: string;
@@ -139,6 +140,7 @@ function App() {
   const isAppSubdomain = hostname.startsWith('app.');
   
   return (
+    <ThemeProvider>
     <Router>
       <Routes>
         {isCotizadorSubdomain ? (
@@ -170,6 +172,11 @@ function App() {
               <Envios />
             </PrivateRoute>
             } />
+            <Route path="/usuarios" element={
+              <PrivateRoute>
+              <UserManagement />
+            </PrivateRoute>
+            } />
           </>
         ) : (
           <>
@@ -195,12 +202,18 @@ function App() {
                 <Envios />
               </PrivateRoute>
             } />
+            <Route path="/dashboard/usuarios" element={
+              <PrivateRoute>
+                <UserManagement />
+              </PrivateRoute>
+            } />
             <Route path="/cotizador" element={<Cotizador />} />
             <Route path="/tracking" element={<ShipmentTracker />} />
           </>
         )}
       </Routes>
     </Router>
+    </ThemeProvider>
   );
 }
 
