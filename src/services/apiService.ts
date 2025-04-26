@@ -524,6 +524,8 @@ advancedSearchShipments: async (
   },
 
   
+
+  
   getUserProfile: async (): Promise<UserProfile> => {
     try {
       const token = localStorage.getItem('auth_token');
@@ -546,6 +548,27 @@ advancedSearchShipments: async (
     }
   },
 
+  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
+    try {
+      const response = await api.post('/change-password.php', {
+        current_password: currentPassword,
+        new_password: newPassword
+      });
+      
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Error al cambiar la contraseña');
+      }
+    } catch (error) {
+      console.error('Change password error:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        throw new Error('La contraseña actual es incorrecta');
+      } else if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.error || 'Error al cambiar la contraseña');
+      }
+      throw new Error('Error al cambiar la contraseña. Por favor intente nuevamente.');
+    }
+  },
+
   createUser: async (userData: {
     cliente_id?: string;
     username: string;
@@ -563,6 +586,8 @@ advancedSearchShipments: async (
   }
 
 };
+
+
 
 
 // Type guards for API responses

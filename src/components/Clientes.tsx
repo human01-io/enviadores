@@ -375,7 +375,7 @@ export default function AdvancedClientes() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">
-                            {cliente.nombre} {cliente.apellido_paterno}
+                            {cliente.nombre} {cliente.apellido_paterno} {cliente.apellido_materno}
                           </div>
                           {cliente.razon_social && (
                             <div className="text-sm text-gray-500">{cliente.razon_social}</div>

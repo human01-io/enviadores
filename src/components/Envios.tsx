@@ -353,7 +353,12 @@ tr:hover .sticky-actions {
             sort_direction: sortDirection
           }
         );
-        console.log('API Response:', response.data);
+        console.log('Raw API Response:', response);
+    console.log('Cliente data example:', response.data.length > 0 ? {
+      cliente_nombre: response.data[0].cliente_nombre,
+      cliente_id: response.data[0].cliente_id,
+      // Log any other fields you want to inspect
+    } : 'No data returned');
         
         setEnvios(response.data);
         setTotalItems(response.total);
@@ -523,12 +528,20 @@ tr:hover .sticky-actions {
   // Calculate pagination
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
+  const redirectToDashboard = () => {
+    if (import.meta.env.PROD) {
+      window.location.href = 'https://app.enviadores.com.mx';
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-md p-4 flex justify-between items-center border-b">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => navigate('/dashboard')}
+            onClick={redirectToDashboard}
             className="text-blue-600 hover:text-blue-800"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -11,6 +11,7 @@ import { CSSTransition } from 'react-transition-group';
 import { apiService } from '../services/apiService';
 import { ClientModal } from './ClientModal';
 import { DestinoModal } from './DestinoModal';
+import { ChangePasswordModal } from './ChangePasswordModal'; // Import the ChangePasswordModal
 import logo from '../assets/logo.svg';
 
 export default function Dashboard() {
@@ -21,6 +22,7 @@ export default function Dashboard() {
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false); // State for password modal
   const [showClientModal, setShowClientModal] = useState(false);
   const [showClientOptions, setShowClientOptions] = useState(false);
   const [clientOptionsPosition, setClientOptionsPosition] = useState({ top: 0, left: 0 });
@@ -58,6 +60,12 @@ export default function Dashboard() {
 
     fetchUserData();
   }, []);
+
+  // Handle successful password change
+  const handlePasswordChangeSuccess = () => {
+    setShowPasswordModal(false);
+    setSuccessMessage('Contraseña actualizada correctamente');
+  };
 
   const handleLogout = async () => {
     await logout(); // Call the logout function and wait for it to complete
@@ -336,6 +344,7 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Account Modal */}
       <CSSTransition
         in={showAccountModal}
         timeout={200}
@@ -353,13 +362,21 @@ export default function Dashboard() {
             onClose={() => setShowAccountModal(false)}
             onChangePassword={() => {
               setShowAccountModal(false);
-              navigate('/change-password');
+              setShowPasswordModal(true); // Open password modal instead of navigating
             }}
             onLogout={handleLogout}
             isLoading={!userData}
           />
         ) : <></>}
       </CSSTransition>
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <ChangePasswordModal
+          onClose={() => setShowPasswordModal(false)}
+          onSuccess={handlePasswordChangeSuccess}
+        />
+      )}
     </div>
   );
 }
