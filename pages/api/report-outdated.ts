@@ -1,18 +1,21 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 
+/**
+ * API handler for reporting outdated delivery information
+ * This forwards the request to the PHP backend endpoint
+ */
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Debugging logs
-  console.log(`Incoming ${req.method} request from origin:`, req.headers.origin);
-  
-  // Set CORS headers - must be set before any response
+  // Set CORS headers to allow requests from various environments
   const allowedOrigins = [
     'https://miniature-space-bassoon-r5r6gwp9jg525qj5-5173.app.github.dev',
     'https://*.app.github.dev',
     'https://*.github.dev',
-    'http://localhost:5173'
+    'http://localhost:5173',
+    'https://app.enviadores.com.mx',
+    'https://enviadores.com.mx'
   ];
 
   const origin = req.headers.origin || '';
@@ -27,18 +30,17 @@ export default async function handler(
 
   // Handle preflight request
   if (req.method === 'OPTIONS') {
-    console.log('Handling OPTIONS preflight');
     res.status(204).end();
-    return; // Return without value to avoid the warning
+    return;
   }
 
   // Handle POST request
   if (req.method === 'POST') {
-    console.log('Forwarding POST request to PHP endpoint');
     try {
-      // Replace with your actual PHP endpoint URL
+      // The PHP endpoint to forward the request to
       const phpEndpoint = 'https://enviadores.com.mx/api/report-outdated.php';
       
+      // Forward the request to the PHP endpoint
       const response = await fetch(phpEndpoint, {
         method: 'POST',
         headers: {
@@ -49,7 +51,6 @@ export default async function handler(
       
       // Get the response from PHP
       const responseText = await response.text();
-      console.log('PHP response:', responseText);
       
       // Try to parse as JSON
       try {
@@ -71,8 +72,9 @@ export default async function handler(
         details: process.env.NODE_ENV === 'development' ? error.message : 'Server error' 
       });
     }
-    return; // Return without value
+    return;
   }
 
+  // Any other method is not allowed
   res.status(405).json({ error: 'Method not allowed' });
 }

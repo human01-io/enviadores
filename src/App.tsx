@@ -5,7 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { MapPin, Mail, Phone, MessageSquare } from 'lucide-react';
 import EnviadoresLogo from './assets/ENVIADORES-Logo.png';
 import './App.css';
-import Cotizador from "./components/Cotizador";
+import Cotizador from './components/cotizador/Cotizador';
 import { ShipmentTracker } from './components/ShipmentTracker';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
