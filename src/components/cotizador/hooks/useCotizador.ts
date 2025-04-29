@@ -28,7 +28,10 @@ const initialState: CotizadorState = {
   collectionRequired: false,
   collectionPrice: null,
   isValidated: false,
-  flowStage: 'quote'
+  flowStage: 'quote',
+  // Initialize new client and destination ID fields
+  clienteId: null,
+  destinoId: null
 };
 
 export function useCotizador() {
@@ -166,26 +169,29 @@ export function useCotizador() {
     // Reset Estafeta results when validating new ZIP codes
     setEstafetaResult(null);
     setLoadingEstafeta(false);
-
+  
     if (state.originZip.length === 5 && state.destZip.length === 5) {
       // Reset the zone before new validation
       setState(prev => ({ ...prev, zone: null, isValidated: true }));
-
+  
       // Fetch both ZIP codes
       fetchZipCodeData(state.originZip, true);
       fetchZipCodeData(state.destZip, false);
-
+  
       // Calculate zone based on postal codes
       const originPostal = parseInt(state.originZip);
       const destPostal = parseInt(state.destZip);
-
+  
       if (!isNaN(originPostal) && !isNaN(destPostal)) {
         const calculatedZone = calculateZone(originPostal, destPostal);
         setState(prev => ({ ...prev, zone: calculatedZone }));
       }
-
+  
       // Fetch delivery frequency for destination
       fetchDeliveryFrequency(state.destZip);
+      
+      // Automatically trigger the Estafeta validation as well
+      validateOnExternalSite();
     }
   };
 

@@ -87,6 +87,9 @@ export interface DeliveryFrequency {
     collectionPrice: number | null;
     isValidated: boolean;
     flowStage: 'quote' | 'customer-data';
+    // Add these new fields to store client and destination IDs
+    clienteId?: string | null;
+    destinoId?: string | null;
   }
   
   export interface AddressData {

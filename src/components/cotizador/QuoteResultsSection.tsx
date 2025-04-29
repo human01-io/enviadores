@@ -42,7 +42,6 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
           <thead className="bg-gray-100">
             <tr>
               <th className="border border-gray-300 p-2">Servicio</th>
-              <th className="border border-gray-300 p-2">Precio Base</th>
               <th className="border border-gray-300 p-2">Subtotal</th>
               <th className="border border-gray-300 p-2">Total (con IVA)</th>
               <th className="border border-gray-300 p-2">Tiempo</th>
@@ -59,19 +58,22 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                 onClick={() => setSelectedService(servicio)}
               >
                 <td className="border border-gray-300 p-2 font-medium">{servicio.nombre}</td>
-                <td className="border border-gray-300 p-2">${formatCurrency(servicio.precioBase)}</td>
                 <td className="border border-gray-300 p-2 font-medium">${formatCurrency(servicio.precioTotal)}</td>
                 <td className="border border-gray-300 p-2 font-medium text-blue-700">${formatCurrency(servicio.precioConIva)}</td>
                 <td className="border border-gray-300 p-2">{servicio.diasEstimados} día{servicio.diasEstimados !== 1 ? 's' : ''}</td>
                 <td className="border border-gray-300 p-2 text-center">
                   <div className="flex justify-center">
-                    <input
-                      type="radio"
-                      name="selectedService"
-                      checked={selectedService?.sku === servicio.sku}
-                      onChange={() => {}}
-                      className="h-4 w-4 text-blue-600 cursor-pointer"
-                    />
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                      selectedService?.sku === servicio.sku 
+                        ? 'bg-blue-600 text-white' 
+                        : 'border-2 border-gray-300'
+                    }`}>
+                      {selectedService?.sku === servicio.sku && (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -96,25 +98,21 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
               <h3 className="font-medium">{servicio.nombre}</h3>
               <div className="flex items-center">
                 <span className="text-blue-700 font-medium mr-2">${formatCurrency(servicio.precioConIva)}</span>
-                <input
-                  type="radio"
-                  name="selectedServiceMobile"
-                  checked={selectedService?.sku === servicio.sku}
-                  onChange={() => {}}
-                  className="h-4 w-4 text-blue-600"
-                />
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  selectedService?.sku === servicio.sku 
+                    ? 'bg-blue-600 text-white' 
+                    : 'border-2 border-gray-300'
+                }`}>
+                  {selectedService?.sku === servicio.sku && (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
               </div>
             </div>
             <div className="p-3">
               <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>
-                  <span className="text-gray-500">Precio Base:</span>
-                  <p>${formatCurrency(servicio.precioBase)}</p>
-                </div>
-                <div>
-                  <span className="text-gray-500">Sobrepeso:</span>
-                  <p>${formatCurrency(servicio.cargoSobrepeso)}</p>
-                </div>
                 <div>
                   <span className="text-gray-500">Subtotal:</span>
                   <p className="font-medium">${formatCurrency(servicio.precioTotal)}</p>
@@ -129,8 +127,8 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
         ))}
       </div>
 
-      {/* Additional charges summary */}
-      <div className="mt-6 p-3 bg-gray-50 border rounded-lg">
+      {/* Additional charges summary - more compact */}
+      <div className="p-3 bg-gray-50 border rounded-lg">
         <h3 className="font-medium text-sm mb-2">Cargos adicionales:</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
           <div>
@@ -152,20 +150,35 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
         </div>
       </div>
 
-      {/* Continue button */}
-      {selectedService && (
-        <div className="mt-6">
-          <button
-            onClick={proceedToCustomerData}
-            className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-          >
-            Continuar con {selectedService.nombre}
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-            </svg>
-          </button>
-        </div>
-      )}
+      {/* Continue button with enhanced visual cues */}
+      <div className="pt-4 border-t mt-4">
+        {selectedService ? (
+          <div className="relative">
+            {/* Animated arrow to highlight the continue button */}
+            <div className="absolute -top-8 right-6 text-green-500 animate-bounce hidden md:block">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+              </svg>
+            </div>
+            
+            <button
+              onClick={proceedToCustomerData}
+              className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+            >
+              Continuar con {selectedService.nombre}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </button>
+          </div>
+        ) : (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+            <p className="text-sm text-yellow-700">
+              ⚠️ Seleccione un servicio para continuar
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

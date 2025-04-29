@@ -82,6 +82,8 @@ interface DatosClienteProps {
   };
   originZip: string;
   destZip: string;
+  clienteId?: string | null;  // Add clienteId
+  destinoId?: string | null;  // Add destinoId
 }
 
 interface ExternalLabelData {
@@ -98,7 +100,9 @@ export function DatosCliente({
   // originData,
   // destData,
   originZip,
-  destZip
+  destZip,
+  clienteId,
+  destinoId
 }: DatosClienteProps) {
   const [step, setStep] = useState<'cliente' | 'destino' | 'confirmacion'>('cliente');
   const [searchQuery, setSearchQuery] = useState('');
@@ -193,6 +197,49 @@ export function DatosCliente({
       cliente.codigo_postal.trim() !== ''
     );
   };
+
+  // Load existing client and destination data if IDs are provided
+useEffect(() => {
+  const loadExistingData = async () => {
+    if (clienteId) {
+      try {
+        const results = await apiService.searchCustomers(clienteId);
+        if (results && results.length > 0) {
+          const clienteData = results[0];
+          setCliente(prev => ({
+            ...prev,
+            ...clienteData,
+            id: clienteData.id
+          }));
+          setIsExistingCustomer(true);
+        }
+      } catch (error) {
+        console.error('Error loading client data:', error);
+      }
+    }
+
+    if (clienteId && destinoId) {
+      try {
+        const results = await apiService.getCustomerDestinations(clienteId);
+        if (results && results.length > 0) {
+          const destinoData = results.find(d => d.id === destinoId);
+          if (destinoData) {
+            setDestino(prev => ({
+              ...prev,
+              ...destinoData,
+              id: destinoData.id
+            }));
+            setIsExistingDestino(true);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading destination data:', error);
+      }
+    }
+  };
+
+  loadExistingData();
+}, [clienteId, destinoId]);
 
   useEffect(() => {
     const fetchAddressData = async (zip: string, isOrigin: boolean) => {
