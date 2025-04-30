@@ -83,21 +83,26 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
     return () => clearTimeout(timer);
   }, [clientSearchQuery]);
 
-  // Search for destinations when client and query changes
   useEffect(() => {
     const searchDestinations = async () => {
-      if (!selectedClient || destSearchQuery.trim().length < 2) {
+      // Show all destinations when search box is focused (empty query)
+      // Or when query is less than 2 characters (if you want to keep that)
+      if (!selectedClient) {
         setDestSuggestions([]);
         return;
       }
-
+  
       setLoadingDestinations(true);
       try {
-        // Fix: Ensure we're passing customer_id as per API requirements
-        // The parameter name in the API is customer_id, not cliente_id
         const results = await apiService.getCustomerDestinations(selectedClient.id);
         
-        // Apply local filtering with the search query instead of using API filtering
+        // If search query is empty, show all results
+        if (!destSearchQuery.trim()) {
+          setDestSuggestions(results);
+          return;
+        }
+        
+        // Otherwise filter results based on query
         const filteredResults = results.filter(dest => 
           dest.nombre_destinatario?.toLowerCase().includes(destSearchQuery.toLowerCase()) ||
           dest.direccion?.toLowerCase().includes(destSearchQuery.toLowerCase()) ||
@@ -113,7 +118,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
         setLoadingDestinations(false);
       }
     };
-
+  
     const timer = setTimeout(searchDestinations, 300);
     return () => clearTimeout(timer);
   }, [selectedClient, destSearchQuery]);

@@ -1,19 +1,16 @@
 import React, { useState } from 'react';
+import { ManuableRate, ManuableLabelResponse } from '../../services/manuableService';
+import ManuableRatesComponent from './ManuableRatesComponent';
+import ManuableLabelGenerator from './ManuableLabelGeneration';
+import ManuableLabelDisplay from './ManuableLabelDisplay';
+import { mapToManuableParcel } from '../../utils/manuableUtils';
+import { Cliente, Destino } from '../../types';
 
 // Types
 interface ExternalLabelData {
   carrier: string;
   trackingNumber: string;
   labelFile: File | null;
-}
-
-interface ManuableService {
-  carrier: string;
-  service: string;
-  total_amount: string;
-  shipping_type: string;
-  currency: string;
-  uuid: string;
 }
 
 interface ShippingOptionsProps {
@@ -23,10 +20,23 @@ interface ShippingOptionsProps {
   setExternalLabelData: (data: ExternalLabelData) => void;
   externalCost: number | null;
   setExternalCost: (cost: number | null) => void;
-  manuableServices: ManuableService[];
-  setManuableServices: (services: ManuableService[]) => void;
-  selectedManuableService: ManuableService | null;
-  setSelectedManuableService: (service: ManuableService | null) => void;
+  manuableServices: ManuableRate[];
+  setManuableServices: (services: ManuableRate[]) => void;
+  selectedManuableService: ManuableRate | null;
+  setSelectedManuableService: (service: ManuableRate | null) => void;
+  // Additional props for Manuable integration
+  originZip: string;
+  destZip: string;
+  packageDetails: {
+    peso: number;
+    alto?: number;
+    largo?: number;
+    ancho?: number;
+    valor_declarado?: number;
+  };
+  // Cliente and Destino data for label generation
+  cliente: Cliente;
+  destino: Destino;
 }
 
 export default function ShippingOptions({
@@ -39,7 +49,12 @@ export default function ShippingOptions({
   manuableServices,
   setManuableServices,
   selectedManuableService,
-  setSelectedManuableService
+  setSelectedManuableService,
+  originZip,
+  destZip,
+  packageDetails,
+  cliente,
+  destino
 }: ShippingOptionsProps) {
   // Helper component for checkmark icon
   const CheckIcon = ({ className = "w-3 h-3 text-white" }: { className?: string }) => (
@@ -59,34 +74,17 @@ export default function ShippingOptions({
     </svg>
   );
 
-  // Mock function to get Manuable services (would be replaced with actual API call)
-  const getManuableServices = async () => {
-    try {
-      // This would be replaced with actual API call to Manuable
-      const mockResponse = {
-        data: [
-          {
-            carrier: "FEDEX",
-            service: "standard",
-            total_amount: "400.0",
-            shipping_type: "local",
-            currency: "MXN",
-            uuid: "9964cf5d-b248-4d26-bdd6-586c43ea8e01"
-          },
-          {
-            carrier: "FEDEX",
-            service: "express",
-            total_amount: "450.0",
-            shipping_type: "local",
-            currency: "MXN",
-            uuid: "587ca7c9-e16a-4ddb-9e1b-0e01a86ee322"
-          }
-        ]
-      };
-      setManuableServices(mockResponse.data);
-    } catch (error) {
-      alert("Error al obtener opciones de Manuable");
-    }
+  // Handler for selecting a Manuable service
+  const handleSelectManuableService = (service: ManuableRate) => {
+    setSelectedManuableService(service);
+  };
+
+  // State for storing the generated label
+  const [labelData, setLabelData] = useState<ManuableLabelResponse | null>(null);
+
+  // Handler for successful label generation
+  const handleLabelGenerated = (data: ManuableLabelResponse) => {
+    setLabelData(data);
   };
 
   return (
@@ -208,61 +206,31 @@ export default function ShippingOptions({
       {selectedOption === 'manuable' && (
         <div className="bg-gray-50 p-4 rounded-lg mb-6">
           <h4 className="font-semibold mb-4">Opciones de Manuable</h4>
-
-          {manuableServices.length === 0 ? (
-            <div className="text-center py-6">
-              <button
-                onClick={getManuableServices}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Obtener opciones de envío
-              </button>
-              <p className="text-sm text-gray-500 mt-2">
-                Consultaremos las opciones disponibles para tu envío
-              </p>
-            </div>
+          
+          {/* Display label if generated */}
+          {labelData ? (
+            <ManuableLabelDisplay labelData={labelData} />
           ) : (
-            <div className="space-y-4">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paquetería</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Servicio</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Precio</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {manuableServices.map((service, index) => (
-                      <tr key={index} className={selectedManuableService?.uuid === service.uuid ? 'bg-blue-50' : ''}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{service.carrier}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{service.service}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{service.shipping_type}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${service.total_amount} {service.currency}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => setSelectedManuableService(service)}
-                            className={`px-3 py-1 rounded-md ${selectedManuableService?.uuid === service.uuid ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800 hover:bg-blue-200'}`}
-                          >
-                            {selectedManuableService?.uuid === service.uuid ? 'Seleccionado' : 'Seleccionar'}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {selectedManuableService && (
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <h5 className="font-semibold mb-2">Servicio seleccionado:</h5>
-                  <p>{selectedManuableService.carrier} - {selectedManuableService.service}</p>
-                  <p className="font-medium">Precio: ${selectedManuableService.total_amount} {selectedManuableService.currency}</p>
-                </div>
-              )}
-            </div>
+            <>
+              {/* Show label generator if service is selected */}
+              {selectedManuableService ? (
+                <ManuableLabelGenerator 
+                  cliente={cliente}
+                  destino={destino}
+                  selectedService={selectedManuableService}
+                  onLabelGenerated={handleLabelGenerated}
+                />
+              ) : null}
+              
+              {/* Use our ManuableRatesComponent */}
+              <ManuableRatesComponent
+                originZip={originZip}
+                destZip={destZip}
+                packageDetails={packageDetails}
+                onSelectService={handleSelectManuableService}
+                selectedService={selectedManuableService}
+              />
+            </>
           )}
         </div>
       )}

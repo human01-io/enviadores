@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, RefreshCw } from 'lucide-react';
 import { AddressSection } from './AddressSection'; // Make sure to use the updated version
 import { DeliveryInfoDisplay } from './DeliveryInfoDisplay'; // Use the simplified version
 import { PackageDetailsSection } from './PackageDetailsSection';
@@ -95,6 +95,17 @@ function Cotizador() {
     }
   };
 
+  const handleResetCotizacion = () => {
+    if (confirm("¿Está seguro que desea reiniciar la cotización? Se perderán todos los datos ingresados.")) {
+      resetForm();
+      setNotification({
+        show: true,
+        message: 'Cotización reiniciada correctamente',
+        details: null
+      });
+    }
+  };
+
   const handlePasswordChangeSuccess = () => {
     setShowPasswordModal(false);
     setNotification({
@@ -122,40 +133,127 @@ function Cotizador() {
     // doing this in the validateZipCodes function
   };
 
+  // Helper function to display zone in header
+  const getZoneDisplay = () => {
+    if (state.isInternational && state.selectedZone) {
+      // For international zones
+      return {
+        full: `Zona Internacional: ${state.selectedZone}`,
+        short: `Z-I: ${state.selectedZone}`
+      };
+    } else if (!state.isInternational && state.zone) {
+      // For national zones
+      return {
+        full: `Zona Nacional: ${state.zone}`,
+        short: `Z: ${state.zone}`
+      };
+    }
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header styled like in Clientes and Destinos */}
-      <header className="bg-white shadow-md p-4 flex justify-between items-center border-b">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={redirectToDashboard}
-            className="text-blue-600 hover:text-blue-800"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-          </button>
-          <div className="flex items-center gap-2">
-            <img src={logo} alt="Logo" className="w-8 h-8" />
-            <h1 className="text-xl font-bold">Cotizador de Envíos</h1>
-          </div>
-        </div>
+      {/* Fixed Header */}
+      <header className="bg-white shadow-md sticky top-0 z-10 border-b">
+        <div className="px-3 py-2 sm:p-4">
+          {/* Main navigation row */}
+          <div className="flex items-center justify-between">
+            {/* Left section with logo and back button */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={redirectToDashboard}
+                className="text-blue-600 hover:text-blue-800 p-1"
+                aria-label="Go back"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+              </button>
+              <div className="flex items-center">
+                <img src={logo} alt="Logo" className="w-6 h-6 sm:w-7 sm:h-7" />
+                <h1 className="ml-2 text-base sm:text-lg font-bold whitespace-nowrap">Cotizador</h1>
+              </div>
+            </div>
 
-        <div className="flex items-center gap-6">
-          <button
-            onClick={() => setShowAccountModal(true)}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-800"
-          >
-            <User className="w-5 h-5" />
-            <span className="hidden sm:inline">Mi cuenta</span>
-          </button>
-          <button
-            onClick={handleLogout}
-            className="text-red-600 hover:text-red-800 text-sm font-medium"
-          >
-            <span className="hidden sm:inline">Cerrar sesión</span>
-            <LogOut className="w-5 h-5 sm:hidden" />
-          </button>
+            {/* Right section with account and logout */}
+            <div className="flex items-center gap-2 sm:gap-4">
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAccountModal(true)}
+                  className="flex items-center gap-1 text-blue-600 hover:text-blue-800 p-1"
+                  aria-label="Mi cuenta"
+                >
+                  <User className="w-5 h-5" />
+                  <span className="sr-only sm:not-sr-only sm:inline text-sm">Mi cuenta</span>
+                </button>
+
+                <button
+                  onClick={handleLogout}
+                  className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center gap-1 p-1"
+                  aria-label="Cerrar sesión"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span className="sr-only sm:not-sr-only sm:inline">Cerrar sesión</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Secondary row for flow stage buttons (always visible but responsive) */}
+          <div className="mt-2 sm:mt-3 flex flex-wrap items-center gap-3 sm:gap-4">
+  {/* Flow stage buttons */}
+  <div className="flex">
+    <button
+      className={`px-3 py-1 text-xs sm:text-sm whitespace-nowrap rounded-l-md ${state.flowStage === 'quote'
+        ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
+        : 'bg-gray-50 text-gray-500 border border-gray-200'}`}
+      onClick={() => updateField('flowStage', 'quote')}
+    >
+      1. Cotización
+    </button>
+    <button
+      className={`px-3 py-1 text-xs sm:text-sm whitespace-nowrap rounded-r-md ${state.flowStage === 'customer-data'
+        ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
+        : 'bg-gray-50 text-gray-500 border border-gray-200'}`}
+      style={{ opacity: selectedService ? 1 : 0.5 }}
+      disabled={!selectedService}
+    >
+      2. Datos del Cliente
+    </button>
+  </div>
+  
+  {/* Divider - only visible on larger screens */}
+  <div className="hidden sm:block h-5 w-px bg-gray-300 mx-1"></div>
+  
+  {/* Zone display and Reset button */}
+  <div className="flex items-center gap-2">
+    {/* Zone display - only shown if available */}
+    {getZoneDisplay() && (
+  <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-2 py-1 rounded-md text-xs sm:text-sm font-medium flex items-center shadow-sm">
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+    </svg>
+    {/* Short version on small screens, full version on larger screens */}
+    <span className="block sm:hidden truncate max-w-[80px]">
+      {getZoneDisplay().short}
+    </span>
+    <span className="hidden sm:block">
+      {getZoneDisplay().full}
+    </span>
+  </div>
+)}
+
+    <button
+      onClick={handleResetCotizacion}
+      className="flex items-center gap-1 bg-orange-50 text-orange-600 hover:bg-orange-100 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md transition-colors shadow-sm"
+      title="Reiniciar cotización"
+    >
+      <RefreshCw className="w-4 h-4" />
+      <span className="sr-only sm:not-sr-only sm:inline text-sm font-medium">Reiniciar Cotizacion</span>
+    </button>
+  </div>
+</div>
         </div>
       </header>
 
@@ -163,133 +261,116 @@ function Cotizador() {
         <div className="max-w-screen-2xl mx-auto">
           {/* Main Container */}
           <div className="bg-white rounded-lg shadow p-4 md:p-4">
-            {/* Flow Indicator - Always visible */}
-            <div className="flex mb-6 border-b overflow-x-auto no-scrollbar">
-              <button
-                className={`pb-2 px-4 whitespace-nowrap ${state.flowStage === 'quote' ? 'border-b-2 border-blue-500 font-medium' : 'text-gray-500'}`}
-                onClick={() => updateField('flowStage', 'quote')}
-              >
-                1. Cotización
-              </button>
-              <button
-                className={`pb-2 px-4 whitespace-nowrap ${state.flowStage === 'customer-data' ? 'border-b-2 border-blue-500 font-medium' : 'text-gray-500'}`}
-                style={{ opacity: selectedService ? 1 : 0.5 }}
-                disabled={!selectedService}
-              >
-                2. Datos del Cliente
-              </button>
-            </div>
-
             {state.flowStage === 'quote' ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column - Address & Delivery Info */}
-              <div className="space-y-4">
-                <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
-                  <h2 className="text-lg font-semibold mb-4 flex items-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                    </svg>
-                    Codigos Postales
-                  </h2>
-                  
-                  <AddressSection
-                    state={state}
-                    updateField={updateField}
-                    originState={originState}
-                    originMunicipio={originMunicipio}
-                    originCiudad={originCiudad}
-                    originColonias={originColonias}
-                    selectedOriginColonia={selectedOriginColonia}
-                    setSelectedOriginColonia={setSelectedOriginColonia}
-                    destState={destState}
-                    destMunicipio={destMunicipio}
-                    destCiudad={destCiudad}
-                    destColonias={destColonias}
-                    selectedDestColonia={selectedDestColonia}
-                    setSelectedDestColonia={setSelectedDestColonia}
-                    validateZipCodes={validateZipCodesWithEstafeta}
-                    zone={state.zone}
-                    isInternational={state.isInternational}
-                    selectedZone={state.selectedZone}
-                    isValidated={state.isValidated}
-                  />
-                </div>
+                {/* Left Column - Address & Delivery Info */}
+                <div className="space-y-4">
+                  <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                    <h2 className="text-lg font-semibold mb-4 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                      </svg>
+                      Codigos Postales
+                    </h2>
+
+                    <AddressSection
+                      state={state}
+                      updateField={updateField}
+                      originState={originState}
+                      originMunicipio={originMunicipio}
+                      originCiudad={originCiudad}
+                      originColonias={originColonias}
+                      selectedOriginColonia={selectedOriginColonia}
+                      setSelectedOriginColonia={setSelectedOriginColonia}
+                      destState={destState}
+                      destMunicipio={destMunicipio}
+                      destCiudad={destCiudad}
+                      destColonias={destColonias}
+                      selectedDestColonia={selectedDestColonia}
+                      setSelectedDestColonia={setSelectedDestColonia}
+                      validateZipCodes={validateZipCodesWithEstafeta}
+                      zone={state.zone}
+                      isInternational={state.isInternational}
+                      selectedZone={state.selectedZone}
+                      isValidated={state.isValidated}
+                    />
+                  </div>
 
                   {/* Delivery Info Section - Simplified */}
                   {state.isValidated && !state.isInternational && (
                     <div className="bg-green-50 p-4 rounded-lg border border-green-100 shadow-sm">
-                    <h2 className="text-lg font-semibold mb-4 flex items-center text-green-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-                        <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h2a1 1 0 001-1V8a1 1 0 00-.416-.789l-2-1.666A1 1 0 0014 5.333V4a1 1 0 00-1-1H3zM16 8.8V8l-2-1.667V5H14v3.8l2 .8z" />
-                      </svg>
-                      Información de Entrega
-                    </h2>
-                    <DeliveryInfoDisplay
-                      estafetaResult={estafetaResult}
-                      loadingEstafeta={loadingEstafeta}
-                      validateThreeTimes={validateThreeTimes}
-                      handleReport={handleReport}
-                      reportSubmitted={reportSubmitted}
-                    />
-                  </div>
-                )}
-              </div>
+                      <h2 className="text-lg font-semibold mb-4 flex items-center text-green-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                          <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h2a1 1 0 001-1V8a1 1 0 00-.416-.789l-2-1.666A1 1 0 0014 5.333V4a1 1 0 00-1-1H3zM16 8.8V8l-2-1.667V5H14v3.8l2 .8z" />
+                        </svg>
+                        Información de Entrega
+                      </h2>
+                      <DeliveryInfoDisplay
+                        estafetaResult={estafetaResult}
+                        loadingEstafeta={loadingEstafeta}
+                        validateThreeTimes={validateThreeTimes}
+                        handleReport={handleReport}
+                        reportSubmitted={reportSubmitted}
+                      />
+                    </div>
+                  )}
+                </div>
 
                 {/* Right Column - Package Details & Quote Results */}
                 <div className="space-y-6">
                   {/* Package Details Section */}
                   {(state.isValidated || state.isInternational) && (
-        <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
-          <h2 className="text-lg font-semibold mb-4 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
-              <path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
-            </svg>
-            Detalles del Paquete
-          </h2>
-          <PackageDetailsSection
-            state={state}
-            updateField={updateField}
-            servicios={servicios}
-            validated={state.isValidated}
-            fetchQuote={fetchQuote}
-          />
-        </div>
-      )}
+                    <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                      <h2 className="text-lg font-semibold mb-4 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
+                          <path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
+                        </svg>
+                        Detalles del Paquete
+                      </h2>
+                      <PackageDetailsSection
+                        state={state}
+                        updateField={updateField}
+                        servicios={servicios}
+                        validated={state.isValidated}
+                        fetchQuote={fetchQuote}
+                      />
+                    </div>
+                  )}
 
                   {/* Quote Results Section */}
                   {servicios && servicios.length > 0 && detallesCotizacion && (
-        <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
-          <h2 className="text-lg font-semibold mb-3 flex items-center text-blue-700">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
-            </svg>
-            Resultados
-          </h2>
-          
-          {/* Visual help for selecting a service */}
-          <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-3 mb-4 text-sm flex items-start">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-yellow-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-            <div>
-              <p className="font-medium text-yellow-800">Seleccione un servicio</p>
-              <p className="text-yellow-700">Elija una de las opciones y haga clic en el botón "Continuar" para proceder con los datos del cliente.</p>
-            </div>
-          </div>
-          
-          <QuoteResultsSection
-            servicios={servicios}
-            detallesCotizacion={detallesCotizacion}
-            selectedService={selectedService}
-            setSelectedService={setSelectedService}
-            proceedToCustomerData={proceedToCustomerData}
-          />
-        </div>
-      )}
-    </div>
-  </div>
+                    <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
+                      <h2 className="text-lg font-semibold mb-3 flex items-center text-blue-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
+                        </svg>
+                        Resultados
+                      </h2>
+
+                      {/* Visual help for selecting a service */}
+                      <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-3 mb-4 text-sm flex items-start">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-yellow-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
+                        <div>
+                          <p className="font-medium text-yellow-800">Seleccione un servicio</p>
+                          <p className="text-yellow-700">Elija una de las opciones y haga clic en el botón "Continuar" para proceder con los datos del cliente.</p>
+                        </div>
+                      </div>
+
+                      <QuoteResultsSection
+                        servicios={servicios}
+                        detallesCotizacion={detallesCotizacion}
+                        selectedService={selectedService}
+                        setSelectedService={setSelectedService}
+                        proceedToCustomerData={proceedToCustomerData}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
             ) : (
               state.flowStage === 'customer-data' && (
                 <div className="bg-white rounded-lg shadow-sm">
@@ -309,7 +390,7 @@ function Cotizador() {
                       <span className="font-semibold">{selectedService?.nombre}</span> - ${selectedService?.precioConIva.toFixed(2)}
                     </div>
                   </div>
-                  
+
                   <div className="p-4">
                     <DatosEnvio
                       selectedService={selectedService!}
@@ -321,11 +402,11 @@ function Cotizador() {
                           cliente: envioData.cliente,
                           destino: envioData.destino
                         });
-              
+
                         // Reset or proceed to next step
                         updateField('flowStage', 'quote');
                         resetForm();
-              
+
                         setNotification({
                           show: true,
                           message: `Envío registrado para ${envioData.cliente.nombre}`,

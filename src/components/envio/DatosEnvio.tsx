@@ -5,6 +5,7 @@ import ClienteForm from './ClienteForm';
 import DestinoForm from './DestinoForm';
 import EnvioConfirmation from './EnvioConfirmation';
 import ShippingOptions from './ShippingOptions';
+import { ManuableRate } from '../../services/manuableService';
 
 interface DatosEnvioProps {
   selectedService: ServicioCotizado;
@@ -105,8 +106,17 @@ export default function DatosEnvio({
   const [externalCost, setExternalCost] = useState<number | null>(null);
 
   // Manuable services
-  const [manuableServices, setManuableServices] = useState<any[]>([]);
-  const [selectedManuableService, setSelectedManuableService] = useState<any>(null);
+  const [manuableServices, setManuableServices] = useState<ManuableRate[]>([]);
+  const [selectedManuableService, setSelectedManuableService] = useState<ManuableRate | null>(null);
+
+  // Package details for Manuable API
+  const [packageDetails, setPackageDetails] = useState({
+    peso: selectedService.pesoFacturable || 1,
+    alto: 10,
+    largo: 10,
+    ancho: 10,
+    valor_declarado: selectedService.valorSeguro || 0
+  });
 
   // Load existing client and destination data if IDs are provided
   useEffect(() => {
@@ -359,32 +369,34 @@ export default function DatosEnvio({
         </div>
       ) : (
         <div>
-        <EnvioConfirmation
-          cliente={cliente}
-          destino={destino}
-          selectedService={selectedService}
-          onBack={() => setStep('form')}
-        />
+          <EnvioConfirmation
+            cliente={cliente}
+            destino={destino}
+            selectedService={selectedService}
+            onBack={() => setStep('form')}
+          />
 
-<div className="mt-6">
-      <ShippingOptions
-        selectedOption={selectedOption}
-        setSelectedOption={setSelectedOption}
-        externalLabelData={externalLabelData}
-        setExternalLabelData={setExternalLabelData}
-        externalCost={externalCost}
-        setExternalCost={setExternalCost}
-        manuableServices={manuableServices}
-        setManuableServices={setManuableServices}
-        selectedManuableService={selectedManuableService}
-        setSelectedManuableService={setSelectedManuableService}
-      />
-    </div>
+          <div className="mt-6">
+            <ShippingOptions
+              selectedOption={selectedOption}
+              setSelectedOption={setSelectedOption}
+              externalLabelData={externalLabelData}
+              setExternalLabelData={setExternalLabelData}
+              externalCost={externalCost}
+              setExternalCost={setExternalCost}
+              manuableServices={manuableServices}
+              setManuableServices={setManuableServices}
+              selectedManuableService={selectedManuableService}
+              setSelectedManuableService={setSelectedManuableService}
+              originZip={originZip}
+              destZip={destZip}
+              packageDetails={packageDetails}
+              cliente={cliente}
+              destino={destino}
+            />
+          </div>
         </div>
-
-
       )}
-      
 
       {/* Form Actions */}
       <div className="mt-6 flex justify-between border-t pt-4">
@@ -399,48 +411,47 @@ export default function DatosEnvio({
         </button>
         
         {step === 'form' ? (
-  <button
-    onClick={() => setStep('confirmation')}
-    className={`px-4 py-2 rounded-md flex items-center ${
-      isClientFormValid() && isDestinoFormValid()
-        ? 'bg-blue-600 text-white hover:bg-blue-700'
-        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-    }`}
-    disabled={!isClientFormValid() || !isDestinoFormValid()}
-  >
-    Revisar y Confirmar
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-    </svg>
-  </button>
-) : (
-  // Replace this button with the enhanced version below
-  <button
-    onClick={handleSubmit}
-    className={`px-4 py-2 rounded-md flex items-center ${
-      selectedOption !== 'none'
-        ? 'bg-green-600 text-white hover:bg-green-700'
-        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-    }`}
-    disabled={selectedOption === 'none'}
-  >
-    {selectedOption === 'none' ? (
-      <>
-        Seleccione una opción de envío
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-        </svg>
-      </>
-    ) : (
-      <>
-        Confirmar Envío
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-        </svg>
-      </>
-    )}
-  </button>
-)}
+          <button
+            onClick={() => setStep('confirmation')}
+            className={`px-4 py-2 rounded-md flex items-center ${
+              isClientFormValid() && isDestinoFormValid()
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+            disabled={!isClientFormValid() || !isDestinoFormValid()}
+          >
+            Revisar y Confirmar
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+            </svg>
+          </button>
+        ) : (
+          <button
+            onClick={handleSubmit}
+            className={`px-4 py-2 rounded-md flex items-center ${
+              selectedOption !== 'none'
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+            disabled={selectedOption === 'none'}
+          >
+            {selectedOption === 'none' ? (
+              <>
+                Seleccione una opción de envío
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </>
+            ) : (
+              <>
+                Confirmar Envío
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </>
+            )}
+          </button>
+        )}
       </div>
     </div>
   );
