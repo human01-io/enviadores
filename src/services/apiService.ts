@@ -439,6 +439,7 @@ advancedSearchShipments: async (
     servicio_id: string;
     peso_real: number;
     peso_volumetrico: number;
+    peso_facturable?: number;
     valor_declarado?: number;
     costo_seguro?: number;
     costo_envio: number;
@@ -454,48 +455,62 @@ advancedSearchShipments: async (
     uuid_manuable?: string;
     servicio_manuable?: string;
     costo_neto?: number;
+    estatus?: string; // Added status field
   },
   options?: {
     labelFile?: File;
     progressCallback?: (progress: number) => void;
   }
-): Promise<{ id: string }> => {
-
-  const formData = new FormData();
-
-  const numericFields = ['peso_real', 'peso_volumetrico', 'costo_neto', 'valor_declarado'];
-
-  Object.entries(shipmentData).forEach(([key, value]) => {
-    if (value === undefined || value === null) return;
-    
-    if (numericFields.includes(key)) {
-      formData.append(key, value.toString()); // Explicit for numbers
-    } else {
-      formData.append(key, String(value)); // Default string conversion
+  ): Promise<{ id: string }> {
+    console.log("Creating shipment with data:", JSON.stringify(shipmentData, null, 2));
+    console.log("Label file present:", options?.labelFile ? "Yes" : "No");
+  
+    const formData = new FormData();
+  
+    // Set default status if not provided
+    if (!shipmentData.estatus) {
+      shipmentData.estatus = 'preparacion';
     }
-  });
-  if (options?.labelFile) {
-    formData.append('label_file', options.labelFile);
-  }
-
-  try {
-    const response = await api.post('/shipments.php', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      },
-      onUploadProgress: options?.progressCallback 
-        ? (progressEvent: ProgressEvent) => {
-            const percentCompleted = Math.round(
-              (progressEvent.loaded * 100) / (progressEvent.total || 1)
-            );
-            options.progressCallback(percentCompleted);
-          }
-        : undefined
+  
+    const numericFields = ['peso_real', 'peso_volumetrico', 'costo_neto', 'valor_declarado'];
+  
+    Object.entries(shipmentData).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+      
+      if (numericFields.includes(key)) {
+        formData.append(key, value.toString()); // Explicit for numbers
+      } else {
+        formData.append(key, String(value)); // Default string conversion
+      }
     });
-    return response.data;
-  } catch (error) {
-    throw new Error(`Shipment creation failed: ${error.message}`);
-  }
+  
+    // Handle label file upload
+    if (options?.labelFile) {
+      console.log("Appending label file to form data:", options.labelFile.name, options.labelFile.type, options.labelFile.size);
+      formData.append('label_file', options.labelFile);
+    }
+  
+    try {
+      const response = await api.post('/shipments.php', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: options?.progressCallback 
+          ? (progressEvent: ProgressEvent) => {
+              const percentCompleted = Math.round(
+                (progressEvent.loaded * 100) / (progressEvent.total || 1)
+              );
+              options.progressCallback(percentCompleted);
+            }
+          : undefined
+      });
+  
+      console.log("Shipment creation response:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("Error creating shipment:", error.response?.data || error.message);
+      throw new Error(`Shipment creation failed: ${error.message}`);
+    }
   },
 
   getShipmentDetails: async (shipmentId: string): Promise<ShipmentDetails & {

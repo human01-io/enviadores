@@ -274,10 +274,11 @@ export default function DatosEnvio({
         tipo_paquete: selectedService.tipoPaquete || 'paquete',
         opcion_empaque: selectedService.opcionEmpaque || undefined,
         requiere_recoleccion: selectedService.requiereRecoleccion || false,
+        estatus: 'preparacion', // Set default status to 'preparacion'
         
         // Set method based on selected option
         metodo_creacion: selectedOption === 'external' ? 'externo' : 
-                         selectedOption === 'manuable' ? 'manuable' : 'interno',
+                        selectedOption === 'manuable' ? 'manuable' : 'interno',
       };
   
       // Add external label data if applicable
@@ -292,11 +293,13 @@ export default function DatosEnvio({
         shipmentData.uuid_manuable = selectedManuableService.uuid;
         shipmentData.servicio_manuable = `${selectedManuableService.carrier} - ${selectedManuableService.service}`;
         shipmentData.costo_neto = parseFloat(selectedManuableService.total_amount);
+        shipmentData.paqueteria_externa = selectedManuableService.carrier;
+        shipmentData.numero_guia_externa = externalLabelData.trackingNumber;
       }
   
       // Create shipment options for file upload
       const options: any = {};
-      if (selectedOption === 'external' && externalLabelData.labelFile) {
+      if (externalLabelData.labelFile) {
         options.labelFile = externalLabelData.labelFile;
       }
   

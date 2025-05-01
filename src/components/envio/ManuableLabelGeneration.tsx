@@ -40,8 +40,17 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
       // Call the API to generate label
       const labelResponse = await createLabel(cliente, destinoWithExternalNumber, selectedService.uuid);
       
+      console.log("Label generated successfully:", labelResponse);
+
       if (labelResponse) {
-        onLabelGenerated(labelResponse);
+        // Ensure we have absolute URLs for the label
+        const processedResponse = {
+          ...labelResponse,
+          label_url: ensureAbsoluteUrl(labelResponse.label_url)
+        };
+        
+        console.log("Processed label response:", processedResponse);
+        onLabelGenerated(processedResponse);
       } else {
         throw new Error('No se pudo generar la etiqueta');
       }
@@ -68,6 +77,24 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
       return matches[1] || matches[2] || matches[3] || '';
     }
     return ''; // Return empty string if no match found
+  };
+
+  // Helper function to ensure URL is absolute
+  const ensureAbsoluteUrl = (url: string): string => {
+    if (!url) return '';
+    
+    // Check if URL already starts with http:// or https://
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // If it's a relative URL starting with a slash, prepend the API base
+    if (url.startsWith('/')) {
+      return `http://ec2-54-188-18-143.us-west-2.compute.amazonaws.com:4000${url}`;
+    }
+    
+    // Otherwise assume it's a relative URL and prepend the API base with a slash
+    return `http://ec2-54-188-18-143.us-west-2.compute.amazonaws.com:4000/${url}`;
   };
 
   // Function to fix validation issues automatically
@@ -97,7 +124,12 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
       createLabel(cliente, updatedDestino, selectedService.uuid)
         .then(labelResponse => {
           if (labelResponse) {
-            onLabelGenerated(labelResponse);
+            // Process the URL to make sure it's absolute
+            const processedResponse = {
+              ...labelResponse,
+              label_url: ensureAbsoluteUrl(labelResponse.label_url)
+            };
+            onLabelGenerated(processedResponse);
           }
         })
         .catch(err => {

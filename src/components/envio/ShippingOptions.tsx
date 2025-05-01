@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ManuableRate, ManuableLabelResponse } from '../../services/manuableService';
 import ManuableRatesComponent from './ManuableRatesComponent';
 import ManuableLabelGenerator from './ManuableLabelGeneration';
@@ -81,10 +81,71 @@ export default function ShippingOptions({
 
   // State for storing the generated label
   const [labelData, setLabelData] = useState<ManuableLabelResponse | null>(null);
+  const [isDownloadingLabel, setIsDownloadingLabel] = useState<boolean>(false);
+
+  // Effect to update when label data changes
+  useEffect(() => {
+    if (labelData && labelData.tracking_number && labelData.label_url) {
+      // First immediately update tracking number and carrier
+      setExternalLabelData(prev => ({
+        ...prev,
+        carrier: selectedManuableService?.carrier || 'Manuable',
+        trackingNumber: labelData.tracking_number
+      }));
+      
+      // Then try to download the label file
+      setIsDownloadingLabel(true);
+      downloadManuableLabel(labelData.label_url)
+        .then(file => {
+          if (file) {
+            setExternalLabelData(prev => ({
+              ...prev,
+              labelFile: file
+            }));
+            
+            // Set cost if available
+            if (labelData.price) {
+              setExternalCost(parseFloat(labelData.price));
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error downloading Manuable label:', error);
+        })
+        .finally(() => {
+          setIsDownloadingLabel(false);
+        });
+    }
+  }, [labelData, selectedManuableService, setExternalLabelData, setExternalCost]);
 
   // Handler for successful label generation
   const handleLabelGenerated = (data: ManuableLabelResponse) => {
+    console.log('Label generated with data:', data);
     setLabelData(data);
+  };
+  
+  // Function to download a Manuable label and convert it to a File object
+  const downloadManuableLabel = async (url: string): Promise<File | null> => {
+    try {
+      console.log('Downloading label from URL:', url);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to download label: ${response.status} ${response.statusText}`);
+      }
+      
+      const blob = await response.blob();
+      const filename = url.split('/').pop() || 'manuable_label.pdf';
+      
+      const file = new File([blob], filename, {
+        type: blob.type || 'application/pdf'
+      });
+      
+      console.log('Label downloaded successfully, created file:', file.name, file.size, 'bytes');
+      return file;
+    } catch (error) {
+      console.error('Error downloading label:', error);
+      return null;
+    }
   };
 
   return (
@@ -206,10 +267,18 @@ export default function ShippingOptions({
       {selectedOption === 'manuable' && (
         <div className="bg-gray-50 p-4 rounded-lg mb-6">
           <h4 className="font-semibold mb-4">Opciones de Manuable</h4>
+         
           
           {/* Display label if generated */}
           {labelData ? (
-            <ManuableLabelDisplay labelData={labelData} />
+            <>
+              <ManuableLabelDisplay labelData={labelData} />
+              {isDownloadingLabel && (
+                <div className="text-center py-2 bg-blue-50 rounded mt-2">
+                  <p className="text-blue-600 text-sm">Descargando etiqueta, por favor espere...</p>
+                </div>
+              )}
+            </>
           ) : (
             <>
               {/* Show label generator if service is selected */}
