@@ -461,7 +461,7 @@ advancedSearchShipments: async (
     labelFile?: File;
     progressCallback?: (progress: number) => void;
   }
-  ): Promise<{ id: string }> {
+  ): Promise<{ id: string }> => {
     console.log("Creating shipment with data:", JSON.stringify(shipmentData, null, 2));
     console.log("Label file present:", options?.labelFile ? "Yes" : "No");
   
