@@ -17,7 +17,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   // Initialize from localStorage, fallback to 'system'
   const [theme, setTheme] = useState<Theme>(() => {
     const savedTheme = localStorage.getItem('theme');
-    return (savedTheme as Theme) || 'system';
+    return (savedTheme as Theme) || 'light';
   });
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   useEffect(() => {
     // Listen for system theme changes if using 'system' theme
     if (theme === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: light)');
       
       const handleChange = (e: MediaQueryListEvent) => {
         if (e.matches) {

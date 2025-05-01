@@ -107,46 +107,47 @@ class ManuableService {
     );
   }
 
-  /**
-   * Login to Manuable API via the proxy
-   * Note: The proxy handles the actual credentials, so we don't need to send them
+ /**
+   * Login to Manuable API via the Cloudflare Worker proxy
+   * Note: The worker handles the actual credentials, so we don't need to send them
    */
-  async login(): Promise<ManuableAuth> {
-    try {
-      console.log('Attempting to login to Manuable API via proxy');
-      console.time('manuable-login');
+ async login(): Promise<ManuableAuth> {
+  try {
+    console.log('Attempting to login to Manuable API via proxy');
+    console.time('manuable-login');
+    
+    // We're using the Cloudflare Worker which will inject the credentials
+    // Just send an empty body to the session endpoint
+    const response = await this.api.post(manuableConfig.endpoints.session, {});
+    
+    console.timeEnd('manuable-login');
+    console.log('Manuable login successful');
+    
+    // Save token for future requests
+    this.token = response.data.token;
+    
+    return response.data;
+  } catch (error) {
+    console.timeEnd('manuable-login');
+    console.error('Manuable login error:', error);
+    
+    // Enhanced error reporting
+    if (axios.isAxiosError(error)) {
+      console.error('Request details:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        timeout: error.config?.timeout,
+        headers: error.config?.headers
+      });
       
-      // We're using the proxy which will inject the credentials
-      const response = await this.api.post(manuableConfig.endpoints.session, {});
-      
-      console.timeEnd('manuable-login');
-      console.log('Manuable login successful');
-      
-      // Save token for future requests
-      this.token = response.data.token;
-      
-      return response.data;
-    } catch (error) {
-      console.timeEnd('manuable-login');
-      console.error('Manuable login error:', error);
-      
-      // Enhanced error reporting
-      if (axios.isAxiosError(error)) {
-        console.error('Request details:', {
-          url: error.config?.url,
-          method: error.config?.method,
-          timeout: error.config?.timeout,
-          headers: error.config?.headers
-        });
-        
-        if (error.code === 'ECONNABORTED') {
-          console.error('Connection timeout. Check if the proxy URL is correct and accessible.');
-        }
+      if (error.code === 'ECONNABORTED') {
+        console.error('Connection timeout. Check if the proxy URL is correct and accessible.');
       }
-      
-      throw new Error('Authentication with Manuable failed');
     }
+    
+    throw new Error('Authentication with Manuable failed');
   }
+}
 
   /**
    * Get rate quotes from Manuable
@@ -180,19 +181,68 @@ class ManuableService {
         await this.login();
       }
 
+      console.log('Creating label with params:', JSON.stringify(params, null, 2));
+
+      // Add required fields if missing
+      this.ensureRequiredFields(params);
+
       const response = await this.api.post(manuableConfig.endpoints.labels, params);
+      console.log('Label creation successful');
       return response.data;
     } catch (error) {
       console.error('Manuable create label error:', error);
-      throw error;
+      
+      // If it's an Axios error with a response, we can provide more details
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError;
+        
+        if (axiosError.response) {
+          console.error('API response status:', axiosError.response.status);
+          console.error('API response data:', JSON.stringify(axiosError.response.data));
+          
+          // Check if it's a validation error (usually 400 or 422)
+          if (axiosError.response.status === 400 || axiosError.response.status === 422) {
+            // Pass through the validation errors
+            throw axiosError;
+          }
+        }
+      }
+      
+      // For other types of errors, just throw a generic message
+      throw new Error('Error creating shipping label');
     }
   }
+
+     /**
+   * Ensure all required fields are present in the request
+   * This is to prevent common validation issues
+   */
+     private ensureRequiredFields(params: ManuableLabelRequest) {
+      // Ensure address_from has all required fields
+      if (params.address_from) {
+        params.address_from = {
+          ...params.address_from,
+          external_number: params.address_from.external_number || 'S/N',
+          email: params.address_from.email || 'contacto@enviadores.com.mx'
+        };
+      }
+  
+      // Ensure address_to has all required fields
+      if (params.address_to) {
+        params.address_to = {
+          ...params.address_to,
+          external_number: params.address_to.external_number || 'S/N',
+          email: params.address_to.email || 'contacto@enviadores.com.mx'
+        };
+      }
+    }
 
   /**
    * Map our app's data format to Manuable's format
    */
   mapToManuableAddressFormat(data: {
     nombre: string;
+    apellido_paterno: string;
     calle: string;
     colonia: string;
     numero_exterior: string;
@@ -219,6 +269,7 @@ class ManuableService {
       zip_code: data.codigo_postal,
     };
   }
+
 
   /**
    * Map destination data to Manuable format

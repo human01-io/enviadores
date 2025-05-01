@@ -78,9 +78,16 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
       setRates(response.data);
       return response.data;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to get rates';
-      setError(errorMessage);
-      return [];
+      // Check if this is a validation error
+      if (err.response?.data?.errors) {
+        console.warn('Validation errors in getRates:', err.response.data.errors);
+        // Return empty array but don't set error state since this is a validation issue
+        return [];
+      } else {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to get rates';
+        setError(errorMessage);
+        return [];
+      }
     } finally {
       setIsLoading(false);
     }
@@ -125,9 +132,9 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
       setLabelResponse(response);
       return response;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create label';
-      setError(errorMessage);
-      return null;
+      // Don't set the error state, just pass it up to the component
+      // This allows the component to handle validation errors separately
+      throw err;
     } finally {
       setIsLoading(false);
     }
