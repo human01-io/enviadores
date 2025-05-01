@@ -37,8 +37,13 @@ const ManuableRatesComponent: React.FC<ManuableRatesComponentProps> = ({
   useEffect(() => {
     const fetchRates = async () => {
       if (originZip && destZip && packageDetails.peso) {
-        await getRates(originZip, destZip, packageDetails);
-        setHasFetched(true);
+        try {
+          await getRates(originZip, destZip, packageDetails);
+          setHasFetched(true);
+        } catch (error) {
+          console.error("Error fetching rates:", error);
+          setHasFetched(true);
+        }
       }
     };
 
@@ -92,26 +97,37 @@ const ManuableRatesComponent: React.FC<ManuableRatesComponentProps> = ({
     );
   }
 
-  if (rates.length === 0 && hasFetched) {
-    return (
-      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <div className="flex items-start">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <div>
-            <h3 className="font-medium text-yellow-800">No hay servicios disponibles</h3>
-            <p className="text-sm text-yellow-700 mt-1">
-              No se encontraron servicios de envío para esta ruta. Verifique los códigos postales o inténtelo más tarde.
-            </p>
-            <button
-              onClick={handleFetchRates}
-              className="mt-3 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
-            >
-              Reintentar
-            </button>
+  // FIX: Check if rates is an array before checking its length
+  // This is likely where the error was occurring at line 95
+  if (!rates || !Array.isArray(rates) || rates.length === 0) {
+    if (hasFetched) {
+      return (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-start">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <h3 className="font-medium text-yellow-800">No hay servicios disponibles</h3>
+              <p className="text-sm text-yellow-700 mt-1">
+                No se encontraron servicios de envío para esta ruta. Verifique los códigos postales o inténtelo más tarde.
+              </p>
+              <button
+                onClick={handleFetchRates}
+                className="mt-3 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
+              >
+                Reintentar
+              </button>
+            </div>
           </div>
         </div>
+      );
+    }
+    
+    // If we haven't fetched yet, show a loading state
+    return (
+      <div className="text-center py-4">
+        <p className="text-gray-600">Esperando datos...</p>
       </div>
     );
   }
@@ -144,7 +160,7 @@ const ManuableRatesComponent: React.FC<ManuableRatesComponentProps> = ({
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {rates.map((rate, index) => (
-              <tr key={rate.uuid} className={selectedService?.uuid === rate.uuid ? 'bg-blue-50' : ''}>
+              <tr key={rate.uuid || index} className={selectedService?.uuid === rate.uuid ? 'bg-blue-50' : ''}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{rate.carrier}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{rate.service}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{rate.shipping_type}</td>

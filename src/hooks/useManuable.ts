@@ -74,18 +74,33 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
         parcel: manuableService.mapPackageToManuableParcel(packageDetails)
       };
 
+      console.log('Sending getRates request with params:', JSON.stringify(params));
       const response = await manuableService.getRates(params);
-      setRates(response.data);
-      return response.data;
+      console.log('Received getRates response:', JSON.stringify(response));
+      
+      // Initialize rates to empty array if response data is undefined
+      if (!response || !response.data) {
+        console.warn('No rate data found in response');
+        setRates([]);
+        return [];
+      }
+      
+      // Make sure we have an array of rates
+      const ratesData = Array.isArray(response.data) ? response.data : [];
+      setRates(ratesData);
+      return ratesData;
     } catch (err) {
       // Check if this is a validation error
       if (err.response?.data?.errors) {
         console.warn('Validation errors in getRates:', err.response.data.errors);
         // Return empty array but don't set error state since this is a validation issue
+        setRates([]);
         return [];
       } else {
         const errorMessage = err instanceof Error ? err.message : 'Failed to get rates';
+        console.error('Error getting rates:', errorMessage);
         setError(errorMessage);
+        setRates([]);
         return [];
       }
     } finally {
@@ -113,6 +128,12 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
       const addressFrom = manuableService.mapToManuableAddressFormat(cliente);
       const addressTo = manuableService.mapDestinoToManuableAddress(destino);
 
+      console.log('Creating label with parameters:', {
+        rateUuid,
+        addressFrom,
+        addressTo
+      });
+
       const response = await manuableService.createLabel({
         address_from: addressFrom,
         address_to: addressTo,
@@ -129,11 +150,23 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
         label_format: 'PDF'
       });
 
-      setLabelResponse(response);
-      return response;
+      console.log('Label creation response:', JSON.stringify(response));
+
+      // Check for missing fields and provide defaults
+      const processedResponse = {
+        token: response?.token || '',
+        created_at: response?.created_at || new Date().toISOString(),
+        tracking_number: response?.tracking_number || '',
+        label_url: response?.label_url || '',
+        price: response?.price || '0.00'
+      };
+
+      setLabelResponse(processedResponse);
+      return processedResponse;
     } catch (err) {
       // Don't set the error state, just pass it up to the component
       // This allows the component to handle validation errors separately
+      console.error('Error creating label:', err);
       throw err;
     } finally {
       setIsLoading(false);

@@ -10,7 +10,7 @@ export const manuableConfig = {
   
   // API request configuration
   requestConfig: {
-    timeout: 10000,
+    timeout: 30000,
     withCredentials: true, // This is crucial for sessions
     headers: {
       'Content-Type': 'application/json',
@@ -48,7 +48,7 @@ export const manuableConfig = {
   },
   
   // Default timeout in milliseconds
-  timeout: 10000
+  timeout: 30000
 };
 
 // Update Manuable service to use this configuration

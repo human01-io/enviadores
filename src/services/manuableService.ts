@@ -121,7 +121,7 @@ class ManuableService {
     const response = await this.api.post(manuableConfig.endpoints.session, {});
     
     console.timeEnd('manuable-login');
-    console.log('Manuable login successful');
+    console.log('Manuable login successful:', response.data);
     
     // Save token for future requests
     this.token = response.data.token;
@@ -163,11 +163,21 @@ class ManuableService {
         await this.login();
       }
 
+      console.log('Sending getRates request to Manuable API');
       const response = await this.api.post(manuableConfig.endpoints.rates, params);
-      return response.data;
+      console.log('Received getRates response:', response.data);
+      
+      // Make sure rates is always an array
+      const ratesResponse: ManuableRateResponse = {
+        data: Array.isArray(response.data) ? response.data : 
+              response.data?.data && Array.isArray(response.data.data) ? response.data.data : []
+      };
+      
+      return ratesResponse;
     } catch (error) {
       console.error('Manuable get rates error:', error);
-      throw error;
+      // Return empty rates instead of throwing
+      return { data: [] };
     }
   }
 
@@ -187,24 +197,38 @@ class ManuableService {
       this.ensureRequiredFields(params);
 
       const response = await this.api.post(manuableConfig.endpoints.labels, params);
-      console.log('Label creation successful');
-      return response.data;
+      console.log('Label creation successful, raw response:', response);
+      console.log('Label response data:', JSON.stringify(response.data, null, 2));
+      
+      // Extract data from nested structure if needed
+      let labelData = response.data;
+      if (response.data && response.data.data) {
+        console.log('Detected nested data in response, extracting...');
+        labelData = response.data.data;
+      }
+      
+      // Ensure all required fields are present
+      const processedResponse: ManuableLabelResponse = {
+        token: labelData.token || '',
+        created_at: labelData.created_at || new Date().toISOString(),
+        tracking_number: labelData.tracking_number || '',
+        label_url: labelData.label_url || '',
+        price: labelData.price || '0'
+      };
+      
+      return processedResponse;
     } catch (error) {
       console.error('Manuable create label error:', error);
       
       // If it's an Axios error with a response, we can provide more details
       if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError;
+        console.error('API response status:', error.response?.status);
+        console.error('API response data:', JSON.stringify(error.response?.data));
         
-        if (axiosError.response) {
-          console.error('API response status:', axiosError.response.status);
-          console.error('API response data:', JSON.stringify(axiosError.response.data));
-          
-          // Check if it's a validation error (usually 400 or 422)
-          if (axiosError.response.status === 400 || axiosError.response.status === 422) {
-            // Pass through the validation errors
-            throw axiosError;
-          }
+        // Check if it's a validation error (usually 400 or 422)
+        if (error.response?.status === 400 || error.response?.status === 422) {
+          // Pass through the validation errors
+          throw error;
         }
       }
       
@@ -217,25 +241,25 @@ class ManuableService {
    * Ensure all required fields are present in the request
    * This is to prevent common validation issues
    */
-     private ensureRequiredFields(params: ManuableLabelRequest) {
-      // Ensure address_from has all required fields
-      if (params.address_from) {
-        params.address_from = {
-          ...params.address_from,
-          external_number: params.address_from.external_number || 'S/N',
-          email: params.address_from.email || 'contacto@enviadores.com.mx'
-        };
-      }
-  
-      // Ensure address_to has all required fields
-      if (params.address_to) {
-        params.address_to = {
-          ...params.address_to,
-          external_number: params.address_to.external_number || 'S/N',
-          email: params.address_to.email || 'contacto@enviadores.com.mx'
-        };
-      }
+  private ensureRequiredFields(params: ManuableLabelRequest) {
+    // Ensure address_from has all required fields
+    if (params.address_from) {
+      params.address_from = {
+        ...params.address_from,
+        external_number: params.address_from.external_number || 'S/N',
+        email: params.address_from.email || 'contacto@enviadores.com.mx'
+      };
     }
+
+    // Ensure address_to has all required fields
+    if (params.address_to) {
+      params.address_to = {
+        ...params.address_to,
+        external_number: params.address_to.external_number || 'S/N',
+        email: params.address_to.email || 'contacto@enviadores.com.mx'
+      };
+    }
+  }
 
   /**
    * Map our app's data format to Manuable's format
@@ -258,11 +282,11 @@ class ManuableService {
       name: data.nombre,
       street1: data.calle,
       neighborhood: data.colonia,
-      external_number: data.numero_exterior,
+      external_number: data.numero_exterior || 'S/N',
       city: data.municipio,
       state: data.estado,
       phone: data.telefono,
-      email: data.email,
+      email: data.email || 'contacto@enviadores.com.mx',
       country: (data.pais || 'México').toUpperCase(),
       country_code: 'MX', // Default to Mexico
       reference: data.referencia || '',
@@ -285,16 +309,17 @@ class ManuableService {
     email?: string;
     pais?: string;
     referencia?: string;
+    numero_exterior?: string;
   }): ManuableAddress {
     return {
       name: data.nombre_destinatario,
       street1: data.direccion,
       neighborhood: data.colonia,
-      external_number: '', // Not available in our destination model
+      external_number: data.numero_exterior || 'S/N', // Use provided or default
       city: data.ciudad,
       state: data.estado,
       phone: data.telefono,
-      email: data.email || '',
+      email: data.email || 'contacto@enviadores.com.mx',
       country: (data.pais || 'México').toUpperCase(),
       country_code: 'MX', // Default to Mexico
       reference: data.referencia || '',
