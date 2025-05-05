@@ -8,6 +8,7 @@ import {
   Notification
 } from '../utils/cotizadorTypes';
 import { calculateZone } from '../../postalUtils';
+import { apiService } from '../../../services';
 
 const initialState: CotizadorState = {
   originZip: "",
@@ -313,43 +314,46 @@ export function useCotizador() {
       alert("Por favor seleccione una zona para envío internacional");
       return;
     }
-
+  
     const parsedWeight = parseFloat(state.weight);
     if (isNaN(parsedWeight)) {
       alert("Por favor ingrese un peso válido");
       return;
     }
-
+  
     try {
       const requiereReexpedicion = estafetaResult?.reexpe
         ? parseReexpeditionCost(estafetaResult.reexpe)
         : false;
-
+  
+      // Create the payload for price estimation
+      const payload = {
+        zona: state.isInternational ? state.selectedZone : state.zone,
+        tipoPaquete: state.packageType,
+        peso: parsedWeight,
+        pesoVolumetrico: state.volumetricWeight,
+        esInternacional: state.isInternational,
+        valorSeguro: state.insurance ? parseFloat(state.insuranceValue) || 0 : 0,
+        opcionEmpaque: state.packagingOption,
+        precioEmpaquePersonalizado: state.packagingOption === 'EMP05' ? state.customPackagingPrice : null,
+        requiereRecoleccion: state.collectionRequired,
+        precioRecoleccion: state.collectionRequired ? state.collectionPrice : null,
+        requiereReexpedicion: requiereReexpedicion
+      };
+  
       const response = await fetch('https://enviadores.com.mx/api/get-prices.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          zona: state.isInternational ? state.selectedZone : state.zone,
-          tipoPaquete: state.packageType,
-          peso: parsedWeight,
-          pesoVolumetrico: state.volumetricWeight,
-          esInternacional: state.isInternational,
-          valorSeguro: state.insurance ? parseFloat(state.insuranceValue) || 0 : 0,
-          opcionEmpaque: state.packagingOption,
-          precioEmpaquePersonalizado: state.packagingOption === 'EMP05' ? state.customPackagingPrice : null,
-          requiereRecoleccion: state.collectionRequired,
-          precioRecoleccion: state.collectionRequired ? state.collectionPrice : null,
-          requiereReexpedicion: requiereReexpedicion
-        })
+        body: JSON.stringify(payload)
       });
-
+  
       const data = await response.json();
       
       if (data.exito) {
         const ivaRate = data.iva || 0.16; // Default to 16% if not provided
-
+  
         const serviciosConTotales = data.servicios.map((servicio: any) => {
           const iva = servicio.precioFinal * ivaRate;
           return {
@@ -360,11 +364,11 @@ export function useCotizador() {
             esInternacional: state.isInternational
           };
         });
-
+  
         const calcularConIva = (amount: number) => amount + (amount * ivaRate);
-
-        setServicios(serviciosConTotales);
-        setDetallesCotizacion({
+  
+        // Prepare quote details for storage
+        const detallesCotizacion = {
           empaque: data.cargosAdicionales.empaque,
           empaqueConIva: calcularConIva(data.cargosAdicionales.empaque),
           seguro: data.cargosAdicionales.seguro,
@@ -382,7 +386,55 @@ export function useCotizador() {
             calcularConIva(data.cargosAdicionales.seguro) +
             calcularConIva(data.cargosAdicionales.recoleccion) +
             calcularConIva(data.cargosAdicionales.reexpedicion || 0)
-        });
+        };
+        
+        // Update state with the quote results
+        setServicios(serviciosConTotales);
+        setDetallesCotizacion(detallesCotizacion);
+        
+        // Create an initial quotation entry in the database
+        if (serviciosConTotales.length > 0) {
+          try {
+            // Generate a unique temporary ID for the quotation
+            const tempId = localStorage.getItem('current_cotizacion_id') || 
+                          `COT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            
+            // Store the quotation ID in localStorage for retrieval
+            localStorage.setItem('current_cotizacion_id', tempId);
+            
+            // Prepare the quotation data
+            const quotationData = {
+              temp_id: tempId,
+              origen_cp: state.originZip,
+              destino_cp: state.destZip,
+              servicios_disponibles: serviciosConTotales.map(s => s.sku).join(','),
+              servicios_json: JSON.stringify(serviciosConTotales),
+              detalles_json: JSON.stringify(detallesCotizacion),
+              tipo_paquete: state.packageType,
+              peso_real: parsedWeight,
+              peso_volumetrico: state.volumetricWeight,
+              peso_facturable: data.pesoFacturable || Math.max(parsedWeight, state.volumetricWeight),
+              largo: state.packageType === "Paquete" ? parseFloat(state.length) || null : null,
+              ancho: state.packageType === "Paquete" ? parseFloat(state.width) || null : null,
+              alto: state.packageType === "Paquete" ? parseFloat(state.height) || null : null,
+              valor_declarado: state.insurance ? parseFloat(state.insuranceValue) || 0 : 0,
+              requiere_recoleccion: state.collectionRequired,
+              opcion_empaque: state.packagingOption,
+              cliente_id: state.clienteId || null,
+              destino_id: state.destinoId || null
+            };
+            
+            // Use apiService to save the quotation
+            const saveResult = await apiService.saveQuotation(quotationData);
+            
+            if (saveResult && saveResult.temp_id) {
+              console.log("Quotation record created with temp_id:", saveResult.temp_id);
+            }
+          } catch (error) {
+            console.error("Error creating quotation record:", error);
+            // We don't block the quotation process if this fails
+          }
+        }
       } else {
         alert(data.error || "Error al obtener cotización");
       }

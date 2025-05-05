@@ -457,6 +457,142 @@ getDestinationById: async (destinoId: string): Promise<Destino | null> => {
     return null;
   }
 },
+
+
+/**
+ * Creates an initial shipment record with 'cotizado' status
+ * This allows tracking quotations that may be abandoned
+ * 
+ * @param data Initial data for the shipment
+ * @returns Promise with the response
+ */
+createInitialShipment: async (data: {
+  temp_id: string;
+  origen_cp: string;
+  destino_cp: string;
+  servicios_disponibles: string;
+  tipo_paquete: string;
+  peso_real: number;
+  peso_volumetrico: number;
+  peso_facturable: number;
+  largo: number | null;
+  ancho: number | null;
+  alto: number | null;
+  valor_declarado: number;
+  requiere_recoleccion: boolean;
+  opcion_empaque: string;
+  cliente_id: string | null;
+  destino_id: string | null;
+  estatus: 'cotizado';
+  servicios_json: string;
+}): Promise<{ id: string }> => {
+  try {
+    // Endpoint for creating initial shipment records
+    const response = await api.post('/shipments_initial.php', data);
+    
+    if (!response.data?.success) {
+      throw new Error(response.data?.error || 'Failed to create initial shipment record');
+    }
+    
+    return { 
+      id: response.data.id || response.data.data?.id || data.temp_id 
+    };
+  } catch (error) {
+    console.error('Error creating initial shipment record:', error);
+    // Return the temporary ID even if the API call failed
+    // This allows local tracking to continue
+    return { id: data.temp_id };
+  }
+},
+
+/**
+ * Retrieves abandoned quotations for the current user
+ * @returns Promise with abandoned quotations
+ */
+getAbandonedQuotations: async (limit = 5): Promise<any[]> => {
+  try {
+    const response = await api.get('/quotations.php', {
+      params: { limit }
+    });
+    
+    if (response.data?.success) {
+      return response.data.data || [];
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching abandoned quotations:', error);
+    return [];
+  }
+},
+
+/**
+ * Creates or updates a quotation record
+ * @param quotationData The quotation data to save
+ * @returns Promise with the response
+ */
+saveQuotation: async (quotationData: {
+  temp_id: string;
+  origen_cp: string;
+  destino_cp: string;
+  tipo_paquete: string;
+  servicios_disponibles?: string;
+  servicios_json?: string;
+  detalles_json?: string;
+  peso_real?: number;
+  peso_volumetrico?: number;
+  peso_facturable?: number;
+  largo?: number | null;
+  ancho?: number | null;
+  alto?: number | null;
+  valor_declarado?: number;
+  requiere_recoleccion?: boolean;
+  opcion_empaque?: string;
+  cliente_id?: string | null;
+  destino_id?: string | null;
+}): Promise<{ id: string; temp_id: string }> => {
+  try {
+    const response = await api.post('/quotations.php', quotationData);
+    
+    if (!response.data?.success) {
+      throw new Error(response.data?.error || 'Failed to save quotation');
+    }
+    
+    return response.data.data;
+  } catch (error) {
+    console.error('Error saving quotation:', error);
+    throw new Error('Failed to save quotation. Please try again.');
+  }
+},
+
+/**
+ * Updates a quotation with shipping option details
+ * @param updateData The update data
+ * @returns Promise with the response
+ */
+updateQuotationStatus: async (updateData: {
+  temp_id: string;
+  status_update: 'external_selected' | 'manuable_selected' | 'manuable_label_generated';
+  service_id?: string;
+  carrier?: string;
+  service_name?: string;
+  tracking_number?: string;
+  label_url?: string;
+  price?: number | string;
+}): Promise<{ success: boolean }> => {
+  try {
+    const response = await api.put('/quotations.php', updateData);
+    
+    if (!response.data?.success) {
+      throw new Error(response.data?.error || 'Failed to update quotation status');
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating quotation status:', error);
+    return { success: false };
+  }
+},
+
   // Shipment endpoints
   createShipment: async (
     shipmentData: {
@@ -838,6 +974,71 @@ getUserPreferences: async (): Promise<{
     };
   }
 },
+/**
+ * Checks for abandoned quotations and handles restoration flow
+ * @param options Configuration options
+ * @returns Promise with boolean indicating if a quotation was restored
+ */
+checkForAbandonedQuotations: async (options: {
+  onQuotationFound?: (quotation: any) => boolean | Promise<boolean>;
+  limit?: number;
+} = {}): Promise<boolean> => {
+  try {
+    // Skip if user has opted out of this feature
+    const skipCheck = localStorage.getItem('skip_quotation_restore');
+    if (skipCheck === 'true') {
+      return false;
+    }
+    
+    // If there's already a current quotation in progress, don't check for abandoned ones
+    if (localStorage.getItem('current_cotizacion_id')) {
+      return false;
+    }
+    
+    // Fetch abandoned quotations
+    const abandonedQuotations = await apiService.getAbandonedQuotations(options.limit || 5);
+    
+    // If there are abandoned quotations, show an option to restore
+    if (abandonedQuotations.length > 0) {
+      const latestQuotation = abandonedQuotations[0]; // Get the most recent one
+      
+      // If a callback was provided, call it with the quotation
+      if (options.onQuotationFound) {
+        return await options.onQuotationFound(latestQuotation);
+      } else {
+        // Default restoration flow if no callback provided
+        // Format date for display
+        const quotationDate = new Date(latestQuotation.created_at);
+        const formattedDate = quotationDate.toLocaleString();
+        
+        // Ask user if they want to restore
+        const shouldRestore = confirm(
+          `¿Desea continuar con su cotización anterior?\n\nCreada: ${formattedDate}\nOrigen: ${latestQuotation.origen_cp}, Destino: ${latestQuotation.destino_cp}\nTipo: ${latestQuotation.tipo_paquete}\n\nHay información adicional disponible en esta cotización que puede ser restaurada.`
+        );
+        
+        if (shouldRestore) {
+          // Store the quotation ID for later updates
+          localStorage.setItem('current_cotizacion_id', latestQuotation.temp_id);
+          
+          // Return true to indicate we restored a quotation
+          return true;
+        } else {
+          // User declined to restore, ask if they want to be prompted again
+          const skipFuture = confirm("¿Desea que no se le vuelvan a mostrar cotizaciones abandonadas?");
+          if (skipFuture) {
+            localStorage.setItem('skip_quotation_restore', 'true');
+          }
+          return false; // Indicate we did not restore a quotation
+        }
+      }
+    }
+    
+    return false; // No quotations found or restoration declined
+  } catch (error) {
+    console.error("Error checking for abandoned quotations:", error);
+    return false; // Silently fail - don't disrupt the normal flow
+  }
+},
 
 /**
  * Saves user preferences to the server
@@ -865,6 +1066,8 @@ saveUserPreferences: async (preferences: {
     throw new Error('Failed to save preferences. Please try again.');
   }
 },
+
+
   
   // This function extends your existing createUser method
   createUser: async (userData: {

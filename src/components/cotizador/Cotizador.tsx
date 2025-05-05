@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, LogOut, RefreshCw } from 'lucide-react';
-import { AddressSection } from './AddressSection'; // Make sure to use the updated version
-import { DeliveryInfoDisplay } from './DeliveryInfoDisplay'; // Use the simplified version
+import { AddressSection } from './AddressSection';
+import { DeliveryInfoDisplay } from './DeliveryInfoDisplay';
 import { PackageDetailsSection } from './PackageDetailsSection';
 import { QuoteResultsSection } from './QuoteResultsSection';
 import { NotificationPopup } from './NotificationPopup';
@@ -18,7 +18,6 @@ function Cotizador() {
   const {
     state,
     updateField,
-    // We'll still use the deliveryFrequency in the hook, but not display it
     deliveryFrequency,
     loadingFrequency,
     estafetaResult,
@@ -43,8 +42,7 @@ function Cotizador() {
     selectedDestColonia,
     setSelectedDestColonia,
     validateZipCodes,
-    // We'll not display this button anymore
-    // validateOnExternalSite,
+    validateOnExternalSite,
     validateThreeTimes,
     handleReport,
     fetchQuote,
@@ -63,9 +61,11 @@ function Cotizador() {
     role: 'customer_user'
   });
 
+  // Check for abandoned quotations when component mounts
   useEffect(() => {
-    const fetchUserData = async () => {
+    const initializeComponent = async () => {
       try {
+        // Fetch user data
         const response = await apiService.getUserProfile();
         setUserData({
           name: response.name || 'Usuario',
@@ -73,12 +73,83 @@ function Cotizador() {
           phone: response.phone,
           role: response.role
         });
+        
+        // Check for abandoned quotations that can be restored
+        await apiService.checkForAbandonedQuotations({
+          onQuotationFound: (latestQuotation) => {
+            // Format date for display
+            const quotationDate = new Date(latestQuotation.created_at);
+            const formattedDate = quotationDate.toLocaleString();
+            
+            // Ask user if they want to restore
+            const shouldRestore = confirm(
+              `¿Desea continuar con su cotización anterior?\n\nCreada: ${formattedDate}\nOrigen: ${latestQuotation.origen_cp}, Destino: ${latestQuotation.destino_cp}\nTipo: ${latestQuotation.tipo_paquete}`
+            );
+            
+            if (shouldRestore) {
+              // Restore the quotation data to the state
+              updateField('originZip', latestQuotation.origen_cp);
+              updateField('destZip', latestQuotation.destino_cp);
+              updateField('packageType', latestQuotation.tipo_paquete);
+              
+              if (latestQuotation.largo) updateField('length', latestQuotation.largo.toString());
+              if (latestQuotation.ancho) updateField('width', latestQuotation.ancho.toString());
+              if (latestQuotation.alto) updateField('height', latestQuotation.alto.toString());
+              if (latestQuotation.peso_real) updateField('weight', latestQuotation.peso_real.toString());
+              
+              updateField('volumetricWeight', latestQuotation.peso_volumetrico || 0);
+              updateField('packagingOption', latestQuotation.opcion_empaque || "EMP00");
+              updateField('collectionRequired', !!latestQuotation.requiere_recoleccion);
+              updateField('clienteId', latestQuotation.cliente_id || null);
+              updateField('destinoId', latestQuotation.destino_id || null);
+              updateField('isValidated', true); // Set as validated so the package details section shows
+              
+              // Store the quotation ID for later updates
+              localStorage.setItem('current_cotizacion_id', latestQuotation.temp_id);
+              
+              // Trigger ZIP code validation to fetch location data
+              validateZipCodes();
+              
+              // If there are services available, parse and set them
+              if (latestQuotation.servicios_json) {
+                try {
+                  const serviciosData = JSON.parse(latestQuotation.servicios_json);
+                  setServicios(serviciosData);
+                  
+                  // Also set cotización details if available
+                  if (latestQuotation.detalles_json) {
+                    const cotizacionDetails = JSON.parse(latestQuotation.detalles_json);
+                    setDetallesCotizacion(cotizacionDetails);
+                  }
+                } catch (parseError) {
+                  console.error("Error parsing saved services:", parseError);
+                }
+              }
+              
+              // Show notification that quotation was restored
+              setNotification({
+                show: true,
+                message: 'Cotización restaurada correctamente',
+                details: null
+              });
+              
+              return true; // Indicate we restored a quotation
+            } else {
+              // User declined to restore, ask if they want to be prompted again
+              const skipFuture = confirm("¿Desea que no se le vuelvan a mostrar cotizaciones abandonadas?");
+              if (skipFuture) {
+                localStorage.setItem('skip_quotation_restore', 'true');
+              }
+              return false; // Indicate we did not restore a quotation
+            }
+          }
+        });
       } catch (error) {
-        console.error("Failed to fetch user data:", error);
+        console.error("Error initializing component:", error);
       }
     };
-
-    fetchUserData();
+    
+    initializeComponent();
   }, []);
 
   const handleLogout = async () => {
@@ -97,6 +168,9 @@ function Cotizador() {
 
   const handleResetCotizacion = () => {
     if (confirm("¿Está seguro que desea reiniciar la cotización? Se perderán todos los datos ingresados.")) {
+      // Clear the current quotation ID from localStorage
+      localStorage.removeItem('current_cotizacion_id');
+      
       resetForm();
       setNotification({
         show: true,
@@ -124,13 +198,8 @@ function Cotizador() {
   };
 
   // Modified validateZipCodesWithEstafeta function
-  // This will call both the original validateZipCodes function 
-  // and automatically fetch Estafeta info if needed
   const validateZipCodesWithEstafeta = () => {
     validateZipCodes();
-    // We could add logic here to automatically call the Estafeta validation
-    // But it's better to let the existing code handle it since it may already be
-    // doing this in the validateZipCodes function
   };
 
   // Helper function to display zone in header
@@ -177,7 +246,6 @@ function Cotizador() {
 
             {/* Right section with account and logout */}
             <div className="flex items-center gap-2 sm:gap-4">
-
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowAccountModal(true)}
@@ -202,58 +270,58 @@ function Cotizador() {
 
           {/* Secondary row for flow stage buttons (always visible but responsive) */}
           <div className="mt-2 sm:mt-3 flex flex-wrap items-center gap-3 sm:gap-4">
-  {/* Flow stage buttons */}
-  <div className="flex">
-    <button
-      className={`px-3 py-1 text-xs sm:text-sm whitespace-nowrap rounded-l-md ${state.flowStage === 'quote'
-        ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
-        : 'bg-gray-50 text-gray-500 border border-gray-200'}`}
-      onClick={() => updateField('flowStage', 'quote')}
-    >
-      1. Cotización
-    </button>
-    <button
-      className={`px-3 py-1 text-xs sm:text-sm whitespace-nowrap rounded-r-md ${state.flowStage === 'customer-data'
-        ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
-        : 'bg-gray-50 text-gray-500 border border-gray-200'}`}
-      style={{ opacity: selectedService ? 1 : 0.5 }}
-      disabled={!selectedService}
-    >
-      2. Datos del Cliente
-    </button>
-  </div>
-  
-  {/* Divider - only visible on larger screens */}
-  <div className="hidden sm:block h-5 w-px bg-gray-300 mx-1"></div>
-  
-  {/* Zone display and Reset button */}
-  <div className="flex items-center gap-2">
-    {/* Zone display - only shown if available */}
-    {getZoneDisplay() && (
-  <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-2 py-1 rounded-md text-xs sm:text-sm font-medium flex items-center shadow-sm">
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-    </svg>
-    {/* Short version on small screens, full version on larger screens */}
-    <span className="block sm:hidden truncate max-w-[80px]">
-      {getZoneDisplay().short}
-    </span>
-    <span className="hidden sm:block">
-      {getZoneDisplay().full}
-    </span>
-  </div>
-)}
+            {/* Flow stage buttons */}
+            <div className="flex">
+              <button
+                className={`px-3 py-1 text-xs sm:text-sm whitespace-nowrap rounded-l-md ${state.flowStage === 'quote'
+                  ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
+                  : 'bg-gray-50 text-gray-500 border border-gray-200'}`}
+                onClick={() => updateField('flowStage', 'quote')}
+              >
+                1. Cotización
+              </button>
+              <button
+                className={`px-3 py-1 text-xs sm:text-sm whitespace-nowrap rounded-r-md ${state.flowStage === 'customer-data'
+                  ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
+                  : 'bg-gray-50 text-gray-500 border border-gray-200'}`}
+                style={{ opacity: selectedService ? 1 : 0.5 }}
+                disabled={!selectedService}
+              >
+                2. Datos del Cliente
+              </button>
+            </div>
+            
+            {/* Divider - only visible on larger screens */}
+            <div className="hidden sm:block h-5 w-px bg-gray-300 mx-1"></div>
+            
+            {/* Zone display and Reset button */}
+            <div className="flex items-center gap-2">
+              {/* Zone display - only shown if available */}
+              {getZoneDisplay() && (
+                <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-2 py-1 rounded-md text-xs sm:text-sm font-medium flex items-center shadow-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                  </svg>
+                  {/* Short version on small screens, full version on larger screens */}
+                  <span className="block sm:hidden truncate max-w-[80px]">
+                    {getZoneDisplay().short}
+                  </span>
+                  <span className="hidden sm:block">
+                    {getZoneDisplay().full}
+                  </span>
+                </div>
+              )}
 
-    <button
-      onClick={handleResetCotizacion}
-      className="flex items-center gap-1 bg-orange-50 text-orange-600 hover:bg-orange-100 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md transition-colors shadow-sm"
-      title="Reiniciar cotización"
-    >
-      <RefreshCw className="w-4 h-4" />
-      <span className="sr-only sm:not-sr-only sm:inline text-sm font-medium">Reiniciar Cotizacion</span>
-    </button>
-  </div>
-</div>
+              <button
+                onClick={handleResetCotizacion}
+                className="flex items-center gap-1 bg-orange-50 text-orange-600 hover:bg-orange-100 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md transition-colors shadow-sm"
+                title="Reiniciar cotización"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span className="sr-only sm:not-sr-only sm:inline text-sm font-medium">Reiniciar Cotización</span>
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 

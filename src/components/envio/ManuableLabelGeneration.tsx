@@ -41,7 +41,7 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
       const labelResponse = await createLabel(cliente, destinoWithExternalNumber, selectedService.uuid);
       
       console.log("Label generated successfully:", labelResponse);
-
+  
       if (labelResponse) {
         // Ensure we have absolute URLs for the label
         const processedResponse = {
@@ -50,6 +50,36 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
         };
         
         console.log("Processed label response:", processedResponse);
+        
+        // Get the temporary ID from localStorage that was created during quotation
+        const tempCotizacionId = localStorage.getItem('current_cotizacion_id');
+        
+        // Update the quotation status in the database
+        if (tempCotizacionId) {
+          try {
+            // Update the quotation status using apiService
+            const updateResult = await apiService.updateQuotationStatus({
+              temp_id: tempCotizacionId,
+              status_update: 'manuable_label_generated',
+              service_id: selectedService.uuid,
+              carrier: selectedService.carrier,
+              service_name: selectedService.service,
+              tracking_number: processedResponse.tracking_number,
+              label_url: processedResponse.label_url,
+              price: processedResponse.price
+            });
+            
+            if (updateResult.success) {
+              console.log("Updated quotation with Manuable label info");
+            } else {
+              console.error("Error updating quotation status");
+            }
+          } catch (updateError) {
+            console.error("Error updating quotation:", updateError);
+            // Don't block the process if update fails
+          }
+        }
+        
         onLabelGenerated(processedResponse);
       } else {
         throw new Error('No se pudo generar la etiqueta');

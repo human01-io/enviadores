@@ -249,52 +249,75 @@ export default function DatosEnvio({
   
       // Save or update destination
       let destinoId = destino.id;
-const destinoPayload = {
-  ...destino,
-  cliente_id: clienteId
-};
+      const destinoPayload = {
+        ...destino,
+        cliente_id: clienteId
+      };
   
-if (!destinoId) {
-  // Create new destination if no ID exists
-  try {
-    const newDestino = await apiService.createDestination(destinoPayload);
-    destinoId = newDestino.id;
-  } catch (error) {
-    console.error('Error creating destination:', error);
-    throw new Error('Failed to create destination. Please try again.');
-  }
-} else if (isExistingDestino) {
-  // Update existing destination with retry logic for rate limiting
-  let retryCount = 0;
-  const maxRetries = 3;
-  const initialDelay = 2000; // 2 seconds
-  
-  while (retryCount <= maxRetries) {
-    try {
-      await apiService.updateDestination(destinoId, destinoPayload);
-      break; // Success, exit the loop
-    } catch (error) {
-      if (error instanceof AxiosError && error.response?.status === 429) {
-        // Rate limited - should we retry?
-        if (retryCount < maxRetries) {
-          retryCount++;
-          const backoffDelay = initialDelay * Math.pow(2, retryCount - 1);
-          console.log(`Rate limited when updating destination. Retrying in ${backoffDelay}ms... (${retryCount}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, backoffDelay));
-        } else {
-          // Exhausted retries but this is non-critical - continue with shipment
-          console.warn('Rate limited when updating destination, continuing with shipment creation');
-          break;
+      if (!destinoId) {
+        // Create new destination if no ID exists
+        try {
+          const newDestino = await apiService.createDestination(destinoPayload);
+          destinoId = newDestino.id;
+        } catch (error) {
+          console.error('Error creating destination:', error);
+          throw new Error('Failed to create destination. Please try again.');
         }
-      } else {
-        // Not a rate limit error - log and continue with shipment
-        console.error('Error updating destination:', error);
-        break;
+      } else if (isExistingDestino) {
+        // Update existing destination with retry logic for rate limiting
+        let retryCount = 0;
+        const maxRetries = 3;
+        const initialDelay = 2000; // 2 seconds
+        
+        while (retryCount <= maxRetries) {
+          try {
+            await apiService.updateDestination(destinoId, destinoPayload);
+            break; // Success, exit the loop
+          } catch (error) {
+            if (error instanceof AxiosError && error.response?.status === 429) {
+              // Rate limited - should we retry?
+              if (retryCount < maxRetries) {
+                retryCount++;
+                const backoffDelay = initialDelay * Math.pow(2, retryCount - 1);
+                console.log(`Rate limited when updating destination. Retrying in ${backoffDelay}ms... (${retryCount}/${maxRetries})`);
+                await new Promise(resolve => setTimeout(resolve, backoffDelay));
+              } else {
+                // Exhausted retries but this is non-critical - continue with shipment
+                console.warn('Rate limited when updating destination, continuing with shipment creation');
+                break;
+              }
+            } else {
+              // Not a rate limit error - log and continue with shipment
+              console.error('Error updating destination:', error);
+              break;
+            }
+          }
+        }
       }
-    }
-  }
-}
   
+      // Get the temporary ID from localStorage that was created during quotation
+      const tempCotizacionId = localStorage.getItem('current_cotizacion_id');
+      
+      // If we have a temp quotation ID, update its status in the database
+      if (tempCotizacionId && selectedOption === 'external') {
+        try {
+          // Update the quotation status for external option
+          await apiService.updateQuotationStatus({
+            temp_id: tempCotizacionId,
+            status_update: 'external_selected',
+            carrier: externalLabelData.carrier,
+            tracking_number: externalLabelData.trackingNumber,
+            service_id: selectedService.sku,
+            price: externalCost
+          });
+          
+          console.log("Updated quotation with external shipping details");
+        } catch (updateError) {
+          console.error("Error updating quotation status:", updateError);
+          // Continue with shipment creation even if update fails
+        }
+      }
+      
       // Create shipment data
       const shipmentData: any = {
         cliente_id: clienteId,
@@ -315,6 +338,9 @@ if (!destinoId) {
         // Set method based on selected option
         metodo_creacion: selectedOption === 'external' ? 'externo' : 
                         selectedOption === 'manuable' ? 'manuable' : 'interno',
+        
+        // Add the temporary ID from quotation to link records
+        temp_cotizacion_id: tempCotizacionId || undefined
       };
   
       // Add external label data if applicable
@@ -341,6 +367,9 @@ if (!destinoId) {
   
       // Create the shipment
       const { id: shipmentId } = await apiService.createShipment(shipmentData, options);
+  
+      // Clear the temporary quotation ID from localStorage
+      localStorage.removeItem('current_cotizacion_id');
   
       // Call onSubmit with all the data
       onSubmit({
