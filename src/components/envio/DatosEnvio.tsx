@@ -6,6 +6,7 @@ import DestinoForm from './DestinoForm';
 import EnvioConfirmation from './EnvioConfirmation';
 import ShippingOptions from './ShippingOptions';
 import { ManuableRate } from '../../services/manuableService';
+import { AxiosError } from 'axios';
 
 interface DatosEnvioProps {
   selectedService: ServicioCotizado;
@@ -187,6 +188,7 @@ export default function DatosEnvio({
     );
   };
 
+
   // Submit function
   const handleSubmit = async () => {
     if (!isClientFormValid() || !isDestinoFormValid()) {
@@ -247,17 +249,51 @@ export default function DatosEnvio({
   
       // Save or update destination
       let destinoId = destino.id;
-      const destinoPayload = {
-        ...destino,
-        cliente_id: clienteId
-      };
+const destinoPayload = {
+  ...destino,
+  cliente_id: clienteId
+};
   
-      if (!destinoId) {
-        const newDestino = await apiService.createDestination(destinoPayload);
-        destinoId = newDestino.id;
-      } else if (isExistingDestino) {
-        await apiService.updateDestination(destinoId, destinoPayload);
+if (!destinoId) {
+  // Create new destination if no ID exists
+  try {
+    const newDestino = await apiService.createDestination(destinoPayload);
+    destinoId = newDestino.id;
+  } catch (error) {
+    console.error('Error creating destination:', error);
+    throw new Error('Failed to create destination. Please try again.');
+  }
+} else if (isExistingDestino) {
+  // Update existing destination with retry logic for rate limiting
+  let retryCount = 0;
+  const maxRetries = 3;
+  const initialDelay = 2000; // 2 seconds
+  
+  while (retryCount <= maxRetries) {
+    try {
+      await apiService.updateDestination(destinoId, destinoPayload);
+      break; // Success, exit the loop
+    } catch (error) {
+      if (error instanceof AxiosError && error.response?.status === 429) {
+        // Rate limited - should we retry?
+        if (retryCount < maxRetries) {
+          retryCount++;
+          const backoffDelay = initialDelay * Math.pow(2, retryCount - 1);
+          console.log(`Rate limited when updating destination. Retrying in ${backoffDelay}ms... (${retryCount}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        } else {
+          // Exhausted retries but this is non-critical - continue with shipment
+          console.warn('Rate limited when updating destination, continuing with shipment creation');
+          break;
+        }
+      } else {
+        // Not a rate limit error - log and continue with shipment
+        console.error('Error updating destination:', error);
+        break;
       }
+    }
+  }
+}
   
       // Create shipment data
       const shipmentData: any = {

@@ -101,3 +101,42 @@ export const handleApiError = (error: unknown, options: ApiErrorOptions = {}): s
 export const isApiError = (error: unknown): error is { message: string } => {
   return typeof error === 'object' && error !== null && 'message' in error;
 };
+
+/**
+ * Retry an API call with exponential backoff when rate limited (429)
+ * 
+ * @param apiCall Function that makes the API call
+ * @param maxRetries Maximum number of retry attempts
+ * @param initialDelay Initial delay in milliseconds
+ * @returns Promise with the API call result
+ */
+export const retryWithBackoff = async <T>(
+  apiCall: () => Promise<T>, 
+  maxRetries = 3, 
+  initialDelay = 1000
+): Promise<T> => {
+  let retries = 0;
+  
+  while (true) {
+    try {
+      return await apiCall();
+    } catch (error) {
+      // Check if it's a 429 error and we haven't exceeded max retries
+      if (axios.isAxiosError(error) && 
+          error.response?.status === 429 && 
+          retries < maxRetries) {
+        
+        retries++;
+        // Exponential backoff: delay gets longer with each retry
+        const delay = initialDelay * Math.pow(2, retries - 1);
+        console.log(`Rate limited (429). Retrying in ${delay}ms... (Attempt ${retries}/${maxRetries})`);
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        // Not a 429 error or max retries exceeded
+        throw error;
+      }
+    }
+  }
+};

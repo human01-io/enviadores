@@ -80,7 +80,8 @@ export interface ServicioCotizado {
     instrucciones_entrega?: string;  // Delivery instructions (text)
     colonias?: string[];             // Available neighborhoods (UI helper, not in DB)
     created_at?: string;             // Creation timestamp
-    updated_at?: string;             // Last update timestamp
+    updated_at?: string;
+    [key: string]: any;             // Last update timestamp
   }
   
   /**

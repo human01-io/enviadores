@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import {
   Cliente,
   Destino,
@@ -8,9 +8,11 @@ import {
   ApiResponse,
   UserProfile,
   Envio,
-  EnvioWithDetails
+  EnvioWithDetails,
+  User
   
 } from '../types';
+import { retryWithBackoff } from '../utils/apiErrorHandler';
 
 const api = axios.create({
   baseURL: 'https://enviadores.com.mx/api',
@@ -331,14 +333,22 @@ advancedSearchCustomers: async (filters: Record<string, string>, mode: 'all' | '
   },
 
   updateDestination: async (id: string, updates: Partial<Destino>): Promise<void> => {
-    try {
-      // Include the ID in the payload as required by the API
-      const payload = { id, ...updates };
-      await api.put('/destinations.php', payload);
-    } catch (error) {
-      console.error('Update destination error:', error);
-      throw new Error('Failed to update destination. Please try again.');
+    // Skip update if nothing has changed
+    if (Object.keys(updates).length === 0) {
+      console.log('No changes to update for destination', id);
+      return;
     }
+    
+    return retryWithBackoff(async () => {
+      try {
+        // Include the ID in the payload as required by the API
+        const payload = { id, ...updates };
+        await api.put('/destinations.php', payload);
+      } catch (error) {
+        console.error('Update destination error:', error);
+        throw new Error('Failed to update destination. Please try again.');
+      }
+    });
   },
 
     // Validation helpers
@@ -432,84 +442,186 @@ advancedSearchShipments: async (
     throw new Error('Failed to search shipments. Please try again.');
   }
 },
-  // Shipment endpoints
-  createShipment: async (shipmentData: {
-    cliente_id: string;
-    destino_id: string;
-    servicio_id: string;
-    peso_real: number;
-    peso_volumetrico: number;
-    peso_facturable?: number;
-    valor_declarado?: number;
-    costo_seguro?: number;
-    costo_envio: number;
-    iva: number;
-    total: number;
-    tipo_paquete: string;
-    opcion_empaque?: string;
-    requiere_recoleccion: boolean;
-    metodo_creacion: 'interno' | 'externo' | 'manuable';
-    paqueteria_externa?: string;
-    numero_guia_externa?: string;
-    ruta_etiqueta?: string;
-    uuid_manuable?: string;
-    servicio_manuable?: string;
-    costo_neto?: number;
-    estatus?: string; // Added status field
-  },
-  options?: {
-    labelFile?: File;
-    progressCallback?: (progress: number) => void;
+
+getDestinationById: async (destinoId: string): Promise<Destino | null> => {
+  try {
+    const response = await api.get(`/destinations.php?id=${destinoId}`);
+    
+    if (response.data?.success) {
+      return response.data.data;
+    }
+    
+    throw new Error(response.data?.error || 'Failed to fetch destination');
+  } catch (error) {
+    console.error('Get destination by ID error:', error);
+    return null;
   }
+},
+  // Shipment endpoints
+  createShipment: async (
+    shipmentData: {
+      cliente_id: string;
+      destino_id: string;
+      servicio_id: string;
+      peso_real: number;
+      peso_volumetrico: number;
+      peso_facturable?: number;
+      valor_declarado?: number;
+      costo_seguro?: number;
+      costo_envio: number;
+      iva: number;
+      total: number;
+      tipo_paquete: string;
+      opcion_empaque?: string;
+      requiere_recoleccion: boolean;
+      metodo_creacion: 'interno' | 'externo' | 'manuable';
+      paqueteria_externa?: string;
+      numero_guia_externa?: string;
+      ruta_etiqueta?: string;
+      uuid_manuable?: string;
+      servicio_manuable?: string;
+      costo_neto?: number;
+      estatus?: string;
+    },
+    options?: {
+      labelFile?: File;
+      progressCallback?: (progress: number) => void;
+    }
   ): Promise<{ id: string }> => {
-    console.log("Creating shipment with data:", JSON.stringify(shipmentData, null, 2));
-    console.log("Label file present:", options?.labelFile ? "Yes" : "No");
-  
-    const formData = new FormData();
-  
-    // Set default status if not provided
-    if (!shipmentData.estatus) {
-      shipmentData.estatus = 'preparacion';
-    }
-  
-    const numericFields = ['peso_real', 'peso_volumetrico', 'costo_neto', 'valor_declarado'];
-  
-    Object.entries(shipmentData).forEach(([key, value]) => {
-      if (value === undefined || value === null) return;
+    // Retry configuration
+    const maxRetries = 3;
+    let retryCount = 0;
+    let lastError: any = null;
+    const initialDelay = 2000; // 2 seconds
+    
+    // Function to perform the actual API call
+    const attemptShipmentCreation = async (): Promise<{ id: string }> => {
+      console.log(`Creating shipment - attempt ${retryCount + 1}/${maxRetries + 1}`);
       
-      if (numericFields.includes(key)) {
-        formData.append(key, value.toString()); // Explicit for numbers
-      } else {
-        formData.append(key, String(value)); // Default string conversion
+      // Create FormData for multipart/form-data request
+      const formData = new FormData();
+      
+      // Set default status if not provided
+      if (!shipmentData.estatus) {
+        shipmentData.estatus = 'preparacion';
       }
-    });
-  
-    // Handle label file upload
-    if (options?.labelFile) {
-      console.log("Appending label file to form data:", options.labelFile.name, options.labelFile.type, options.labelFile.size);
-      formData.append('label_file', options.labelFile);
-    }
-  
-    try {
-      const response = await api.post('/shipments.php', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        },
-        onUploadProgress: options?.progressCallback 
-          ? (progressEvent: ProgressEvent) => {
-              const percentCompleted = Math.round(
-                (progressEvent.loaded * 100) / (progressEvent.total || 1)
-              );
-              options.progressCallback(percentCompleted);
-            }
-          : undefined
+      
+      // Define fields that should be handled as numeric values for explicit conversion
+      const numericFields = ['peso_real', 'peso_volumetrico', 'peso_facturable', 'costo_neto', 
+                            'valor_declarado', 'costo_seguro', 'costo_envio', 'iva', 'total'];
+      
+      // Add all shipment data to the FormData
+      Object.entries(shipmentData).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        
+        if (numericFields.includes(key)) {
+          // Explicit conversion to string for numeric values
+          formData.append(key, value.toString());
+        } else if (typeof value === 'boolean') {
+          // Convert boolean to 0/1
+          formData.append(key, value ? '1' : '0');
+        } else {
+          // Default string conversion for other types
+          formData.append(key, String(value));
+        }
       });
-  
-      console.log("Shipment creation response:", response.data);
-      return response.data;
-    } catch (error) {
-      console.error("Error creating shipment:", error.response?.data || error.message);
-      throw new Error(`Shipment creation failed: ${error.message}`);
+      
+      // Add label file if provided
+      if (options?.labelFile) {
+        console.log(`Appending label file: ${options.labelFile.name} (${options.labelFile.type}, ${options.labelFile.size} bytes)`);
+        formData.append('label_file', options.labelFile);
+      }
+      
+      try {
+        // Make the API request
+        const response = await api.post('/shipments.php', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          },
+          onUploadProgress: options?.progressCallback 
+            ? (progressEvent: ProgressEvent) => {
+                const percentCompleted = Math.round(
+                  (progressEvent.loaded * 100) / (progressEvent.total || 1)
+                );
+                options.progressCallback(percentCompleted);
+              }
+            : undefined
+        });
+        
+        // Check if response contains the expected data
+        if (!response.data?.id && !response.data?.data?.id) {
+          throw new Error('Server response missing shipment ID');
+        }
+        
+        // Extract the shipment ID from the response
+        const shipmentId = response.data?.id || response.data?.data?.id;
+        console.log(`Shipment created successfully with ID: ${shipmentId}`);
+        
+        return { id: shipmentId };
+      } catch (error) {
+        // Check if we got a rate limiting error (429)
+        if (axios.isAxiosError(error) && error.response?.status === 429) {
+          console.warn(`Rate limited (429). Attempt: ${retryCount + 1}/${maxRetries + 1}`);
+          
+          // If we haven't exhausted retry attempts, throw a special error to trigger retry
+          if (retryCount < maxRetries) {
+            error.isRateLimited = true;
+            throw error;
+          }
+        }
+        
+        // Log detailed error info for debugging
+        if (axios.isAxiosError(error)) {
+          console.error("Error creating shipment:", {
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data,
+            message: error.message
+          });
+        } else {
+          console.error("Unknown error creating shipment:", error);
+        }
+        
+        // Rethrow the error for parent catch block
+        throw error;
+      }
+    };
+    
+    // Main execution with retry logic
+    while (true) {
+      try {
+        return await attemptShipmentCreation();
+      } catch (error) {
+        lastError = error;
+        
+        // Check if this is a rate limiting error and we should retry
+        if (axios.isAxiosError(error) && error.isRateLimited && retryCount < maxRetries) {
+          retryCount++;
+          
+          // Calculate backoff delay with exponential increase
+          const backoffDelay = initialDelay * Math.pow(2, retryCount - 1);
+          console.log(`Retrying in ${backoffDelay}ms...`);
+          
+          // Wait before next attempt
+          await new Promise(resolve => setTimeout(resolve, backoffDelay));
+        } else {
+          // Either not a rate limiting error or we've exhausted retries
+          // Format a more user-friendly error message
+          if (axios.isAxiosError(lastError)) {
+            if (lastError.response?.status === 429) {
+              throw new Error('Service temporarily unavailable due to high traffic. Please try again later.');
+            } else if (lastError.response?.data?.error) {
+              throw new Error(`Shipment creation failed: ${lastError.response.data.error}`);
+            } else {
+              throw new Error(`Shipment creation failed: ${lastError.message}`);
+            }
+          } else if (lastError instanceof Error) {
+            throw new Error(`Shipment creation failed: ${lastError.message}`);
+          } else {
+            throw new Error('Shipment creation failed due to an unknown error');
+          }
+        }
+      }
     }
   },
 
