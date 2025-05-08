@@ -5,7 +5,7 @@ import { Destino } from '../../types';
 
 interface DestinoFormProps {
   destino: Destino;
-  setDestino: (destino: Destino) => void;
+  setDestino: (destino: Destino | ((prev: Destino) => Destino)) => void;
   isExistingDestino: boolean;
   setIsExistingDestino: (isExisting: boolean) => void;
   isValid: boolean;

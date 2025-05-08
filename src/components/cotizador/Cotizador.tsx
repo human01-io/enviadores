@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, LogOut, RefreshCw } from 'lucide-react';
 import { AddressSection } from './AddressSection';
@@ -24,7 +24,9 @@ function Cotizador() {
     loadingEstafeta,
     reportSubmitted,
     servicios,
+    setServicios,
     detallesCotizacion,
+    setDetallesCotizacion,
     selectedService,
     setSelectedService,
     notification,
@@ -304,10 +306,10 @@ function Cotizador() {
                   </svg>
                   {/* Short version on small screens, full version on larger screens */}
                   <span className="block sm:hidden truncate max-w-[80px]">
-                    {getZoneDisplay().short}
+                    {getZoneDisplay()!.short}
                   </span>
                   <span className="hidden sm:block">
-                    {getZoneDisplay().full}
+                    {getZoneDisplay()!.full}
                   </span>
                 </div>
               )}

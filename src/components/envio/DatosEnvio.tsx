@@ -308,7 +308,7 @@ export default function DatosEnvio({
             carrier: externalLabelData.carrier,
             tracking_number: externalLabelData.trackingNumber,
             service_id: selectedService.sku,
-            price: externalCost
+            price: externalCost ?? undefined
           });
           
           console.log("Updated quotation with external shipping details");

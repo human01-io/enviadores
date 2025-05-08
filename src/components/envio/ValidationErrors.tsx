@@ -1,40 +1,40 @@
-import React from 'react';
+interface ValidationErrorsProps {
+  errors: Record<string, any>;
+  onClose?: () => void;
+  className?: string;
+}
 
 /**
  * ValidationErrors component for displaying Manuable API validation errors
  * 
- * @param {Object} props Component properties
- * @param {Object} props.errors The errors object from Manuable API
- * @param {Function} props.onClose Optional callback when errors are dismissed
- * @param {string} props.className Additional CSS classes
+ * @param {ValidationErrorsProps} props Component properties
  */
-const ValidationErrors = ({ errors, onClose, className = '' }) => {
+const ValidationErrors = ({ 
+  errors, 
+  onClose, 
+  className = '' 
+}: ValidationErrorsProps) => {
   // If no errors or empty errors object, don't render anything
   if (!errors || Object.keys(errors).length === 0) {
     return null;
   }
 
   // Helper function to flatten complex error objects
-  const flattenErrors = (errorObj) => {
-    const result = [];
+  const flattenErrors = (errorObj: Record<string, any>): string[] => {
+    const result: string[] = [];
     
-    // Process each field's errors
     Object.entries(errorObj).forEach(([field, fieldErrors]) => {
-      // If fieldErrors is an array of strings, add each one
       if (Array.isArray(fieldErrors)) {
-        fieldErrors.forEach(error => {
+        fieldErrors.forEach((error: string) => {
           result.push(`${formatFieldName(field)}: ${error}`);
         });
       } 
-      // If fieldErrors is an object, it's a nested error structure
-      else if (typeof fieldErrors === 'object') {
-        // Recursively flatten nested errors
+      else if (typeof fieldErrors === 'object' && fieldErrors !== null) {
         const nestedErrors = flattenErrors(fieldErrors);
         nestedErrors.forEach(error => {
           result.push(`${formatFieldName(field)} ${error}`);
         });
       }
-      // If it's a string, add it directly
       else if (typeof fieldErrors === 'string') {
         result.push(`${formatFieldName(field)}: ${fieldErrors}`);
       }
@@ -43,25 +43,21 @@ const ValidationErrors = ({ errors, onClose, className = '' }) => {
     return result;
   };
   
-  // Format field names for better display
-  const formatFieldName = (field) => {
-    // Handle nested fields
+  const formatFieldName = (field: string): string => {
     if (field.includes('.')) {
       return field
         .split('.')
-        .map(part => formatFieldName(part))
+        .map((part: string) => formatFieldName(part))
         .join(' > ');
     }
     
-    // Convert snake_case or camelCase to Title Case With Spaces
     return field
       .replace(/_/g, ' ')
       .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, str => str.toUpperCase())
+      .replace(/^./, (str: string) => str.toUpperCase())
       .trim();
   };
   
-  // Get all error messages as a flat array
   const errorMessages = flattenErrors(errors);
 
   return (

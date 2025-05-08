@@ -8,7 +8,7 @@ interface SearchComboboxProps<T> {
   displayValue: (item: T) => string;
   onInputChange: (query: string) => void;
   items: T[];
-  renderItem: (item: T, active: boolean, selected: boolean) => React.ReactNode;
+  renderItem: (item: T, active: boolean, selected: boolean) => React.ReactElement; // Changed from ReactNode to ReactElement
   placeholder?: string;
   isLoading?: boolean;
   emptyMessage?: string;

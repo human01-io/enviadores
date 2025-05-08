@@ -28,7 +28,7 @@ export const handleApiError = (error: unknown, options: ApiErrorOptions = {}): s
   
   // For axios errors, extract relevant information
   if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError;
+    const axiosError = error;
     
     // Log the error to console if requested
     if (opts.logToConsole) {
@@ -55,9 +55,9 @@ export const handleApiError = (error: unknown, options: ApiErrorOptions = {}): s
         case 422:
           // Data validation error, try to extract validation message
           try {
-            const responseData = axiosError.response.data as any;
-            if (responseData.errors && Array.isArray(responseData.errors) && responseData.errors.length > 0) {
-              return responseData.errors[0].message || 'Error de validación de datos.';
+            const responseData = axiosError.response.data as { errors?: Array<{ message?: string }> };
+            if (responseData.errors && responseData.errors.length > 0) {
+              return responseData.errors[0].message ?? 'Error de validación de datos.';
             }
             return 'Error de validación de datos.';
           } catch (e) {
@@ -75,7 +75,7 @@ export const handleApiError = (error: unknown, options: ApiErrorOptions = {}): s
       // Network error
       return 'Error de red. Verifique su conexión a internet.';
     } else {
-      return axiosError.message || opts.defaultMessage;
+      return axiosError.message ?? opts.defaultMessage;
     }
   }
   
@@ -84,7 +84,7 @@ export const handleApiError = (error: unknown, options: ApiErrorOptions = {}): s
     if (opts.logToConsole) {
       console.error('Non-Axios Error:', error);
     }
-    return error.message;
+    return error.message ?? opts.defaultMessage;
   }
   
   // For unknown errors

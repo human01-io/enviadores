@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CotizadorState } from './utils/cotizadorTypes';
+import { Cliente, Destino, ServicioCotizado, ShipmentDetails } from '../../types';
 import { apiService } from '../../services/apiService';
 
 interface AddressSectionProps {
@@ -22,6 +23,15 @@ interface AddressSectionProps {
   isInternational: boolean;
   selectedZone: number | null;
   isValidated: boolean;
+  servicios?: ServicioCotizado[];
+  detallesCotizacion?: ShipmentDetails;
+}
+interface ToggleProps {
+  id: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  label?: string;
 }
 
 export const AddressSection: React.FC<AddressSectionProps> = ({
@@ -48,15 +58,15 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
   // State for existing client search
   const [useExistingClient, setUseExistingClient] = useState(false);
   const [clientSearchQuery, setClientSearchQuery] = useState('');
-  const [clientSuggestions, setClientSuggestions] = useState([]);
-  const [selectedClient, setSelectedClient] = useState(null);
+  const [clientSuggestions, setClientSuggestions] = useState<Cliente[]>([]);
+  const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
   const [loadingClients, setLoadingClients] = useState(false);
 
   // State for existing destination search
   const [useExistingDestination, setUseExistingDestination] = useState(false);
   const [destSearchQuery, setDestSearchQuery] = useState('');
-  const [destSuggestions, setDestSuggestions] = useState([]);
-  const [selectedDestination, setSelectedDestination] = useState(null);
+  const [destSuggestions, setDestSuggestions] = useState<Destino[]>([]);
+  const [selectedDestination, setSelectedDestination] = useState<Destino | null>(null);
   const [loadingDestinations, setLoadingDestinations] = useState(false);
 
   // Search for client when query changes
@@ -87,7 +97,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
     const searchDestinations = async () => {
       // Show all destinations when search box is focused (empty query)
       // Or when query is less than 2 characters (if you want to keep that)
-      if (!selectedClient) {
+      if (!selectedClient || !selectedClient.id) {
         setDestSuggestions([]);
         return;
       }
@@ -124,7 +134,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
   }, [selectedClient, destSearchQuery]);
 
   // Handle client selection
-  const handleClientSelect = (client) => {
+  const handleClientSelect = (client: Cliente) => {
     setSelectedClient(client);
     setClientSuggestions([]);
     setClientSearchQuery('');
@@ -137,7 +147,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
   };
 
   // Handle destination selection
-  const handleDestinationSelect = (destination) => {
+  const handleDestinationSelect = (destination: Destino) => {
     setSelectedDestination(destination);
     setDestSuggestions([]);
     setDestSearchQuery('');
@@ -171,7 +181,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
   };
 
   // Enhanced toggle component
-  const Toggle = ({ id, checked, onChange, disabled = false, label }) => (
+  const Toggle: React.FC<ToggleProps> = ({ id, checked, onChange, disabled = false, label }) => (
     <div className="flex items-center space-x-2">
       {label && <span className="text-sm text-gray-600">{label}</span>}
       <button

@@ -1,18 +1,23 @@
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosProgressEvent, AxiosRequestHeaders } from 'axios';
 import {
   Cliente,
   Destino,
-  ServicioCotizado,
   ShipmentDetails,
-  EnvioResponse,
-  ApiResponse,
   UserProfile,
   Envio,
   EnvioWithDetails,
-  User
+  User,
+  UserToken
   
 } from '../types';
 import { retryWithBackoff } from '../utils/apiErrorHandler';
+
+declare module 'axios' {
+  interface AxiosError {
+    isRateLimited?: boolean;
+  }
+}
+
 
 const api = axios.create({
   baseURL: 'https://enviadores.com.mx/api',
@@ -26,7 +31,7 @@ const api = axios.create({
 
 api.interceptors.request.use(config => {
   if (!config.headers) {
-    config.headers = {};
+    config.headers = {} as AxiosRequestHeaders;
   }
   
   // First try to get token from cookies
@@ -258,8 +263,13 @@ advancedSearchCustomers: async (filters: Record<string, string>, mode: 'all' | '
         throw new Error(response.data?.error || 'Failed to delete destination');
       }
     } catch (error) {
-      console.error('Delete destination error:', error);
-      throw new Error(error.response?.data?.error || 'Failed to delete destination. Please try again.');
+      if (error instanceof Error) {
+        console.error('Error:', error.message);
+      } else if (axios.isAxiosError(error)) {
+        console.error('Axios error:', error.response?.data);
+      } else {
+        console.error('Unknown error:', error);
+      }
     }
   },
   
@@ -325,7 +335,17 @@ advancedSearchCustomers: async (filters: Record<string, string>, mode: 'all' | '
         throw new Error('Server did not return destination ID');
       }
 
-      return { ...destinationData, id: responseId };
+      return { 
+        ...destinationData, 
+        id: responseId,
+        nombre_destinatario: destinationData.nombre_destinatario,
+        direccion: destinationData.direccion,
+        colonia: destinationData.colonia,
+        ciudad: destinationData.ciudad,
+        estado: destinationData.estado,
+        codigo_postal: destinationData.codigo_postal,
+        telefono: destinationData.telefono
+      };
     } catch (error) {
       console.error('Create destination error:', error);
       throw new Error('Failed to create destination. Please try again.');
@@ -535,25 +555,90 @@ saveQuotation: async (quotationData: {
   origen_cp: string;
   destino_cp: string;
   tipo_paquete: string;
-  servicios_disponibles?: string;
-  servicios_json?: string;
-  detalles_json?: string;
-  peso_real?: number;
-  peso_volumetrico?: number;
-  peso_facturable?: number;
-  largo?: number | null;
-  ancho?: number | null;
-  alto?: number | null;
+  servicio_id: string; // Selected service ID
+  servicio_nombre: string; // Selected service name
+  precio_base: number; // Service base price
+  precio_final: number; // Final price before tax
+  precio_total: number; // Total price with tax
+  dias_estimados: number; // Estimated delivery days
+  peso_real: number;
+  peso_volumetrico: number;
+  peso_facturable: number;
+  largo?: number;
+  ancho?: number;
+  alto?: number;
   valor_declarado?: number;
   requiere_recoleccion?: boolean;
   opcion_empaque?: string;
-  cliente_id?: string | null;
-  destino_id?: string | null;
+  cliente_id?: string;
+  destino_id?: string;
 }): Promise<{ id: string; temp_id: string }> => {
   try {
-    const response = await api.post('/quotations.php', quotationData);
+    // Create a simplified payload with only the necessary data
+    const payload = {
+      temp_id: quotationData.temp_id,
+      origen_cp: quotationData.origen_cp,
+      destino_cp: quotationData.destino_cp,
+      tipo_paquete: quotationData.tipo_paquete,
+      
+      // Selected service information
+      servicio_id: quotationData.servicio_id,
+      servicio_nombre: quotationData.servicio_nombre,
+      precio_base: Number(quotationData.precio_base || 0),
+      precio_final: Number(quotationData.precio_final || 0),
+      precio_total: Number(quotationData.precio_total || 0),
+      dias_estimados: Number(quotationData.dias_estimados || 1),
+      
+      // Package details
+      peso_real: Number(quotationData.peso_real || 0),
+      peso_volumetrico: Number(quotationData.peso_volumetrico || 0),
+      peso_facturable: Number(quotationData.peso_facturable || 0),
+      largo: Number(quotationData.largo || 0),
+      ancho: Number(quotationData.ancho || 0),
+      alto: Number(quotationData.alto || 0),
+      valor_declarado: Number(quotationData.valor_declarado || 0),
+      
+      // Boolean as integer
+      requiere_recoleccion: quotationData.requiere_recoleccion ? 1 : 0,
+      
+      // Optional fields
+      opcion_empaque: quotationData.opcion_empaque || '',
+      cliente_id: quotationData.cliente_id || '',
+      destino_id: quotationData.destino_id || '',
+      
+      // Set shipping option to 'interno' since a service is selected
+      shipping_option: 'interno',
+      
+      // Set default status
+      estatus: 'cotizado'
+    };
+    
+    console.log('Sending simplified quotation data to API:', JSON.stringify(payload));
+
+    const token = localStorage.getItem('auth_token');
+    const headers = token ? { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    } : { 'Content-Type': 'application/json' };
+    
+    // Get the auth token from localStorage or cookie
+    const authToken = localStorage.getItem('auth_token') || '';
+    
+    // Extract cookies for debugging
+    const cookies = document.cookie.split(';').map(c => c.trim());
+    const authCookie = cookies.find(c => c.startsWith('auth_token='));
+    
+    console.log('Auth status:', {
+      localStorageToken: authToken ? 'Present' : 'Missing',
+      cookieToken: authCookie ? 'Present' : 'Missing',
+      cookies: cookies.map(c => c.split('=')[0])
+    });
+    
+    // Use the api instance which has the authentication middleware configured
+    const response = await api.post('/quotations.php', payload, { headers });
     
     if (!response.data?.success) {
+      console.error('API Error Response:', response.data);
       throw new Error(response.data?.error || 'Failed to save quotation');
     }
     
@@ -675,11 +760,13 @@ updateQuotationStatus: async (updateData: {
             'Content-Type': 'multipart/form-data'
           },
           onUploadProgress: options?.progressCallback 
-            ? (progressEvent: ProgressEvent) => {
+            ? (progressEvent: AxiosProgressEvent) => {
                 const percentCompleted = Math.round(
                   (progressEvent.loaded * 100) / (progressEvent.total || 1)
                 );
-                options.progressCallback(percentCompleted);
+                if (options?.progressCallback) {
+                  options.progressCallback(percentCompleted);
+                }
               }
             : undefined
         });
@@ -805,9 +892,15 @@ updateQuotationStatus: async (updateData: {
       }
       return response.data.data;
     } catch (error) {
-      console.error('Profile API Error:', error.response?.data || error.message);
+      if (axios.isAxiosError(error)) {
+        console.error('Profile API Error:', error.response?.data || error.message);
+      } else if (error instanceof Error) {
+        console.error('Profile API Error:', error.message);
+      } else {
+        console.error('Profile API Error:', String(error));
+      }
       handleApiError(error);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   },
 

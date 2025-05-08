@@ -4,6 +4,8 @@ import { ManuableRate, ManuableLabelResponse } from '../../services/manuableServ
 import { useManuable } from '../../hooks/useManuable';
 import { mapClienteToManuableAddress, mapDestinoToManuableAddress } from '../../utils/manuableUtils';
 import ValidationErrors from './ValidationErrors'; // Import the new component
+import { apiService } from '../../services';
+import { isAxiosError } from 'axios';
 
 interface ManuableLabelGeneratorProps {
   cliente: Cliente;
@@ -88,13 +90,17 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
       console.error('Label generation error:', err);
       
       // Check if it's a validation error response
-      if (err.response?.data?.errors) {
-        setValidationErrors(err.response.data.errors);
+      if (isAxiosError(err)) {  // Check if it's an Axios error
+        if (err.response?.data?.errors) {
+          setValidationErrors(err.response.data.errors);
+        } else {
+          setError(err.message || 'Error al generar la etiqueta');
+        }
+      } else if (err instanceof Error) {  // Check if it's a standard Error
+        setError(err.message);
       } else {
-        setError(err instanceof Error ? err.message : 'Error al generar la etiqueta');
+        setError('Error al generar la etiqueta');
       }
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -164,10 +170,12 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
         })
         .catch(err => {
           console.error('Error after fixing validation:', err);
-          if (err.response?.data?.errors) {
+          if (isAxiosError(err) && err.response?.data?.errors) {
             setValidationErrors(err.response.data.errors);
+          } else if (err instanceof Error) {
+            setError(err.message);
           } else {
-            setError(err instanceof Error ? err.message : 'Error al generar la etiqueta');
+            setError('Error al generar la etiqueta');
           }
         })
         .finally(() => {

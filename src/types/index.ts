@@ -19,15 +19,17 @@ export interface ServicioCotizado {
     nombre: string;                // Service name
     precioBase: number;            // Base price
     precioFinal: number;           // Final price before tax
-    precioConIva: number;          // Final price with tax
+    precioConIva: number;
+    iva: number;          // Final price with tax
     cargoSobrepeso: number;        // Overweight charge
     diasEstimados: number;         // Estimated delivery days
     pesoFacturable?: number;       // Billable weight
     valorSeguro?: number;          // Declared value for insurance
     costoSeguro?: number;          // Insurance cost
     tipoPaquete?: string;          // Package type ('sobre' or 'paquete')
-    opcionEmpaque?: string;        // Packaging option
-    requiereRecoleccion?: boolean; // Whether pickup is required
+    opcionEmpaque?: string | null;        // Packaging option
+    requiereRecoleccion?: boolean;
+    esInternacional: boolean;
   }
   
   /**

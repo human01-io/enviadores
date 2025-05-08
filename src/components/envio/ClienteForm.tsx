@@ -5,7 +5,7 @@ import { Cliente } from '../../types';
 
 interface ClienteFormProps {
   cliente: Cliente;
-  setCliente: (cliente: Cliente) => void;
+  setCliente: (cliente: Cliente | ((prev: Cliente) => Cliente)) => void;
   isExistingCustomer: boolean;
   setIsExistingCustomer: (isExisting: boolean) => void;
   isValid: boolean;
@@ -69,7 +69,6 @@ export default function ClienteForm({
             
             // Preserve existing colonia if this is an existing customer
             setCliente(prev => {
-              // Only set colonia to the first option if it's not already set
               const shouldUpdateColonia = !prev.colonia || prev.colonia === '';
               
               return {
@@ -78,7 +77,6 @@ export default function ClienteForm({
                 municipio: zipData.d_mnpio,
                 ciudad: zipData.d_ciudad || zipData.d_mnpio,
                 colonias,
-                // Keep existing colonia if it exists
                 colonia: shouldUpdateColonia ? (colonias[0] || '') : prev.colonia
               };
             });

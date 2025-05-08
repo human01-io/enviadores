@@ -17,7 +17,7 @@ interface ShippingOptionsProps {
   selectedOption: 'none' | 'external' | 'manuable';
   setSelectedOption: (option: 'none' | 'external' | 'manuable') => void;
   externalLabelData: ExternalLabelData;
-  setExternalLabelData: (data: ExternalLabelData) => void;
+  setExternalLabelData: (data: ExternalLabelData | ((prev: ExternalLabelData) => ExternalLabelData)) => void;
   externalCost: number | null;
   setExternalCost: (cost: number | null) => void;
   manuableServices: ManuableRate[];
@@ -87,21 +87,23 @@ export default function ShippingOptions({
   useEffect(() => {
     if (labelData && labelData.tracking_number && labelData.label_url) {
       // First immediately update tracking number and carrier
-      setExternalLabelData(prev => ({
-        ...prev,
+      setExternalLabelData({
+        ...externalLabelData,  // Use current state instead of prev
         carrier: selectedManuableService?.carrier || 'Manuable',
         trackingNumber: labelData.tracking_number
-      }));
+      });
       
       // Then try to download the label file
       setIsDownloadingLabel(true);
       downloadManuableLabel(labelData.label_url)
         .then(file => {
           if (file) {
-            setExternalLabelData(prev => ({
-              ...prev,
-              labelFile: file
-            }));
+            setExternalLabelData({
+              ...externalLabelData,  // Use current state instead of prev
+              labelFile: file,
+              carrier: selectedManuableService?.carrier || 'Manuable',
+              trackingNumber: labelData.tracking_number
+            });
             
             // Set cost if available
             if (labelData.price) {
@@ -116,7 +118,7 @@ export default function ShippingOptions({
           setIsDownloadingLabel(false);
         });
     }
-  }, [labelData, selectedManuableService, setExternalLabelData, setExternalCost]);
+  }, [labelData, selectedManuableService, setExternalLabelData, setExternalCost, externalLabelData]);
 
   // Handler for successful label generation
   const handleLabelGenerated = (data: ManuableLabelResponse) => {

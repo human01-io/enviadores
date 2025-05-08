@@ -90,6 +90,8 @@ export interface DeliveryFrequency {
     // Add these new fields to store client and destination IDs
     clienteId?: string | null;
     destinoId?: string | null;
+    servicios?: ServicioCotizado[];
+    detallesCotizacion?: DetallesCotizacion;
   }
   
   export interface AddressData {
