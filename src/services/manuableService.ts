@@ -107,47 +107,47 @@ class ManuableService {
     );
   }
 
- /**
-   * Login to Manuable API via the Cloudflare Worker proxy
-   * Note: The worker handles the actual credentials, so we don't need to send them
-   */
- async login(): Promise<ManuableAuth> {
-  try {
-    console.log('Attempting to login to Manuable API via proxy');
-    console.time('manuable-login');
-    
-    // We're using the Cloudflare Worker which will inject the credentials
-    // Just send an empty body to the session endpoint
-    const response = await this.api.post(manuableConfig.endpoints.session, {});
-    
-    console.timeEnd('manuable-login');
-    console.log('Manuable login successful:', response.data);
-    
-    // Save token for future requests
-    this.token = response.data.token;
-    
-    return response.data;
-  } catch (error) {
-    console.timeEnd('manuable-login');
-    console.error('Manuable login error:', error);
-    
-    // Enhanced error reporting
-    if (axios.isAxiosError(error)) {
-      console.error('Request details:', {
-        url: error.config?.url,
-        method: error.config?.method,
-        timeout: error.config?.timeout,
-        headers: error.config?.headers
-      });
-      
-      if (error.code === 'ECONNABORTED') {
-        console.error('Connection timeout. Check if the proxy URL is correct and accessible.');
+  /**
+    * Login to Manuable API via the Cloudflare Worker proxy
+    * Note: The worker handles the actual credentials, so we don't need to send them
+    */
+  async login(): Promise<ManuableAuth> {
+    try {
+      console.log('Attempting to login to Manuable API via proxy');
+      console.time('manuable-login');
+
+      // We're using the Cloudflare Worker which will inject the credentials
+      // Just send an empty body to the session endpoint
+      const response = await this.api.post(manuableConfig.endpoints.session, {});
+
+      console.timeEnd('manuable-login');
+      console.log('Manuable login successful:', response.data);
+
+      // Save token for future requests
+      this.token = response.data.token;
+
+      return response.data;
+    } catch (error) {
+      console.timeEnd('manuable-login');
+      console.error('Manuable login error:', error);
+
+      // Enhanced error reporting
+      if (axios.isAxiosError(error)) {
+        console.error('Request details:', {
+          url: error.config?.url,
+          method: error.config?.method,
+          timeout: error.config?.timeout,
+          headers: error.config?.headers
+        });
+
+        if (error.code === 'ECONNABORTED') {
+          console.error('Connection timeout. Check if the proxy URL is correct and accessible.');
+        }
       }
+
+      throw new Error('Authentication with Manuable failed');
     }
-    
-    throw new Error('Authentication with Manuable failed');
   }
-}
 
   /**
    * Get rate quotes from Manuable
@@ -166,13 +166,13 @@ class ManuableService {
       console.log('Sending getRates request to Manuable API');
       const response = await this.api.post(manuableConfig.endpoints.rates, params);
       console.log('Received getRates response:', response.data);
-      
+
       // Make sure rates is always an array
       const ratesResponse: ManuableRateResponse = {
-        data: Array.isArray(response.data) ? response.data : 
-              response.data?.data && Array.isArray(response.data.data) ? response.data.data : []
+        data: Array.isArray(response.data) ? response.data :
+          response.data?.data && Array.isArray(response.data.data) ? response.data.data : []
       };
-      
+
       return ratesResponse;
     } catch (error) {
       console.error('Manuable get rates error:', error);
@@ -199,14 +199,14 @@ class ManuableService {
       const response = await this.api.post(manuableConfig.endpoints.labels, params);
       console.log('Label creation successful, raw response:', response);
       console.log('Label response data:', JSON.stringify(response.data, null, 2));
-      
+
       // Extract data from nested structure if needed
       let labelData = response.data;
       if (response.data && response.data.data) {
         console.log('Detected nested data in response, extracting...');
         labelData = response.data.data;
       }
-      
+
       // Ensure all required fields are present
       const processedResponse: ManuableLabelResponse = {
         token: labelData.token || '',
@@ -215,32 +215,32 @@ class ManuableService {
         label_url: labelData.label_url || '',
         price: labelData.price || '0'
       };
-      
+
       return processedResponse;
     } catch (error) {
       console.error('Manuable create label error:', error);
-      
+
       // If it's an Axios error with a response, we can provide more details
       if (axios.isAxiosError(error)) {
         console.error('API response status:', error.response?.status);
         console.error('API response data:', JSON.stringify(error.response?.data));
-        
+
         // Check if it's a validation error (usually 400 or 422)
         if (error.response?.status === 400 || error.response?.status === 422) {
           // Pass through the validation errors
           throw error;
         }
       }
-      
+
       // For other types of errors, just throw a generic message
       throw new Error('Error creating shipping label');
     }
   }
 
-     /**
-   * Ensure all required fields are present in the request
-   * This is to prevent common validation issues
-   */
+  /**
+* Ensure all required fields are present in the request
+* This is to prevent common validation issues
+*/
   private ensureRequiredFields(params: ManuableLabelRequest) {
     // Ensure address_from has all required fields
     if (params.address_from) {
@@ -267,9 +267,11 @@ class ManuableService {
   mapToManuableAddressFormat(data: {
     nombre: string;
     apellido_paterno: string;
+    apellido_materno?: string;
     calle: string;
     colonia: string;
     numero_exterior: string;
+    numero_interior?: string;
     municipio: string;
     estado: string;
     codigo_postal: string;
@@ -278,11 +280,24 @@ class ManuableService {
     pais?: string;
     referencia?: string;
   }): ManuableAddress {
+
+    const fullName = [
+      data.nombre || '',
+      data.apellido_paterno || '',
+      data.apellido_materno || ''
+    ].filter(Boolean).join(' ').trim();
+
+    const fullAddress = [
+      data.calle || '',
+      data.numero_exterior || '',
+      data.numero_interior || ''
+    ].filter(Boolean).join(' ').trim();
+    
     return {
-      name: data.nombre,
-      street1: data.calle,
+      name: fullName,
+      street1: fullAddress,
       neighborhood: data.colonia,
-      external_number: data.numero_exterior || 'S/N',
+      external_number: '.',
       city: data.municipio,
       state: data.estado,
       phone: data.telefono,
@@ -315,7 +330,7 @@ class ManuableService {
       name: data.nombre_destinatario,
       street1: data.direccion,
       neighborhood: data.colonia,
-      external_number: data.numero_exterior || 'S/N', // Use provided or default
+      external_number: '.', // Use provided or default
       city: data.ciudad,
       state: data.estado,
       phone: data.telefono,
@@ -346,7 +361,7 @@ class ManuableService {
       height: data.alto || 10, // Default values if not provided
       length: data.largo || 10,
       width: data.ancho || 10,
-      product_id: manuableConfig.defaults.product_id, 
+      product_id: manuableConfig.defaults.product_id,
       product_value: data.valor_declarado || 1,
       quantity_products: 1,
       content: data.content || manuableConfig.defaults.content

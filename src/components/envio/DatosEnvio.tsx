@@ -3,10 +3,10 @@ import { apiService } from '../../services/apiService';
 import { Cliente, Destino, ServicioCotizado } from '../../types';
 import { ManuableRate } from '../../services/manuableService';
 import { FormView, ConfirmationView } from './views/EnvioViews';
-import { 
-  getInitialClienteState, 
-  getInitialDestinoState, 
-  validateClienteForm, 
+import {
+  getInitialClienteState,
+  getInitialDestinoState,
+  validateClienteForm,
   validateDestinoForm,
   updateDestinationWithRetry,
   createShipmentData
@@ -52,16 +52,16 @@ export default function DatosEnvio({
   // Main UI state
   const [step, setStep] = useState<'form' | 'confirmation'>('form');
   const [selectedOption, setSelectedOption] = useState<'none' | 'external' | 'manuable'>('none');
-  
+
   // Content state
   const [contenido, setContenido] = useState<string>('');
-  
+
   // Client and destination state
   const [cliente, setCliente] = useState<Cliente>(getInitialClienteState(originZip));
   const [destino, setDestino] = useState<Destino>(getInitialDestinoState(destZip));
   const [isExistingCustomer, setIsExistingCustomer] = useState(false);
   const [isExistingDestino, setIsExistingDestino] = useState(false);
-  
+
   // Validation state
   const [zipValidation, setZipValidation] = useState({
     originValid: true,
@@ -86,18 +86,11 @@ export default function DatosEnvio({
 
   // Package details for Manuable API - with safe type handling
   const [packageDetails, setPackageDetails] = useState({
-    peso: selectedService.pesoFacturable || 1,
-    // Use type guards and default values to avoid TypeScript errors
-    alto: typeof selectedService.tipoPaquete === 'string' && selectedService.tipoPaquete === 'Sobre' 
-      ? 1 
-      : (selectedService.alto || 10),
-    largo: typeof selectedService.tipoPaquete === 'string' && selectedService.tipoPaquete === 'Sobre' 
-      ? 30 
-      : (selectedService.largo || 10),
-    ancho: typeof selectedService.tipoPaquete === 'string' && selectedService.tipoPaquete === 'Sobre' 
-      ? 25 
-      : (selectedService.ancho || 10),
-    valor_declarado: selectedService.valorSeguro || 0,
+    peso: selectedService.peso || 1,
+    alto: selectedService.alto || 10,
+    largo: selectedService.largo || 30,
+    ancho: selectedService.ancho || 25,
+    valor_declarado: selectedService.valorSeguro || 1,
     content: contenido || "GIFT",
     tipo_paquete: selectedService.tipoPaquete || 'paquete'
   });
@@ -193,7 +186,7 @@ export default function DatosEnvio({
       }
       return;
     }
-    
+
     setStep('confirmation');
   };
 
@@ -207,12 +200,12 @@ export default function DatosEnvio({
       alert('Por favor complete todos los campos requeridos');
       return;
     }
-    
+
     if (selectedOption === 'none') {
       alert('Por favor seleccione una opción de envío');
       return;
     }
-  
+
     // Shipping option specific validation
     if (selectedOption === 'external') {
       if (!externalLabelData.carrier) {
@@ -232,29 +225,29 @@ export default function DatosEnvio({
         return;
       }
     }
-  
+
     if (selectedOption === 'manuable' && !selectedManuableService) {
       alert('Por favor seleccione un servicio de Manuable');
       return;
     }
-  
+
     // ZIP code validation
     if (!zipValidation.originValid || !zipValidation.destValid) {
       alert("Los códigos postales no coinciden con la cotización original. Por favor genere una nueva cotización.");
       return;
     }
-  
+
     try {
       // Process the shipment
       const { clienteId, destinoId, shipmentId } = await processShipment();
-      
+
       // Call onSubmit with all data
       onSubmit({
         cliente: { ...cliente, id: clienteId },
         destino: { ...destino, id: destinoId, cliente_id: clienteId },
         shipmentId
       });
-      
+
     } catch (error) {
       console.error('Error saving data:', error);
       alert('Error al guardar los datos. Por favor intente nuevamente.');
@@ -293,17 +286,17 @@ export default function DatosEnvio({
 
     // Get the temporary ID from localStorage that was created during quotation
     const tempCotizacionId = localStorage.getItem('current_cotizacion_id');
-    
+
     // Update quotation status if needed
     if (tempCotizacionId) {
       await updateQuotationStatus(tempCotizacionId);
     }
-    
+
     // Create shipment data using utility function
     const shipmentData = createShipmentData(
-      clientId, 
-      destId, 
-      selectedService, 
+      clientId,
+      destId,
+      selectedService,
       contenido,
       selectedOption,
       externalLabelData,
@@ -311,19 +304,19 @@ export default function DatosEnvio({
       selectedManuableService,
       tempCotizacionId
     );
-    
+
     // Create the shipment with options
     const shipmentOptions: { labelFile?: File } = {};
     if (externalLabelData.labelFile) {
       shipmentOptions.labelFile = externalLabelData.labelFile;
     }
-    
+
     // Create the shipment
     const { id: shipmentId } = await apiService.createShipment(shipmentData, shipmentOptions);
-    
+
     // Clear the temporary quotation ID from localStorage
     localStorage.removeItem('current_cotizacion_id');
-    
+
     return { clienteId: clientId, destinoId: destId, shipmentId };
   }
 
@@ -350,7 +343,7 @@ export default function DatosEnvio({
   return (
     <div className="w-full">
       {step === 'form' ? (
-        <FormView 
+        <FormView
           cliente={cliente}
           setCliente={setCliente}
           isExistingCustomer={isExistingCustomer}

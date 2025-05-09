@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { 
-  CotizadorState, 
-  DeliveryFrequency, 
-  EstafetaResult, 
-  ServicioCotizado, 
+import {
+  CotizadorState,
+  DeliveryFrequency,
+  EstafetaResult,
+  ServicioCotizado,
   DetallesCotizacion,
   Notification
 } from '../utils/cotizadorTypes';
@@ -72,8 +72,8 @@ export function useCotizador() {
       const parsedHeight = parseFloat(state.height);
 
       // Check if all values are valid before calculating
-      if (!isNaN(parsedLength) && !isNaN(parsedWidth) && !isNaN(parsedHeight) 
-          && parsedLength > 0 && parsedWidth > 0 && parsedHeight > 0) {
+      if (!isNaN(parsedLength) && !isNaN(parsedWidth) && !isNaN(parsedHeight)
+        && parsedLength > 0 && parsedWidth > 0 && parsedHeight > 0) {
         const volWeight = (parsedLength * parsedWidth * parsedHeight) / 5000;
         setState(prev => ({
           ...prev,
@@ -171,27 +171,27 @@ export function useCotizador() {
     // Reset Estafeta results when validating new ZIP codes
     setEstafetaResult(null);
     setLoadingEstafeta(false);
-  
+
     if (state.originZip.length === 5 && state.destZip.length === 5) {
       // Reset the zone before new validation
       setState(prev => ({ ...prev, zone: null, isValidated: true }));
-  
+
       // Fetch both ZIP codes
       fetchZipCodeData(state.originZip, true);
       fetchZipCodeData(state.destZip, false);
-  
+
       // Calculate zone based on postal codes
       const originPostal = parseInt(state.originZip);
       const destPostal = parseInt(state.destZip);
-  
+
       if (!isNaN(originPostal) && !isNaN(destPostal)) {
         const calculatedZone = calculateZone(originPostal, destPostal);
         setState(prev => ({ ...prev, zone: calculatedZone }));
       }
-  
+
       // Fetch delivery frequency for destination
       fetchDeliveryFrequency(state.destZip);
-      
+
       // Automatically trigger the Estafeta validation as well
       validateOnExternalSite();
     }
@@ -309,108 +309,111 @@ export function useCotizador() {
     return !isNaN(numericValue) && numericValue > 0;
   };
 
-// Function to fetch available shipping services
-const fetchQuote = async () => {
-  if (state.isInternational && !state.selectedZone) {
-    alert("Por favor seleccione una zona para envío internacional");
-    return;
-  }
-
-  const parsedWeight = parseFloat(state.weight);
-  if (isNaN(parsedWeight)) {
-    alert("Por favor ingrese un peso válido");
-    return;
-  }
-
-  try {
-    const requiereReexpedicion = estafetaResult?.reexpe
-      ? parseReexpeditionCost(estafetaResult.reexpe)
-      : false;
-
-    // Create the payload for price estimation
-    const payload = {
-      zona: state.isInternational ? state.selectedZone : state.zone,
-      tipoPaquete: state.packageType,
-      peso: parsedWeight,
-      pesoVolumetrico: state.volumetricWeight,
-      esInternacional: state.isInternational,
-      valorSeguro: state.insurance ? parseFloat(state.insuranceValue) || 0 : 0,
-      opcionEmpaque: state.packagingOption,
-      precioEmpaquePersonalizado: state.packagingOption === 'EMP05' ? state.customPackagingPrice : null,
-      requiereRecoleccion: state.collectionRequired,
-      precioRecoleccion: state.collectionRequired ? state.collectionPrice : null,
-      requiereReexpedicion: requiereReexpedicion
-    };
-
-    console.log('Fetching shipping quotes with payload:', JSON.stringify(payload));
-
-    const response = await fetch('https://enviadores.com.mx/api/get-prices.php', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await response.json();
-    
-    if (data.exito) {
-      const ivaRate = data.iva || 0.16; // Default to 16% if not provided
-
-      const serviciosConTotales = data.servicios.map((servicio: any) => {
-        const iva = servicio.precioFinal * ivaRate;
-        return {
-          ...servicio,
-          precioTotal: servicio.precioFinal,
-          precioConIva: servicio.precioFinal + iva,
-          iva: iva,
-          esInternacional: state.isInternational
-        };
-      });
-
-      const calcularConIva = (amount: number) => amount + (amount * ivaRate);
-
-      // Prepare quote details for storage
-      const detallesCotizacion = {
-        empaque: data.cargosAdicionales.empaque,
-        empaqueConIva: calcularConIva(data.cargosAdicionales.empaque),
-        seguro: data.cargosAdicionales.seguro,
-        seguroConIva: calcularConIva(data.cargosAdicionales.seguro),
-        recoleccion: data.cargosAdicionales.recoleccion,
-        recoleccionConIva: calcularConIva(data.cargosAdicionales.recoleccion),
-        reexpedicion: data.cargosAdicionales.reexpedicion || 0,
-        reexpedicionConIva: calcularConIva(data.cargosAdicionales.reexpedicion || 0),
-        pesoTotal: data.pesoTotal,
-        pesoVolumetrico: data.pesoVolumetrico,
-        pesoFacturable: data.pesoFacturable,
-        iva: ivaRate,
-        totalConIva: serviciosConTotales.reduce((sum: number, s: any) => sum + s.precioConIva, 0) +
-          calcularConIva(data.cargosAdicionales.empaque) +
-          calcularConIva(data.cargosAdicionales.seguro) +
-          calcularConIva(data.cargosAdicionales.recoleccion) +
-          calcularConIva(data.cargosAdicionales.reexpedicion || 0)
-      };
-      
-      // Update state with the quote results
-      setServicios(serviciosConTotales);
-      setDetallesCotizacion(detallesCotizacion);
-      
-      console.log('Quote results retrieved successfully:', {
-        services: serviciosConTotales.length,
-        details: detallesCotizacion
-      });
-      
-      // Note: We're no longer saving the quotation here
-      // That will be done when the user clicks "Continue" with a selected service
-      
-    } else {
-      alert(data.error || "Error al obtener cotización");
+  // Function to fetch available shipping services
+  const fetchQuote = async () => {
+    if (state.isInternational && !state.selectedZone) {
+      alert("Por favor seleccione una zona para envío internacional");
+      return;
     }
-  } catch (error) {
-    console.error("Error al obtener cotización:", error);
-    alert("Error al conectar con el servidor");
-  }
-};
+
+    const parsedWeight = parseFloat(state.weight);
+    if (isNaN(parsedWeight)) {
+      alert("Por favor ingrese un peso válido");
+      return;
+    }
+
+    try {
+      const requiereReexpedicion = estafetaResult?.reexpe
+        ? parseReexpeditionCost(estafetaResult.reexpe)
+        : false;
+
+      // Create the payload for price estimation
+      const payload = {
+        zona: state.isInternational ? state.selectedZone : state.zone,
+        tipoPaquete: state.packageType,
+        peso: parsedWeight,
+        pesoVolumetrico: state.volumetricWeight,
+        esInternacional: state.isInternational,
+        valorSeguro: state.insurance ? parseFloat(state.insuranceValue) || 0 : 0,
+        opcionEmpaque: state.packagingOption,
+        precioEmpaquePersonalizado: state.packagingOption === 'EMP05' ? state.customPackagingPrice : null,
+        requiereRecoleccion: state.collectionRequired,
+        precioRecoleccion: state.collectionRequired ? state.collectionPrice : null,
+        requiereReexpedicion: requiereReexpedicion
+      };
+
+      console.log('Fetching shipping quotes with payload:', JSON.stringify(payload));
+
+      const response = await fetch('https://enviadores.com.mx/api/get-prices.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (data.exito) {
+        const ivaRate = data.iva || 0.16; // Default to 16% if not provided
+
+        const serviciosConTotales = data.servicios.map((servicio: any) => {
+          const iva = servicio.precioFinal * ivaRate;
+          return {
+            ...servicio,
+            precioTotal: servicio.precioFinal,
+            precioConIva: servicio.precioFinal + iva,
+            iva: iva,
+            esInternacional: state.isInternational,
+            peso: parsedWeight, // The actual weight entered by user
+            pesoVolumetrico: state.volumetricWeight,
+            alto: state.packageType === "Paquete" ? parseFloat(state.height) || 0 : 1,
+            largo: state.packageType === "Paquete" ? parseFloat(state.length) || 0 : 30,
+            ancho: state.packageType === "Paquete" ? parseFloat(state.width) || 0 : 25,
+            valorSeguro: state.insurance ? parseFloat(state.insuranceValue) || 1 : 1,
+          };
+        });
+
+        const calcularConIva = (amount: number) => amount + (amount * ivaRate);
+
+        // Prepare quote details for storage
+        const detallesCotizacion = {
+          empaque: data.cargosAdicionales.empaque,
+          empaqueConIva: calcularConIva(data.cargosAdicionales.empaque),
+          seguro: data.cargosAdicionales.seguro,
+          seguroConIva: calcularConIva(data.cargosAdicionales.seguro),
+          recoleccion: data.cargosAdicionales.recoleccion,
+          recoleccionConIva: calcularConIva(data.cargosAdicionales.recoleccion),
+          reexpedicion: data.cargosAdicionales.reexpedicion || 0,
+          reexpedicionConIva: calcularConIva(data.cargosAdicionales.reexpedicion || 0),
+          pesoTotal: data.pesoTotal,
+          pesoVolumetrico: data.pesoVolumetrico,
+          pesoFacturable: data.pesoFacturable,
+          iva: ivaRate,
+          totalConIva: serviciosConTotales.reduce((sum: number, s: any) => sum + s.precioConIva, 0) +
+            calcularConIva(data.cargosAdicionales.empaque) +
+            calcularConIva(data.cargosAdicionales.seguro) +
+            calcularConIva(data.cargosAdicionales.recoleccion) +
+            calcularConIva(data.cargosAdicionales.reexpedicion || 0)
+        };
+
+        // Update state with the quote results
+        setServicios(serviciosConTotales);
+        setDetallesCotizacion(detallesCotizacion);
+
+        console.log('Quote results retrieved successfully:', {
+          services: serviciosConTotales.length,
+          details: detallesCotizacion
+        });
+
+      } else {
+        alert(data.error || "Error al obtener cotización");
+      }
+    } catch (error) {
+      console.error("Error al obtener cotización:", error);
+      alert("Error al conectar con el servidor");
+    }
+  };
 
   const resetForm = () => {
     setState(initialState);
@@ -431,88 +434,88 @@ const fetchQuote = async () => {
     setSelectedDestColonia("");
   };
 
-// Function to continue to customer data entry
-const proceedToCustomerData = async () => {
-  if (selectedService) {
-    try {
-      // Generate a unique temporary ID for the quotation
-      const tempId = localStorage.getItem('current_cotizacion_id') || 
-                    `COT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      
-      // Store the quotation ID in localStorage for retrieval
-      localStorage.setItem('current_cotizacion_id', tempId);
-      
-      // Prepare quotation data with detailed information including all pricing
-      const quotationData = {
-        temp_id: tempId,
-        origen_cp: state.originZip,
-        destino_cp: state.destZip,
-        tipo_paquete: state.packageType,
-        
-        // Selected service information with detailed pricing
-        servicio_id: selectedService.sku,
-        servicio_nombre: selectedService.nombre,
-        precio_base: selectedService.precioBase,
-        precio_sobrepeso: selectedService.cargoSobrepeso, // Added explicitly
-        precio_final: selectedService.precioTotal,
-        precio_total: selectedService.precioConIva,
-        dias_estimados: selectedService.diasEstimados,
-        
-        // Package details with proper types
-        peso_real: parseFloat(state.weight) || 0,
-        peso_volumetrico: state.volumetricWeight || 0,
-        peso_facturable: detallesCotizacion?.pesoFacturable || 
-                         Math.max(parseFloat(state.weight) || 0, state.volumetricWeight || 0),
-        
-        // Dimensions based on package type
-        largo: state.packageType === "Paquete" ? parseFloat(state.length) || 0 : 0,
-        ancho: state.packageType === "Paquete" ? parseFloat(state.width) || 0 : 0,
-        alto: state.packageType === "Paquete" ? parseFloat(state.height) || 0 : 0,
-        
-        // Additional options
-        valor_declarado: state.insurance ? parseFloat(state.insuranceValue) || 0 : 0,
-        requiere_recoleccion: state.collectionRequired,
-        opcion_empaque: state.packagingOption,
-        
-        // Additional charges
-        empaque: detallesCotizacion?.empaque || 0,
-        seguro: detallesCotizacion?.seguro || 0,
-        recoleccion: detallesCotizacion?.recoleccion || 0,
-        reexpedicion: detallesCotizacion?.reexpedicion || 0,
-        
-        // Content field initialized as empty
-        contenido: '',
-        
-        // Customer and destination IDs
-        cliente_id: state.clienteId || '',
-        destino_id: state.destinoId || ''
-      };
-      
-      console.log('Saving quotation before proceeding to customer data:', 
-                 JSON.stringify(quotationData));
-      
+  // Function to continue to customer data entry
+  const proceedToCustomerData = async () => {
+    if (selectedService) {
       try {
-        // Use apiService to save the quotation
-        const saveResult = await apiService.saveQuotation(quotationData);
-        
-        if (saveResult && saveResult.temp_id) {
-          console.log("Quotation record created with temp_id:", saveResult.temp_id);
+        // Generate a unique temporary ID for the quotation
+        const tempId = localStorage.getItem('current_cotizacion_id') ||
+          `COT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+        // Store the quotation ID in localStorage for retrieval
+        localStorage.setItem('current_cotizacion_id', tempId);
+
+        // Prepare quotation data with detailed information including all pricing
+        const quotationData = {
+          temp_id: tempId,
+          origen_cp: state.originZip,
+          destino_cp: state.destZip,
+          tipo_paquete: state.packageType,
+
+          // Selected service information with detailed pricing
+          servicio_id: selectedService.sku,
+          servicio_nombre: selectedService.nombre,
+          precio_base: selectedService.precioBase,
+          precio_sobrepeso: selectedService.cargoSobrepeso, // Added explicitly
+          precio_final: selectedService.precioTotal,
+          precio_total: selectedService.precioConIva,
+          dias_estimados: selectedService.diasEstimados,
+
+          // Package details with proper types
+          peso_real: parseFloat(state.weight) || 0,
+          peso_volumetrico: state.volumetricWeight || 0,
+          peso_facturable: detallesCotizacion?.pesoFacturable ||
+            Math.max(parseFloat(state.weight) || 0, state.volumetricWeight || 0),
+
+          // Dimensions based on package type
+          largo: state.packageType === "Paquete" ? parseFloat(state.length) || 0 : 0,
+          ancho: state.packageType === "Paquete" ? parseFloat(state.width) || 0 : 0,
+          alto: state.packageType === "Paquete" ? parseFloat(state.height) || 0 : 0,
+
+          // Additional options
+          valor_declarado: state.insurance ? parseFloat(state.insuranceValue) || 0 : 0,
+          requiere_recoleccion: state.collectionRequired,
+          opcion_empaque: state.packagingOption,
+
+          // Additional charges
+          empaque: detallesCotizacion?.empaque || 0,
+          seguro: detallesCotizacion?.seguro || 0,
+          recoleccion: detallesCotizacion?.recoleccion || 0,
+          reexpedicion: detallesCotizacion?.reexpedicion || 0,
+
+          // Content field initialized as empty
+          contenido: '',
+
+          // Customer and destination IDs
+          cliente_id: state.clienteId || '',
+          destino_id: state.destinoId || ''
+        };
+
+        console.log('Saving quotation before proceeding to customer data:',
+          JSON.stringify(quotationData));
+
+        try {
+          // Use apiService to save the quotation
+          const saveResult = await apiService.saveQuotation(quotationData);
+
+          if (saveResult && saveResult.temp_id) {
+            console.log("Quotation record created with temp_id:", saveResult.temp_id);
+          }
+        } catch (error) {
+          console.error("Error saving quotation:", error);
+          // We'll still proceed even if saving fails
         }
+
+        // Move to customer data screen
+        setState(prev => ({ ...prev, flowStage: 'customer-data' }));
+
       } catch (error) {
-        console.error("Error saving quotation:", error);
-        // We'll still proceed even if saving fails
+        console.error("Error in proceedToCustomerData:", error);
+        // Still proceed even if there's an error
+        setState(prev => ({ ...prev, flowStage: 'customer-data' }));
       }
-      
-      // Move to customer data screen
-      setState(prev => ({ ...prev, flowStage: 'customer-data' }));
-      
-    } catch (error) {
-      console.error("Error in proceedToCustomerData:", error);
-      // Still proceed even if there's an error
-      setState(prev => ({ ...prev, flowStage: 'customer-data' }));
     }
-  }
-};
+  };
 
   // Function to go back to quotation page
   const backToQuote = () => {

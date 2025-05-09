@@ -130,7 +130,8 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
     cliente: Cliente,
     destino: Destino,
     rateUuid: string,
-    content?: string
+    content?: string,
+    valor_declarado?: number
   ) => {
     setIsLoading(true);
     setError(null);
@@ -157,7 +158,7 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
         parcel: {
           currency: 'MXN',
           product_id: '01010101',
-          product_value: 1000,
+          product_value: valor_declarado || 1,
           quantity_products: 1,
           content: content || 'GIFT',
           mass_unit: 'KG',
