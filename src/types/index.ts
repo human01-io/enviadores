@@ -36,6 +36,7 @@ export interface ServicioCotizado {
   largo?: number;                // Length in cm 
   ancho?: number;                // Width in cm
   contenido?: string;            // Package content description
+  peso?:number;
 }
   
   /**
