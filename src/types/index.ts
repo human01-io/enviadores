@@ -15,22 +15,28 @@ export interface ApiResponse<T = any> {
   request?: any;
 }
 export interface ServicioCotizado {
-    sku: string;                   // Service identifier
-    nombre: string;                // Service name
-    precioBase: number;            // Base price
-    precioFinal: number;           // Final price before tax
-    precioConIva: number;
-    iva: number;          // Final price with tax
-    cargoSobrepeso: number;        // Overweight charge
-    diasEstimados: number;         // Estimated delivery days
-    pesoFacturable?: number;       // Billable weight
-    valorSeguro?: number;          // Declared value for insurance
-    costoSeguro?: number;          // Insurance cost
-    tipoPaquete?: string;          // Package type ('sobre' or 'paquete')
-    opcionEmpaque?: string | null;        // Packaging option
-    requiereRecoleccion?: boolean;
-    esInternacional: boolean;
-  }
+  sku: string;                   // Service identifier
+  nombre: string;                // Service name
+  precioBase: number;            // Base price
+  precioFinal: number;           // Final price before tax
+  precioConIva: number;          // Final price with tax
+  iva: number;                   // IVA amount
+  cargoSobrepeso: number;        // Overweight charge
+  diasEstimados: number;         // Estimated delivery days
+  pesoFacturable?: number;       // Billable weight
+  valorSeguro?: number;          // Declared value for insurance
+  costoSeguro?: number;          // Insurance cost
+  tipoPaquete?: string;          // Package type ('sobre' or 'paquete')
+  opcionEmpaque?: string | null; // Packaging option
+  requiereRecoleccion?: boolean; // Requires pickup
+  esInternacional: boolean;      // Is international
+  
+  // New fields to add:
+  alto?: number;                 // Height in cm
+  largo?: number;                // Length in cm 
+  ancho?: number;                // Width in cm
+  contenido?: string;            // Package content description
+}
   
   /**
    * Cliente (Customer) model based on database structure 

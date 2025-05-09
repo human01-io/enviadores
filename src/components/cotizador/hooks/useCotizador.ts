@@ -442,22 +442,23 @@ const proceedToCustomerData = async () => {
       // Store the quotation ID in localStorage for retrieval
       localStorage.setItem('current_cotizacion_id', tempId);
       
-      // Prepare a simplified quotation data with only selected service info
+      // Prepare quotation data with detailed information including all pricing
       const quotationData = {
         temp_id: tempId,
         origen_cp: state.originZip,
         destino_cp: state.destZip,
         tipo_paquete: state.packageType,
         
-        // Selected service information
+        // Selected service information with detailed pricing
         servicio_id: selectedService.sku,
         servicio_nombre: selectedService.nombre,
         precio_base: selectedService.precioBase,
+        precio_sobrepeso: selectedService.cargoSobrepeso, // Added explicitly
         precio_final: selectedService.precioTotal,
         precio_total: selectedService.precioConIva,
         dias_estimados: selectedService.diasEstimados,
         
-        // Package details
+        // Package details with proper types
         peso_real: parseFloat(state.weight) || 0,
         peso_volumetrico: state.volumetricWeight || 0,
         peso_facturable: detallesCotizacion?.pesoFacturable || 
@@ -473,12 +474,21 @@ const proceedToCustomerData = async () => {
         requiere_recoleccion: state.collectionRequired,
         opcion_empaque: state.packagingOption,
         
+        // Additional charges
+        empaque: detallesCotizacion?.empaque || 0,
+        seguro: detallesCotizacion?.seguro || 0,
+        recoleccion: detallesCotizacion?.recoleccion || 0,
+        reexpedicion: detallesCotizacion?.reexpedicion || 0,
+        
+        // Content field initialized as empty
+        contenido: '',
+        
         // Customer and destination IDs
         cliente_id: state.clienteId || '',
         destino_id: state.destinoId || ''
       };
       
-      console.log('Saving simplified quotation before proceeding to customer data:', 
+      console.log('Saving quotation before proceeding to customer data:', 
                  JSON.stringify(quotationData));
       
       try {

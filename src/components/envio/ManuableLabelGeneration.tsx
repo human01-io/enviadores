@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { Cliente, Destino } from '../../types';
 import { ManuableRate, ManuableLabelResponse } from '../../services/manuableService';
 import { useManuable } from '../../hooks/useManuable';
-import { mapClienteToManuableAddress, mapDestinoToManuableAddress } from '../../utils/manuableUtils';
-import ValidationErrors from './ValidationErrors'; // Import the new component
+import ValidationErrors from './ValidationErrors';
 import { apiService } from '../../services';
 import { isAxiosError } from 'axios';
 
@@ -12,13 +11,15 @@ interface ManuableLabelGeneratorProps {
   destino: Destino;
   selectedService: ManuableRate;
   onLabelGenerated: (labelData: ManuableLabelResponse) => void;
+  content?: string;
 }
 
 const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
   cliente,
   destino,
   selectedService,
-  onLabelGenerated
+  onLabelGenerated,
+  content = "GIFT"
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,13 +40,13 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
         numero_exterior: destino.numero_exterior || extractExternalNumber(destino.direccion)
       };
       
-      // Call the API to generate label
-      const labelResponse = await createLabel(cliente, destinoWithExternalNumber, selectedService.uuid);
+      // Call the API to generate label, passing the content
+      const labelResponse = await createLabel(cliente, destinoWithExternalNumber, selectedService.uuid, content);
       
       console.log("Label generated successfully:", labelResponse);
   
       if (labelResponse) {
-        // Ensure we have absolute URLs for the label
+        // Process the URL to ensure it's absolute, but DO NOT automatically download
         const processedResponse = {
           ...labelResponse,
           label_url: ensureAbsoluteUrl(labelResponse.label_url)
@@ -82,6 +83,7 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
           }
         }
         
+        // Only notify parent component of successful label generation
         onLabelGenerated(processedResponse);
       } else {
         throw new Error('No se pudo generar la etiqueta');
@@ -101,6 +103,8 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
       } else {
         setError('Error al generar la etiqueta');
       }
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -157,7 +161,7 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
       
       // Try generating the label again with the fixed data
       setIsGenerating(true);
-      createLabel(cliente, updatedDestino, selectedService.uuid)
+      createLabel(cliente, updatedDestino, selectedService.uuid, content) // Pass content here too
         .then(labelResponse => {
           if (labelResponse) {
             // Process the URL to make sure it's absolute
@@ -253,6 +257,11 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
     <div className="mb-4">
       <p className="mb-3 text-sm text-gray-700">
         Servicio seleccionado: <strong>{selectedService.carrier} - {selectedService.service}</strong>
+      </p>
+      
+      {/* Show the content that will be sent */}
+      <p className="mb-3 text-sm text-gray-700">
+        Contenido a declarar: <strong>{content}</strong>
       </p>
       
       <button

@@ -42,6 +42,8 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
           <thead className="bg-gray-100">
             <tr>
               <th className="border border-gray-300 p-2">Servicio</th>
+              <th className="border border-gray-300 p-2">Precio Base</th>
+              <th className="border border-gray-300 p-2">Cargo Sobrepeso</th>
               <th className="border border-gray-300 p-2">Subtotal</th>
               <th className="border border-gray-300 p-2">Total (con IVA)</th>
               <th className="border border-gray-300 p-2">Tiempo</th>
@@ -58,6 +60,10 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                 onClick={() => setSelectedService(servicio)}
               >
                 <td className="border border-gray-300 p-2 font-medium">{servicio.nombre}</td>
+                <td className="border border-gray-300 p-2">${formatCurrency(servicio.precioBase)}</td>
+                <td className={`border border-gray-300 p-2 ${servicio.cargoSobrepeso > 0 ? 'font-medium text-amber-600' : ''}`}>
+                  ${formatCurrency(servicio.cargoSobrepeso)}
+                </td>
                 <td className="border border-gray-300 p-2 font-medium">${formatCurrency(servicio.precioTotal)}</td>
                 <td className="border border-gray-300 p-2 font-medium text-blue-700">${formatCurrency(servicio.precioConIva)}</td>
                 <td className="border border-gray-300 p-2">{servicio.diasEstimados} día{servicio.diasEstimados !== 1 ? 's' : ''}</td>
@@ -113,6 +119,16 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
             </div>
             <div className="p-3">
               <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-gray-500">Precio Base:</span>
+                  <p className="font-medium">${formatCurrency(servicio.precioBase)}</p>
+                </div>
+                {servicio.cargoSobrepeso > 0 && (
+                  <div>
+                    <span className="text-gray-500">Cargo Sobrepeso:</span>
+                    <p className="font-medium text-amber-600">${formatCurrency(servicio.cargoSobrepeso)}</p>
+                  </div>
+                )}
                 <div>
                   <span className="text-gray-500">Subtotal:</span>
                   <p className="font-medium">${formatCurrency(servicio.precioTotal)}</p>

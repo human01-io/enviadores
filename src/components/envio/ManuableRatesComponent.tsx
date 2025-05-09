@@ -12,6 +12,7 @@ interface ManuableRatesComponentProps {
     largo?: number;
     ancho?: number;
     valor_declarado?: number;
+    content?: string;
   };
   onSelectService: (service: ManuableRate) => void;
   selectedService: ManuableRate | null;
@@ -38,6 +39,9 @@ const ManuableRatesComponent: React.FC<ManuableRatesComponentProps> = ({
     const fetchRates = async () => {
       if (originZip && destZip && packageDetails.peso) {
         try {
+          // Use the actual package details from the quotation
+          console.log('Using package details for Manuable:', packageDetails);
+          
           await getRates(originZip, destZip, packageDetails);
           setHasFetched(true);
         } catch (error) {
@@ -97,8 +101,6 @@ const ManuableRatesComponent: React.FC<ManuableRatesComponentProps> = ({
     );
   }
 
-  // FIX: Check if rates is an array before checking its length
-  // This is likely where the error was occurring at line 95
   if (!rates || !Array.isArray(rates) || rates.length === 0) {
     if (hasFetched) {
       return (

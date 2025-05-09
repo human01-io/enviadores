@@ -50,6 +50,7 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
       largo?: number;
       ancho?: number;
       valor_declarado?: number;
+      content?: string;
     }
   ) => {
     setIsLoading(true);
@@ -61,7 +62,7 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
         await login();
       }
 
-      // Format the data for Manuable API
+      // Format the data for Manuable API - IMPORTANT: use the actual values from packageDetails
       const params = {
         address_from: {
           country_code: 'MX',
@@ -71,7 +72,21 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
           country_code: 'MX',
           zip_code: destZip
         },
-        parcel: manuableService.mapPackageToManuableParcel(packageDetails)
+        parcel: {
+          currency: 'MXN',
+          distance_unit: 'CM',
+          mass_unit: 'KG',
+          // Use the actual peso (weight) value, not pesoFacturable
+          weight: packageDetails.peso,
+          // Use the actual dimensions
+          height: packageDetails.alto || 10,
+          length: packageDetails.largo || 10,
+          width: packageDetails.ancho || 10,
+          product_id: '01010101',
+          product_value: packageDetails.valor_declarado || 1,
+          quantity_products: 1,
+          content: packageDetails.content || 'GIFT'
+        }
       };
 
       console.log('Sending getRates request with params:', JSON.stringify(params));
@@ -114,7 +129,8 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
   const createLabel = useCallback(async (
     cliente: Cliente,
     destino: Destino,
-    rateUuid: string
+    rateUuid: string,
+    content?: string
   ) => {
     setIsLoading(true);
     setError(null);
@@ -131,7 +147,8 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
       console.log('Creating label with parameters:', {
         rateUuid,
         addressFrom,
-        addressTo
+        addressTo,
+        content
       });
 
       const response = await manuableService.createLabel({
@@ -142,7 +159,7 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
           product_id: '01010101',
           product_value: 1000,
           quantity_products: 1,
-          content: 'GIFT',
+          content: content || 'GIFT',
           mass_unit: 'KG',
           distance_unit: 'CM'
         },
