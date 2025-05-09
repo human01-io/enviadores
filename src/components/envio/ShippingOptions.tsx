@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ManuableRate, ManuableLabelResponse } from '../../services/manuableService';
 import ManuableRatesComponent from './ManuableRatesComponent';
 import ManuableLabelGenerator from './ManuableLabelGeneration';
@@ -82,24 +82,38 @@ export default function ShippingOptions({
   // State for storing the generated label
   const [labelData, setLabelData] = useState<ManuableLabelResponse | null>(null);
   const [isDownloadingLabel, setIsDownloadingLabel] = useState<boolean>(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  
+  // Track download attempts to prevent infinite loops
+  const downloadAttemptRef = useRef<number>(0);
+  const maxDownloadAttempts = 3;
+  const labelDownloadedRef = useRef<boolean>(false);
 
   // Effect to update when label data changes
   useEffect(() => {
-    if (labelData && labelData.tracking_number && labelData.label_url) {
+    if (labelData && labelData.tracking_number && labelData.label_url && !labelDownloadedRef.current) {
       // First immediately update tracking number and carrier
       setExternalLabelData({
-        ...externalLabelData,  // Use current state instead of prev
+        ...externalLabelData,
         carrier: selectedManuableService?.carrier || 'Manuable',
         trackingNumber: labelData.tracking_number
       });
       
+      // Reset download attempts counter
+      downloadAttemptRef.current = 0;
+      
       // Then try to download the label file
       setIsDownloadingLabel(true);
+      setDownloadError(null);
+      
+      // Set a flag to prevent re-downloading
+      labelDownloadedRef.current = true;
+      
       downloadManuableLabel(labelData.label_url)
         .then(file => {
           if (file) {
             setExternalLabelData({
-              ...externalLabelData,  // Use current state instead of prev
+              ...externalLabelData,
               labelFile: file,
               carrier: selectedManuableService?.carrier || 'Manuable',
               trackingNumber: labelData.tracking_number
@@ -109,10 +123,13 @@ export default function ShippingOptions({
             if (labelData.price) {
               setExternalCost(parseFloat(labelData.price));
             }
+          } else {
+            setDownloadError('No se pudo descargar la etiqueta. Intente descargarla manualmente.');
           }
         })
         .catch(error => {
           console.error('Error downloading Manuable label:', error);
+          setDownloadError('Error al descargar la etiqueta: ' + error.message);
         })
         .finally(() => {
           setIsDownloadingLabel(false);
@@ -124,13 +141,35 @@ export default function ShippingOptions({
   const handleLabelGenerated = (data: ManuableLabelResponse) => {
     console.log('Label generated with data:', data);
     setLabelData(data);
+    // Reset the download flag when a new label is generated
+    labelDownloadedRef.current = false;
   };
   
   // Function to download a Manuable label and convert it to a File object
   const downloadManuableLabel = async (url: string): Promise<File | null> => {
+    // Increment the attempt counter
+    downloadAttemptRef.current += 1;
+    
+    // Check if we've exceeded max attempts
+    if (downloadAttemptRef.current > maxDownloadAttempts) {
+      console.warn(`Exceeded maximum download attempts (${maxDownloadAttempts})`);
+      throw new Error(`Demasiados intentos fallidos. Descargue la etiqueta manualmente.`);
+    }
+    
     try {
-      console.log('Downloading label from URL:', url);
-      const response = await fetch(url);
+      console.log(`Downloading label from URL (attempt ${downloadAttemptRef.current}/${maxDownloadAttempts}):`, url);
+      
+      // Set a timeout for the fetch operation
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch(url, {
+        signal: controller.signal
+      });
+      
+      // Clear the timeout
+      clearTimeout(timeoutId);
+      
       if (!response.ok) {
         throw new Error(`Failed to download label: ${response.status} ${response.statusText}`);
       }
@@ -145,8 +184,26 @@ export default function ShippingOptions({
       console.log('Label downloaded successfully, created file:', file.name, file.size, 'bytes');
       return file;
     } catch (error) {
-      console.error('Error downloading label:', error);
+      console.error(`Error downloading label (attempt ${downloadAttemptRef.current}/${maxDownloadAttempts}):`, error);
+      
+      // If we haven't reached max attempts, wait and try again
+      if (downloadAttemptRef.current < maxDownloadAttempts) {
+        console.log(`Retrying in ${downloadAttemptRef.current * 2} seconds...`);
+        // Wait with exponential backoff
+        await new Promise(resolve => setTimeout(resolve, downloadAttemptRef.current * 2000));
+        // Recursive retry with exponential backoff
+        return downloadManuableLabel(url);
+      }
+      
       return null;
+    }
+  };
+
+  // Function to handle manual download of the label
+  const handleManualDownload = () => {
+    if (labelData?.label_url) {
+      // Open the label URL in a new tab
+      window.open(labelData.label_url, '_blank');
     }
   };
 
@@ -275,9 +332,39 @@ export default function ShippingOptions({
           {labelData ? (
             <>
               <ManuableLabelDisplay labelData={labelData} />
+              
+              {/* Show download status or error */}
               {isDownloadingLabel && (
                 <div className="text-center py-2 bg-blue-50 rounded mt-2">
-                  <p className="text-blue-600 text-sm">Descargando etiqueta, por favor espere...</p>
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full mr-2"></div>
+                    <p className="text-blue-600 text-sm">Descargando etiqueta, por favor espere...</p>
+                  </div>
+                </div>
+              )}
+              
+              {downloadError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg mt-2">
+                  <div className="flex items-start">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <div>
+                      <h3 className="text-sm font-medium text-red-800">Error al descargar la etiqueta</h3>
+                      <p className="mt-1 text-xs text-red-700">{downloadError}</p>
+                      
+                      {/* Button for manual download */}
+                      <button 
+                        onClick={handleManualDownload}
+                        className="mt-2 inline-flex items-center px-3 py-1 bg-red-100 text-red-700 text-xs rounded-md hover:bg-red-200"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        Descargar Manualmente
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
             </>
@@ -290,6 +377,7 @@ export default function ShippingOptions({
                   destino={destino}
                   selectedService={selectedManuableService}
                   onLabelGenerated={handleLabelGenerated}
+                  content={packageDetails.content}
                 />
               ) : null}
               
