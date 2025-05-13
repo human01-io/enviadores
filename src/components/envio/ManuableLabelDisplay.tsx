@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {memo, useEffect} from 'react';
 import { ManuableLabelResponse } from '../../services/manuableService';
 
 interface ManuableLabelDisplayProps {
@@ -7,7 +7,9 @@ interface ManuableLabelDisplayProps {
 
 const ManuableLabelDisplay: React.FC<ManuableLabelDisplayProps> = ({ labelData }) => {
   // For debugging
-  console.log('Displaying label data:', labelData);
+  useEffect(() => {
+    console.log('Displaying label data:', labelData);
+  }, [labelData]);
   
   return (
     <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
@@ -99,4 +101,4 @@ const ManuableLabelDisplay: React.FC<ManuableLabelDisplayProps> = ({ labelData }
   );
 };
 
-export default ManuableLabelDisplay;
+export default memo(ManuableLabelDisplay);

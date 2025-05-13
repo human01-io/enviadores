@@ -25,14 +25,20 @@ const ManuableRatesComponent: React.FC<ManuableRatesComponentProps> = ({
   onSelectService,
   selectedService
 }) => {
+  // Add local loading state for manual fetch operations
+  const [localLoading, setLocalLoading] = useState(false);
+  
   const { 
-    isLoading, 
+    isLoading: apiLoading, 
     error, 
     rates, 
     getRates 
   } = useManuable();
 
   const [hasFetched, setHasFetched] = useState(false);
+  
+  // Combine API loading state with local loading state
+  const isLoading = apiLoading || localLoading;
 
   // Fetch rates when component mounts or inputs change
   useEffect(() => {
@@ -54,7 +60,8 @@ const ManuableRatesComponent: React.FC<ManuableRatesComponentProps> = ({
     if (!hasFetched) {
       fetchRates();
     }
-  }, [originZip, destZip, packageDetails, getRates, hasFetched]);
+
+  }, [originZip, destZip, packageDetails]);
 
   // Convert ManuableRate to display format for price
   const formatCurrency = (amount: string) => {
@@ -65,9 +72,20 @@ const ManuableRatesComponent: React.FC<ManuableRatesComponentProps> = ({
     });
   };
 
-  // Manual fetch button handler
+  // Manual fetch button handler - fixed to use localLoading
   const handleFetchRates = async () => {
-    setHasFetched(false);
+    // Set loading state using localLoading
+    setLocalLoading(true);
+    
+    try {
+      // Call the API directly instead of through the useEffect cycle
+      await getRates(originZip, destZip, packageDetails);
+    } catch (error) {
+      console.error("Error fetching rates:", error);
+    } finally {
+      // Always set loading to false when done
+      setLocalLoading(false);
+    }
   };
 
   if (isLoading && !hasFetched) {

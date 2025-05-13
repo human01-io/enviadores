@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { ManuableRate, ManuableLabelResponse } from '../../services/manuableService';
 import ManuableRatesComponent from './ManuableRatesComponent';
 import ManuableLabelGenerator from './ManuableLabelGeneration';
@@ -91,7 +91,6 @@ export default function ShippingOptions({
       ...externalLabelData,
       carrier: selectedManuableService?.carrier || 'Manuable',
       trackingNumber: labelData.tracking_number
-      // Note: labelFile is now omitted since we're not downloading it
     });
     
     // Set cost if available
@@ -99,7 +98,7 @@ export default function ShippingOptions({
       setExternalCost(parseFloat(labelData.price));
     }
   }
-}, [labelData, selectedManuableService, setExternalLabelData, setExternalCost, externalLabelData]);
+}, [labelData, selectedManuableService, setExternalLabelData, setExternalCost]);
 
   // Handler for successful label generation
   const handleLabelGenerated = (data: ManuableLabelResponse) => {
