@@ -1,5 +1,23 @@
 import React from 'react';
 import { ServicioCotizado, DetallesCotizacion } from './utils/cotizadorTypes';
+import { motion } from 'framer-motion';
+import { 
+  ArrowRight, 
+  CheckCircle, 
+  Clock, 
+  DollarSign, 
+  TrendingUp, 
+  Package, 
+  ShoppingBag,
+  Truck,
+  AlertTriangle
+} from 'lucide-react';
+import { Button } from '../ui/Button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/CardComponent';
+import { Badge } from '../ui/BadgeComponent';
+import { Separator } from '../ui/SeparatorComponent';
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../ui/Table';
+import { ScrollArea } from '../ui/ScrollAreaComponent';
 
 interface QuoteResultsSectionProps {
   servicios: ServicioCotizado[];
@@ -20,6 +38,21 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
     return null;
   }
 
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: { delay: i * 0.1, duration: 0.3 }
+    })
+  };
+
   // Format numbers with comma separators
   const formatCurrency = (value: number) => {
     return value.toLocaleString('es-MX', { 
@@ -28,173 +61,253 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
     });
   };
 
+  // Calculate additional charges total
+  const additionalChargesTotal = 
+    detallesCotizacion.empaque + 
+    detallesCotizacion.seguro + 
+    detallesCotizacion.recoleccion + 
+    detallesCotizacion.reexpedicion;
+
   return (
-    <div className="space-y-4">
-      {detallesCotizacion?.reexpedicion > 0 && (
-        <div className="text-sm text-yellow-700 bg-yellow-50 p-2 rounded border border-yellow-200">
-          ⚠️ Precio estándar de reexpedición aplicado
+    <motion.div
+      className="space-y-6"
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+    >
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-800">Servicios Disponibles</h2>
+          <p className="text-sm text-gray-500">Seleccione un servicio para continuar con su envío</p>
         </div>
-      )}
+        
+        {detallesCotizacion.reexpedicion > 0 && (
+          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 px-2 py-1">
+            <AlertTriangle className="h-3.5 w-3.5 mr-1.5" />
+            Precio estándar de reexpedición aplicado
+          </Badge>
+        )}
+      </div>
 
       {/* Desktop table view */}
-      <div className="hidden md:block overflow-x-auto">
-        <table className="w-full border-collapse border border-gray-300 text-sm">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="border border-gray-300 p-2">Servicio</th>
-              <th className="border border-gray-300 p-2">Precio Base</th>
-              <th className="border border-gray-300 p-2">Cargo Sobrepeso</th>
-              <th className="border border-gray-300 p-2">Subtotal</th>
-              <th className="border border-gray-300 p-2">Total (con IVA)</th>
-              <th className="border border-gray-300 p-2">Tiempo</th>
-              <th className="border border-gray-300 p-2">Seleccionar</th>
-            </tr>
-          </thead>
-          <tbody>
-            {servicios.map((servicio) => (
-              <tr 
-                key={servicio.sku}
-                className={`cursor-pointer hover:bg-blue-50 transition-colors ${
-                  selectedService?.sku === servicio.sku ? 'bg-blue-100 border-2 border-blue-400' : ''
-                }`}
-                onClick={() => setSelectedService(servicio)}
-              >
-                <td className="border border-gray-300 p-2 font-medium">{servicio.nombre}</td>
-                <td className="border border-gray-300 p-2">${formatCurrency(servicio.precioBase)}</td>
-                <td className={`border border-gray-300 p-2 ${servicio.cargoSobrepeso > 0 ? 'font-medium text-amber-600' : ''}`}>
-                  ${formatCurrency(servicio.cargoSobrepeso)}
-                </td>
-                <td className="border border-gray-300 p-2 font-medium">${formatCurrency(servicio.precioTotal)}</td>
-                <td className="border border-gray-300 p-2 font-medium text-blue-700">${formatCurrency(servicio.precioConIva)}</td>
-                <td className="border border-gray-300 p-2">{servicio.diasEstimados} día{servicio.diasEstimados !== 1 ? 's' : ''}</td>
-                <td className="border border-gray-300 p-2 text-center">
-                  <div className="flex justify-center">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                      selectedService?.sku === servicio.sku 
-                        ? 'bg-blue-600 text-white' 
-                        : 'border-2 border-gray-300'
-                    }`}>
-                      {selectedService?.sku === servicio.sku && (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
+      <Card className="hidden md:block overflow-hidden">
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader className="bg-gray-50">
+              <TableRow>
+                <TableHead className="w-[200px]">Servicio</TableHead>
+                <TableHead>Precio Base</TableHead>
+                <TableHead>Cargo Sobrepeso</TableHead>
+                <TableHead>Subtotal</TableHead>
+                <TableHead>Total (con IVA)</TableHead>
+                <TableHead>Tiempo</TableHead>
+                <TableHead className="text-right">Seleccionar</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {servicios.map((servicio, index) => (
+                <TableRow 
+                  key={servicio.sku}
+                  className={`cursor-pointer hover:bg-blue-50 transition-colors ${
+                    selectedService?.sku === servicio.sku ? 'bg-blue-100' : ''
+                  }`}
+                  onClick={() => setSelectedService(servicio)}
+                >
+                  <TableCell className="font-medium">{servicio.nombre}</TableCell>
+                  <TableCell>${formatCurrency(servicio.precioBase)}</TableCell>
+                  <TableCell className={servicio.cargoSobrepeso > 0 ? 'font-medium text-amber-600' : ''}>
+                    ${formatCurrency(servicio.cargoSobrepeso)}
+                  </TableCell>
+                  <TableCell className="font-medium">${formatCurrency(servicio.precioTotal)}</TableCell>
+                  <TableCell className="font-medium text-blue-700">${formatCurrency(servicio.precioConIva)}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="bg-gray-100">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {servicio.diasEstimados} día{servicio.diasEstimados !== 1 ? 's' : ''}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button 
+                      variant={selectedService?.sku === servicio.sku ? "default" : "outline"} 
+                      size="sm"
+                      onClick={() => setSelectedService(servicio)}
+                    >
+                      {selectedService?.sku === servicio.sku ? (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Seleccionado
+                        </>
+                      ) : (
+                        'Seleccionar'
                       )}
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Mobile card view */}
       <div className="md:hidden space-y-4">
-        {servicios.map((servicio) => (
-          <div 
+        {servicios.map((servicio, index) => (
+          <motion.div
             key={servicio.sku}
-            className={`border rounded-lg overflow-hidden cursor-pointer transition-all ${
-              selectedService?.sku === servicio.sku
-                ? 'border-blue-500 shadow-md bg-blue-50'
-                : 'border-gray-300 hover:border-blue-300 hover:shadow'
-            }`}
-            onClick={() => setSelectedService(servicio)}
+            custom={index}
+            initial="hidden"
+            animate="visible"
+            variants={itemVariants}
           >
-            <div className="p-3 bg-gray-50 border-b flex justify-between items-center">
-              <h3 className="font-medium">{servicio.nombre}</h3>
-              <div className="flex items-center">
-                <span className="text-blue-700 font-medium mr-2">${formatCurrency(servicio.precioConIva)}</span>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                  selectedService?.sku === servicio.sku 
-                    ? 'bg-blue-600 text-white' 
-                    : 'border-2 border-gray-300'
-                }`}>
-                  {selectedService?.sku === servicio.sku && (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="p-3">
-              <div className="grid grid-cols-2 gap-2 text-sm">
+            <Card 
+              className={`border-2 overflow-hidden transition-all ${
+                selectedService?.sku === servicio.sku
+                  ? 'border-blue-500 shadow-md bg-blue-50'
+                  : 'border-gray-200 hover:border-blue-300 hover:shadow'
+              }`}
+              onClick={() => setSelectedService(servicio)}
+            >
+              <CardHeader className="p-3 pb-0 flex flex-row justify-between items-center space-y-0">
                 <div>
-                  <span className="text-gray-500">Precio Base:</span>
-                  <p className="font-medium">${formatCurrency(servicio.precioBase)}</p>
+                  <CardTitle className="text-base">{servicio.nombre}</CardTitle>
+                  <Badge variant="outline" className="bg-gray-100 mt-1">
+                    <Clock className="h-3 w-3 mr-1" />
+                    {servicio.diasEstimados} día{servicio.diasEstimados !== 1 ? 's' : ''}
+                  </Badge>
                 </div>
-                {servicio.cargoSobrepeso > 0 && (
+                <Badge className="text-lg font-semibold bg-blue-100 text-blue-700 border-blue-200 px-3 py-1">
+                  ${formatCurrency(servicio.precioConIva)}
+                </Badge>
+              </CardHeader>
+              <CardContent className="p-3 pt-2">
+                <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
-                    <span className="text-gray-500">Cargo Sobrepeso:</span>
-                    <p className="font-medium text-amber-600">${formatCurrency(servicio.cargoSobrepeso)}</p>
+                    <span className="text-gray-500">Precio Base:</span>
+                    <p className="font-medium">${formatCurrency(servicio.precioBase)}</p>
                   </div>
-                )}
-                <div>
-                  <span className="text-gray-500">Subtotal:</span>
-                  <p className="font-medium">${formatCurrency(servicio.precioTotal)}</p>
+                  {servicio.cargoSobrepeso > 0 && (
+                    <div>
+                      <span className="text-gray-500">Cargo Sobrepeso:</span>
+                      <p className="font-medium text-amber-600">${formatCurrency(servicio.cargoSobrepeso)}</p>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-gray-500">Subtotal:</span>
+                    <p className="font-medium">${formatCurrency(servicio.precioTotal)}</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-gray-500">Tiempo estimado:</span>
-                  <p>{servicio.diasEstimados} día{servicio.diasEstimados !== 1 ? 's' : ''}</p>
-                </div>
-              </div>
-            </div>
-          </div>
+              </CardContent>
+              <CardFooter className="p-3 pt-0 flex justify-end">
+                <Button 
+                  variant={selectedService?.sku === servicio.sku ? "default" : "outline"} 
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedService(servicio);
+                  }}
+                >
+                  {selectedService?.sku === servicio.sku ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Seleccionado
+                    </>
+                  ) : (
+                    'Seleccionar'
+                  )}
+                </Button>
+              </CardFooter>
+            </Card>
+          </motion.div>
         ))}
       </div>
 
-      {/* Additional charges summary - more compact */}
-      <div className="p-3 bg-gray-50 border rounded-lg">
-        <h3 className="font-medium text-sm mb-2">Cargos adicionales:</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-          <div>
-            <span className="text-gray-500">Empaque:</span>
-            <p>${formatCurrency(detallesCotizacion.empaque)}</p>
+      {/* Additional charges summary */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center">
+            <ShoppingBag className="h-5 w-5 mr-2 text-blue-600" />
+            <CardTitle className="text-base">Cargos adicionales</CardTitle>
           </div>
-          <div>
-            <span className="text-gray-500">Seguro:</span>
-            <p>${formatCurrency(detallesCotizacion.seguro)}</p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-xs text-gray-500 mb-1">Empaque:</p>
+              <p className="text-base font-medium">
+                <DollarSign className="h-3.5 w-3.5 inline mr-1 text-blue-600" />
+                {formatCurrency(detallesCotizacion.empaque)}
+              </p>
+            </div>
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-xs text-gray-500 mb-1">Seguro:</p>
+              <p className="text-base font-medium">
+                <DollarSign className="h-3.5 w-3.5 inline mr-1 text-blue-600" />
+                {formatCurrency(detallesCotizacion.seguro)}
+              </p>
+            </div>
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-xs text-gray-500 mb-1">Recolección:</p>
+              <p className="text-base font-medium">
+                <DollarSign className="h-3.5 w-3.5 inline mr-1 text-blue-600" />
+                {formatCurrency(detallesCotizacion.recoleccion)}
+              </p>
+            </div>
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-xs text-gray-500 mb-1">Reexpedición:</p>
+              <p className="text-base font-medium">
+                <DollarSign className="h-3.5 w-3.5 inline mr-1 text-blue-600" />
+                {formatCurrency(detallesCotizacion.reexpedicion)}
+              </p>
+            </div>
           </div>
-          <div>
-            <span className="text-gray-500">Recolección:</span>
-            <p>${formatCurrency(detallesCotizacion.recoleccion)}</p>
-          </div>
-          <div>
-            <span className="text-gray-500">Reexpedición:</span>
-            <p>${formatCurrency(detallesCotizacion.reexpedicion)}</p>
-          </div>
-        </div>
-      </div>
+          {additionalChargesTotal > 0 && (
+            <div className="mt-4 flex justify-end">
+              <Badge className="px-3 py-1.5 bg-blue-50 text-blue-700 border-blue-200">
+                <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
+                Total cargos adicionales: ${formatCurrency(additionalChargesTotal)}
+              </Badge>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Continue button with enhanced visual cues */}
+      {/* Continue button */}
       <div className="pt-4 border-t mt-4">
         {selectedService ? (
-          <div className="relative">
+          <motion.div className="relative"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
             {/* Animated arrow to highlight the continue button */}
-            <div className="absolute -top-8 right-6 text-green-500 animate-bounce hidden md:block">
+            <motion.div 
+              className="absolute -top-8 right-6 text-green-500 hidden md:block"
+              animate={{ y: [0, 8, 0] }}
+              transition={{ repeat: Infinity, duration: 1.5 }}
+            >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
               </svg>
-            </div>
+            </motion.div>
             
-            <button
+            <Button
               onClick={proceedToCustomerData}
-              className="w-full px-4 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+              className="text-white w-full px-4 py-3 gap-2 bg-green-600 hover:bg-green-700 h-12"
             >
               Continuar con {selectedService.nombre}
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-              </svg>
-            </button>
-          </div>
+              <ArrowRight className="h-5 w-5" />
+            </Button>
+          </motion.div>
         ) : (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
-            <p className="text-sm text-yellow-700">
-              ⚠️ Seleccione un servicio para continuar
+            <p className="text-sm text-yellow-700 flex items-center justify-center">
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              Seleccione un servicio para continuar
             </p>
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 };

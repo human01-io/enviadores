@@ -216,6 +216,7 @@ export function useCotizador() {
 
       const data = await response.json();
       setEstafetaResult(data);
+      console.log("Estafeta API Response:", data);
     } catch (error) {
       setEstafetaResult({
         reexpe: 'No',

@@ -1,25 +1,39 @@
+// File: src/app/cotizador/page.tsx
+'use server';
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, RefreshCw } from 'lucide-react';
+import { User, LogOut, RefreshCw, MapPin, Package, Check, CheckCircle } from 'lucide-react';
 import { AddressSection } from './AddressSection';
 import { DeliveryInfoDisplay } from './DeliveryInfoDisplay';
 import { PackageDetailsSection } from './PackageDetailsSection';
 import { QuoteResultsSection } from './QuoteResultsSection';
 import { NotificationPopup } from './NotificationPopup';
-import DatosEnvio from '../envio/DatosEnvio';
 import { useCotizador } from './hooks/useCotizador';
-import { AccountModal } from '../AccountModal';
+import DatosEnvio from '../envio/DatosEnvio';
 import { ChangePasswordModal } from '../ChangePasswordModal';
+import { Button } from '../ui/Button';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+  SheetDescription
+} from '../ui/SheetComponent';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/CardComponent';
+import { Badge } from '../ui/BadgeComponent';
+import { Separator } from '../ui/SeparatorComponent';
+import { ScrollArea } from '../ui/ScrollAreaComponent';
+import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '../../services/apiService';
-import logo from '../../assets/logo.svg';
 
-function Cotizador() {
-  const navigate = useNavigate();
+export default function Cotizador() {
+  const router = useNavigate();
   const {
     state,
     updateField,
-    deliveryFrequency,
-    loadingFrequency,
     estafetaResult,
     loadingEstafeta,
     reportSubmitted,
@@ -44,7 +58,6 @@ function Cotizador() {
     selectedDestColonia,
     setSelectedDestColonia,
     validateZipCodes,
-    validateOnExternalSite,
     validateThreeTimes,
     handleReport,
     fetchQuote,
@@ -54,7 +67,7 @@ function Cotizador() {
   } = useCotizador();
 
   // Account management states
-  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showAccountSheet, setShowAccountSheet] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [userData, setUserData] = useState({
     name: 'Usuario',
@@ -62,6 +75,28 @@ function Cotizador() {
     phone: '',
     role: 'customer_user'
   });
+
+  const [currentTab, setCurrentTab] = useState<'address' | 'package' | 'results'>('address');
+  const [allowTabNavigation, setAllowTabNavigation] = useState(true);
+
+
+
+  const fetchQuoteAndShowResults = async () => {
+    // Disable tab navigation until quotes are fetched
+    setAllowTabNavigation(false);
+    await fetchQuote();
+    // Tab switching will be handled by the useEffect
+  };
+
+  useEffect(() => {
+    // When services are loaded and we're on the package tab, move to results
+    // but only for the initial fetch, not when returning from results to package
+    if (servicios && servicios.length > 0 && currentTab === 'package' && !allowTabNavigation) {
+      setCurrentTab('results');
+      // Re-enable tab navigation after we've switched
+      setAllowTabNavigation(true);
+    }
+  }, [servicios, currentTab, allowTabNavigation]);
 
   // Check for abandoned quotations when component mounts
   useEffect(() => {
@@ -75,49 +110,49 @@ function Cotizador() {
           phone: response.phone,
           role: response.role
         });
-        
+
         // Check for abandoned quotations that can be restored
         await apiService.checkForAbandonedQuotations({
           onQuotationFound: (latestQuotation) => {
             // Format date for display
             const quotationDate = new Date(latestQuotation.created_at);
             const formattedDate = quotationDate.toLocaleString();
-            
+
             // Ask user if they want to restore
             const shouldRestore = confirm(
               `¿Desea continuar con su cotización anterior?\n\nCreada: ${formattedDate}\nOrigen: ${latestQuotation.origen_cp}, Destino: ${latestQuotation.destino_cp}\nTipo: ${latestQuotation.tipo_paquete}`
             );
-            
+
             if (shouldRestore) {
               // Restore the quotation data to the state
               updateField('originZip', latestQuotation.origen_cp);
               updateField('destZip', latestQuotation.destino_cp);
               updateField('packageType', latestQuotation.tipo_paquete);
-              
+
               if (latestQuotation.largo) updateField('length', latestQuotation.largo.toString());
               if (latestQuotation.ancho) updateField('width', latestQuotation.ancho.toString());
               if (latestQuotation.alto) updateField('height', latestQuotation.alto.toString());
               if (latestQuotation.peso_real) updateField('weight', latestQuotation.peso_real.toString());
-              
+
               updateField('volumetricWeight', latestQuotation.peso_volumetrico || 0);
               updateField('packagingOption', latestQuotation.opcion_empaque || "EMP00");
               updateField('collectionRequired', !!latestQuotation.requiere_recoleccion);
               updateField('clienteId', latestQuotation.cliente_id || null);
               updateField('destinoId', latestQuotation.destino_id || null);
               updateField('isValidated', true); // Set as validated so the package details section shows
-              
+
               // Store the quotation ID for later updates
               localStorage.setItem('current_cotizacion_id', latestQuotation.temp_id);
-              
+
               // Trigger ZIP code validation to fetch location data
               validateZipCodes();
-              
+
               // If there are services available, parse and set them
               if (latestQuotation.servicios_json) {
                 try {
                   const serviciosData = JSON.parse(latestQuotation.servicios_json);
                   setServicios(serviciosData);
-                  
+
                   // Also set cotización details if available
                   if (latestQuotation.detalles_json) {
                     const cotizacionDetails = JSON.parse(latestQuotation.detalles_json);
@@ -127,14 +162,14 @@ function Cotizador() {
                   console.error("Error parsing saved services:", parseError);
                 }
               }
-              
+
               // Show notification that quotation was restored
               setNotification({
                 show: true,
                 message: 'Cotización restaurada correctamente',
                 details: null
               });
-              
+
               return true; // Indicate we restored a quotation
             } else {
               // User declined to restore, ask if they want to be prompted again
@@ -150,37 +185,9 @@ function Cotizador() {
         console.error("Error initializing component:", error);
       }
     };
-    
+
     initializeComponent();
   }, []);
-
-  const handleLogout = async () => {
-    try {
-      if (confirm("¿Está seguro que desea cerrar sesión?")) {
-        if (import.meta.env.PROD) {
-          window.location.href = 'https://login.enviadores.com.mx?logout=' + Date.now();
-        } else {
-          navigate('/login?logout=' + Date.now());
-        }
-      }
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
-  };
-
-  const handleResetCotizacion = () => {
-    if (confirm("¿Está seguro que desea reiniciar la cotización? Se perderán todos los datos ingresados.")) {
-      // Clear the current quotation ID from localStorage
-      localStorage.removeItem('current_cotizacion_id');
-      
-      resetForm();
-      setNotification({
-        show: true,
-        message: 'Cotización reiniciada correctamente',
-        details: null
-      });
-    }
-  };
 
   const handlePasswordChangeSuccess = () => {
     setShowPasswordModal(false);
@@ -191,15 +198,41 @@ function Cotizador() {
     });
   };
 
+  const handleOpenPasswordModal = () => {
+    setShowAccountSheet(false); // Close account sheet first
+    setShowPasswordModal(true);
+  };
+
+  const handleLogout = async () => {
+    if (confirm("¿Está seguro que desea cerrar sesión?")) {
+      if (import.meta.env.PROD) {
+        window.location.href = 'https://login.enviadores.com.mx?logout=' + Date.now();
+      } else {
+        router('/login?logout=' + Date.now());
+      }
+    }
+  };
+
+  const handleResetCotizacion = () => {
+    if (confirm("¿Está seguro que desea reiniciar la cotización? Se perderán todos los datos ingresados.")) {
+      localStorage.removeItem('current_cotizacion_id');
+      resetForm();
+      setNotification({
+        show: true,
+        message: 'Cotización reiniciada correctamente',
+        details: null
+      });
+    }
+  };
+
   const redirectToDashboard = () => {
     if (import.meta.env.PROD) {
       window.location.href = 'https://app.enviadores.com.mx';
     } else {
-      navigate('/dashboard');
+      router('/dashboard');
     }
   };
 
-  // Modified validateZipCodesWithEstafeta function
   const validateZipCodesWithEstafeta = () => {
     validateZipCodes();
   };
@@ -207,13 +240,11 @@ function Cotizador() {
   // Helper function to display zone in header
   const getZoneDisplay = () => {
     if (state.isInternational && state.selectedZone) {
-      // For international zones
       return {
         full: `Zona Internacional: ${state.selectedZone}`,
         short: `Z-I: ${state.selectedZone}`
       };
     } else if (!state.isInternational && state.zone) {
-      // For national zones
       return {
         full: `Zona Nacional: ${state.zone}`,
         short: `Z: ${state.zone}`
@@ -222,320 +253,474 @@ function Cotizador() {
     return null;
   };
 
+const handleContinueToPackage = () => {
+  setAllowTabNavigation(true);
+  setCurrentTab('package');
+};
+
+
+const handleContinueToResults = () => {
+  setAllowTabNavigation(true);
+  setCurrentTab('results');
+};
+
+
+  const calculateProgress = () => {
+    if (state.flowStage === 'customer-data') return 100;
+
+    if (selectedService) return 75;
+    if (servicios && servicios.length > 0) return 50;
+    if (state.isValidated) return 25;
+
+    return 5;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Fixed Header */}
-      <header className="bg-white shadow-md sticky top-0 z-10 border-b">
-        <div className="px-3 py-2 sm:p-4">
+      <header className="bg-white shadow-sm sticky top-0 z-10 border-b">
+        <div className="container mx-auto px-4 py-3 sm:px-6 lg:px-8">
           {/* Main navigation row */}
           <div className="flex items-center justify-between">
             {/* Left section with logo and back button */}
             <div className="flex items-center gap-2">
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={redirectToDashboard}
-                className="text-blue-600 hover:text-blue-800 p-1"
                 aria-label="Go back"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-              </button>
+              </Button>
               <div className="flex items-center">
-                <img src={logo} alt="Logo" className="w-6 h-6 sm:w-7 sm:h-7" />
-                <h1 className="ml-2 text-base sm:text-lg font-bold whitespace-nowrap">Cotizador</h1>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                </svg>
+                <h1 className="ml-2 text-lg font-semibold">Cotizador</h1>
               </div>
             </div>
 
             {/* Right section with account and logout */}
-            <div className="flex items-center gap-2 sm:gap-4">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowAccountModal(true)}
-                  className="flex items-center gap-1 text-blue-600 hover:text-blue-800 p-1"
-                  aria-label="Mi cuenta"
-                >
-                  <User className="w-5 h-5" />
-                  <span className="sr-only sm:not-sr-only sm:inline text-sm">Mi cuenta</span>
-                </button>
-
-                <button
-                  onClick={handleLogout}
-                  className="text-red-600 hover:text-red-800 text-sm font-medium flex items-center gap-1 p-1"
-                  aria-label="Cerrar sesión"
-                >
-                  <LogOut className="w-5 h-5" />
-                  <span className="sr-only sm:not-sr-only sm:inline">Cerrar sesión</span>
-                </button>
-              </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-1"
+                onClick={() => setShowAccountSheet(true)}
+              >
+                <User className="h-4 w-4" />
+                <span className="sr-only sm:not-sr-only sm:inline text-sm">{userData.name}</span>
+              </Button>
             </div>
           </div>
 
           {/* Secondary row for flow stage buttons (always visible but responsive) */}
-          <div className="mt-2 sm:mt-3 flex flex-wrap items-center gap-3 sm:gap-4">
+          <div className="mt-3 flex flex-wrap items-center gap-3">
             {/* Flow stage buttons */}
             <div className="flex">
-              <button
-                className={`px-3 py-1 text-xs sm:text-sm whitespace-nowrap rounded-l-md ${state.flowStage === 'quote'
-                  ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
-                  : 'bg-gray-50 text-gray-500 border border-gray-200'}`}
+              <Button
+                variant={state.flowStage === 'quote' ? 'secondary' : 'outline'}
+                size="sm"
                 onClick={() => updateField('flowStage', 'quote')}
+                className="rounded-r-none"
               >
                 1. Cotización
-              </button>
-              <button
-                className={`px-3 py-1 text-xs sm:text-sm whitespace-nowrap rounded-r-md ${state.flowStage === 'customer-data'
-                  ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
-                  : 'bg-gray-50 text-gray-500 border border-gray-200'}`}
-                style={{ opacity: selectedService ? 1 : 0.5 }}
+              </Button>
+              <Button
+                variant={state.flowStage === 'customer-data' ? 'secondary' : 'outline'}
+                size="sm"
+                onClick={() => selectedService && updateField('flowStage', 'customer-data')}
                 disabled={!selectedService}
+                className="rounded-l-none opacity-100 disabled:opacity-50"
               >
                 2. Datos del Cliente
-              </button>
+              </Button>
             </div>
-            
-            {/* Divider - only visible on larger screens */}
-            <div className="hidden sm:block h-5 w-px bg-gray-300 mx-1"></div>
-            
+
+            <Separator orientation="vertical" className="h-5 mx-2 hidden sm:block" />
+
             {/* Zone display and Reset button */}
             <div className="flex items-center gap-2">
               {/* Zone display - only shown if available */}
               {getZoneDisplay() && (
-                <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-2 py-1 rounded-md text-xs sm:text-sm font-medium flex items-center shadow-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                  </svg>
-                  {/* Short version on small screens, full version on larger screens */}
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-200">
+                  <MapPin className="h-3 w-3 mr-1" />
                   <span className="block sm:hidden truncate max-w-[80px]">
                     {getZoneDisplay()!.short}
                   </span>
                   <span className="hidden sm:block">
                     {getZoneDisplay()!.full}
                   </span>
-                </div>
+                </Badge>
               )}
 
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={handleResetCotizacion}
-                className="flex items-center gap-1 bg-orange-50 text-orange-600 hover:bg-orange-100 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md transition-colors shadow-sm"
-                title="Reiniciar cotización"
+                className="text-orange-600 border-orange-200 hover:bg-orange-50"
               >
-                <RefreshCw className="w-4 h-4" />
-                <span className="sr-only sm:not-sr-only sm:inline text-sm font-medium">Reiniciar Cotización</span>
-              </button>
+                <RefreshCw className="h-3 w-3 mr-1" />
+                <span className="sr-only sm:not-sr-only sm:inline text-xs">Reiniciar</span>
+              </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 p-4 md:p-4" >
-        <div className="max-w-screen-2xl mx-auto">
-          {/* Main Container */}
-          <div className="bg-white rounded-lg shadow p-4 md:p-4">
-            {state.flowStage === 'quote' ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Left Column - Address & Delivery Info */}
-                <div className="space-y-4">
-                  <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
-                    <h2 className="text-lg font-semibold mb-4 flex items-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                      </svg>
-                      Codigos Postales
-                    </h2>
+      <main className="flex-1 container mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        {state.flowStage === 'quote' ? (
+          <div className="w-full">
+            {/* Simple progress bar */}
+            <div className="w-full h-1.5 bg-gray-200 mb-3 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 transition-all duration-500"
+                style={{
+                  width: `${calculateProgress()}%`
+                }}
+              ></div>
+            </div>
 
-                    <AddressSection
-                      state={state}
-                      updateField={updateField}
-                      originState={originState}
-                      originMunicipio={originMunicipio}
-                      originCiudad={originCiudad}
-                      originColonias={originColonias}
-                      selectedOriginColonia={selectedOriginColonia}
-                      setSelectedOriginColonia={setSelectedOriginColonia}
-                      destState={destState}
-                      destMunicipio={destMunicipio}
-                      destCiudad={destCiudad}
-                      destColonias={destColonias}
-                      selectedDestColonia={selectedDestColonia}
-                      setSelectedDestColonia={setSelectedDestColonia}
-                      validateZipCodes={validateZipCodesWithEstafeta}
-                      zone={state.zone}
-                      isInternational={state.isInternational}
-                      selectedZone={state.selectedZone}
-                      isValidated={state.isValidated}
-                    />
+            <Tabs
+              value={currentTab}
+              onValueChange={(value) => {
+                setCurrentTab(value as 'address' | 'package' | 'results');
+              }}
+              className="w-full"
+            >
+              <Card>
+                <CardHeader className="pb-4">
+                  <TabsList className="grid grid-cols-3 mb-2">
+                    <TabsTrigger
+                      value="address"
+                      className={`flex items-center justify-center relative
+                        ${state.isValidated
+                          ? 'data-[state=active]:bg-green-100 data-[state=active]:text-green-800 data-[state=active]:border-green-300 bg-green-50 text-green-700 border-green-200'
+                          : 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 data-[state=active]:border-blue-300'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center ">
+                        <span className={`flex items-center justify-center w-5 h-5 mr-2 rounded-full text-xs font-bold
+                          ${state.isValidated
+                            ? 'bg-green-500 text-white'
+                            : currentTab === 'address'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-300 text-gray-600'
+                          }
+                        `}>
+                          1
+                        </span>
+                        {state.isValidated ? (
+                          <Check className="h-4 w-4 mr-1 text-green-600" />
+                        ) : (
+                          <MapPin className="h-4 w-4 mr-1" />
+                        )}
+                        <span>Dirección</span>
+                      </div>
+                    </TabsTrigger>
+
+                    <TabsTrigger
+                      value="package"
+                      disabled={!state.isValidated && !state.isInternational}
+                      className={`flex items-center justify-center relative
+                        ${servicios && servicios.length > 0
+                          ? 'data-[state=active]:bg-green-100 data-[state=active]:text-green-800 data-[state=active]:border-green-300 bg-green-50 text-green-700 border-green-200'
+                          : (state.isValidated || state.isInternational)
+                            ? 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 data-[state=active]:border-blue-300'
+                            : 'opacity-50 cursor-not-allowed'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center">
+                        <span className={`flex items-center justify-center w-5 h-5 mr-2 rounded-full text-xs font-bold
+                          ${servicios && servicios.length > 0
+                            ? 'bg-green-500 text-white'
+                            : currentTab === 'package' && (state.isValidated || state.isInternational)
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-300 text-gray-600'
+                          }
+                        `}>
+                          2
+                        </span>
+                        {servicios && servicios.length > 0 ? (
+                          <Check className="h-4 w-4 mr-1 text-green-600" />
+                        ) : (
+                          <Package className="h-4 w-4 mr-1" />
+                        )}
+                        <span>Paquete</span>
+                      </div>
+                    </TabsTrigger>
+
+                    <TabsTrigger
+                      value="results"
+                      disabled={!servicios || servicios.length === 0}
+                      className={`flex items-center justify-center relative
+                        ${selectedService
+                          ? 'data-[state=active]:bg-green-100 data-[state=active]:text-green-800 data-[state=active]:border-green-300 bg-green-50 text-green-700 border-green-200'
+                          : servicios && servicios.length > 0
+                            ? 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 data-[state=active]:border-blue-300'
+                            : 'opacity-50 cursor-not-allowed'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center">
+                        <span className={`flex items-center justify-center w-5 h-5 mr-2 rounded-full text-xs font-bold
+                          ${selectedService
+                            ? 'bg-green-500 text-white'
+                            : currentTab === 'results' && servicios && servicios.length > 0
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-300 text-gray-600'
+                          }
+                        `}>
+                          3
+                        </span>
+                        {selectedService ? (
+                          <Check className="h-4 w-4 mr-1 text-green-600" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                        )}
+                        <span>Resultados</span>
+                      </div>
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <div className="flex justify-between items-center">
+                    <CardTitle>Cotización de envío</CardTitle>
+
+                    {/* Optional: Add a text indicator of progress */}
+                    <span className="text-sm text-gray-500">
+                      {state.flowStage === 'quote' ? (
+                        selectedService
+                          ? "Listo para proceder a datos del cliente"
+                          : servicios && servicios.length > 0
+                            ? "Seleccione un servicio"
+                            : state.isValidated
+                              ? "Ingrese detalles del paquete"
+                              : "Ingrese direcciones"
+                      ) : (
+                        "Ingresando datos del cliente"
+                      )}
+                    </span>
                   </div>
+                </CardHeader>
 
-                  {/* Delivery Info Section - Simplified */}
-                  {state.isValidated && !state.isInternational && (
-                    <div className="bg-green-50 p-4 rounded-lg border border-green-100 shadow-sm">
-                      <h2 className="text-lg font-semibold mb-4 flex items-center text-green-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-                          <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h2a1 1 0 001-1V8a1 1 0 00-.416-.789l-2-1.666A1 1 0 0014 5.333V4a1 1 0 00-1-1H3zM16 8.8V8l-2-1.667V5H14v3.8l2 .8z" />
-                        </svg>
-                        Información de Entrega
-                      </h2>
-                      <DeliveryInfoDisplay
-                        estafetaResult={estafetaResult}
-                        loadingEstafeta={loadingEstafeta}
-                        validateThreeTimes={validateThreeTimes}
-                        handleReport={handleReport}
-                        reportSubmitted={reportSubmitted}
-                      />
-                    </div>
-                  )}
-                </div>
+                <CardContent>
+                  <TabsContent value="address" className="mt-0">
+                    <ScrollArea className="h-[calc(100vh-250px)] pr-4">
+                      <div className="space-y-6">
+                        <AddressSection
+                          state={state}
+                          updateField={updateField}
+                          originState={originState}
+                          originMunicipio={originMunicipio}
+                          originCiudad={originCiudad}
+                          originColonias={originColonias}
+                          selectedOriginColonia={selectedOriginColonia}
+                          setSelectedOriginColonia={setSelectedOriginColonia}
+                          destState={destState}
+                          destMunicipio={destMunicipio}
+                          destCiudad={destCiudad}
+                          destColonias={destColonias}
+                          selectedDestColonia={selectedDestColonia}
+                          setSelectedDestColonia={setSelectedDestColonia}
+                          validateZipCodes={validateZipCodesWithEstafeta}
+                          zone={state.zone}
+                          isInternational={state.isInternational}
+                          selectedZone={state.selectedZone}
+                          isValidated={state.isValidated}
+                          onContinueToPackage={handleContinueToPackage}
+                        />
 
-                {/* Right Column - Package Details & Quote Results */}
-                <div className="space-y-6">
-                  {/* Package Details Section */}
-                  {(state.isValidated || state.isInternational) && (
-                    <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
-                      <h2 className="text-lg font-semibold mb-4 flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M4 3a2 2 0 100 4h12a2 2 0 100-4H4z" />
-                          <path fillRule="evenodd" d="M3 8h14v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
-                        </svg>
-                        Detalles del Paquete
-                      </h2>
+                        {state.isValidated && !state.isInternational && (
+                          <DeliveryInfoDisplay
+                            estafetaResult={estafetaResult}
+                            loadingEstafeta={loadingEstafeta}
+                            validateThreeTimes={validateThreeTimes}
+                            handleReport={handleReport}
+                            reportSubmitted={reportSubmitted}
+                            onContinue={handleContinueToPackage}
+                          />
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </TabsContent>
+
+                  <TabsContent value="package" className="mt-0">
+                    <ScrollArea className="h-[calc(100vh-250px)] pr-4">
                       <PackageDetailsSection
                         state={state}
                         updateField={updateField}
                         servicios={servicios}
                         validated={state.isValidated}
-                        fetchQuote={fetchQuote}
+                        fetchQuote={fetchQuoteAndShowResults}
+                        onContinueToResults={handleContinueToResults}
                       />
-                    </div>
-                  )}
+                    </ScrollArea>
+                  </TabsContent>
 
-                  {/* Quote Results Section */}
-                  {servicios && servicios.length > 0 && detallesCotizacion && (
-                    <div className="bg-blue-50 p-4 rounded-lg shadow-sm">
-                      <h2 className="text-lg font-semibold mb-3 flex items-center text-blue-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M5 2a1 1 0 011 1v1h1a1 1 0 010 2H6v1a1 1 0 01-2 0V6H3a1 1 0 010-2h1V3a1 1 0 011-1zm0 10a1 1 0 011 1v1h1a1 1 0 110 2H6v1a1 1 0 11-2 0v-1H3a1 1 0 110-2h1v-1a1 1 0 011-1zM12 2a1 1 0 01.967.744L14.146 7.2 17.5 9.134a1 1 0 010 1.732l-3.354 1.935-1.18 4.455a1 1 0 01-1.933 0L9.854 12.8 6.5 10.866a1 1 0 010-1.732l3.354-1.935 1.18-4.455A1 1 0 0112 2z" clipRule="evenodd" />
-                        </svg>
-                        Resultados
-                      </h2>
-
-                      {/* Visual help for selecting a service */}
-                      <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-3 mb-4 text-sm flex items-start">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-yellow-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                        </svg>
-                        <div>
-                          <p className="font-medium text-yellow-800">Seleccione un servicio</p>
-                          <p className="text-yellow-700">Elija una de las opciones y haga clic en el botón "Continuar" para proceder con los datos del cliente.</p>
-                        </div>
-                      </div>
-
-                      <QuoteResultsSection
-                        servicios={servicios}
-                        detallesCotizacion={detallesCotizacion}
-                        selectedService={selectedService}
-                        setSelectedService={setSelectedService}
-                        proceedToCustomerData={proceedToCustomerData}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              state.flowStage === 'customer-data' && (
-                <div className="bg-white rounded-lg shadow-sm">
-                  <div className="p-4 border-b flex justify-between items-center bg-blue-50">
-                    <div className="flex items-center">
-                      <button
-                        onClick={backToQuote}
-                        className="mr-3 p-1 rounded-full hover:bg-blue-100 transition-colors"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                      </button>
-                      <h2 className="text-xl font-bold text-gray-800">Datos del Envío</h2>
-                    </div>
-                    <div className="text-sm bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-                      <span className="font-semibold">{selectedService?.nombre}</span> - ${selectedService?.precioConIva.toFixed(2)}
-                    </div>
-                  </div>
-
-                  <div className="p-4">
-                    <DatosEnvio
-                      selectedService={selectedService!}
-                      onBack={backToQuote}
-                      onSubmit={(envioData) => {
-                        // Handle form submission
-                        console.log('Datos del envío:', {
-                          servicio: selectedService,
-                          cliente: envioData.cliente,
-                          destino: envioData.destino
-                        });
-
-                        // Reset or proceed to next step
-                        updateField('flowStage', 'quote');
-                        resetForm();
-
-                        setNotification({
-                          show: true,
-                          message: `Envío registrado para ${envioData.cliente.nombre}`,
-                          details: {
-                            service: selectedService,
-                            client: envioData.cliente,
-                            destination: envioData.destino
-                          }
-                        });
-                      }}
-                      originData={{
-                        estado: originState || '',
-                        municipio: originMunicipio || '',
-                        ciudad: originCiudad || '',
-                        colonias: originColonias.length > 0 ? originColonias : ['']
-                      }}
-                      destData={{
-                        estado: destState || '',
-                        municipio: destMunicipio || '',
-                        ciudad: destCiudad || '',
-                        colonias: destColonias.length > 0 ? destColonias : ['']
-                      }}
-                      originZip={state.originZip}
-                      destZip={state.destZip}
-                      clienteId={state.clienteId || null}
-                      destinoId={state.destinoId || null}
-                    />
-                  </div>
-                </div>
-              )
-            )}
+                  <TabsContent value="results" className="mt-0">
+                    <ScrollArea className="h-[calc(100vh-250px)] pr-4">
+                      {servicios && servicios.length > 0 && detallesCotizacion && (
+                        <QuoteResultsSection
+                          servicios={servicios}
+                          detallesCotizacion={detallesCotizacion}
+                          selectedService={selectedService}
+                          setSelectedService={setSelectedService}
+                          proceedToCustomerData={proceedToCustomerData}
+                        />
+                      )}
+                    </ScrollArea>
+                  </TabsContent>
+                </CardContent>
+              </Card>
+            </Tabs>
           </div>
-        </div>
+        ) : (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between bg-blue-50">
+              <div className="flex items-center">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="mr-2"
+                  onClick={backToQuote}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </Button>
+                <CardTitle>Datos del Envío</CardTitle>
+              </div>
+              {selectedService && (
+                <Badge className="text-sm bg-blue-100 text-blue-800 hover:bg-blue-200">
+                  <span className="font-semibold">{selectedService.nombre}</span> - ${selectedService.precioConIva.toFixed(2)}
+                </Badge>
+              )}
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="p-4">
+                {selectedService && (
+                  <DatosEnvio
+                    selectedService={selectedService}
+                    onBack={backToQuote}
+                    onSubmit={(envioData) => {
+                      // Handle form submission
+                      console.log('Datos del envío:', {
+                        servicio: selectedService,
+                        cliente: envioData.cliente,
+                        destino: envioData.destino
+                      });
+
+                      // Reset or proceed to next step
+                      updateField('flowStage', 'quote');
+                      resetForm();
+
+                      setNotification({
+                        show: true,
+                        message: `Envío registrado para ${envioData.cliente.nombre}`,
+                        details: {
+                          service: selectedService,
+                          client: envioData.cliente,
+                          destination: envioData.destino
+                        }
+                      });
+                    }}
+                    originData={{
+                      estado: originState || '',
+                      municipio: originMunicipio || '',
+                      ciudad: originCiudad || '',
+                      colonias: originColonias.length > 0 ? originColonias : ['']
+                    }}
+                    destData={{
+                      estado: destState || '',
+                      municipio: destMunicipio || '',
+                      ciudad: destCiudad || '',
+                      colonias: destColonias.length > 0 ? destColonias : ['']
+                    }}
+                    originZip={state.originZip}
+                    destZip={state.destZip}
+                    clienteId={state.clienteId || null}
+                    destinoId={state.destinoId || null}
+                  />
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </main>
 
       {/* Notification Popup */}
-      <NotificationPopup
-        notification={notification}
-        setNotification={setNotification}
-      />
+      <AnimatePresence>
+        {notification.show && (
+          <motion.div
+            initial={{ opacity: 0, x: 100 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 100 }}
+            className="fixed top-4 right-4 z-50 max-w-md"
+          >
+            <NotificationPopup
+              notification={notification}
+              setNotification={setNotification}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Account Modal */}
-      {showAccountModal && (
-        <AccountModal
-          user={{
-            name: userData.name,
-            email: userData.email,
-            phone: userData.phone,
-            role: userData.role
-          }}
-          onClose={() => setShowAccountModal(false)}
-          onChangePassword={() => {
-            setShowAccountModal(false);
-            setShowPasswordModal(true);
-          }}
-          onLogout={handleLogout}
-          isLoading={!userData.email}
-        />
-      )}
+      {/* Account Sheet */}
+      <Sheet open={showAccountSheet} onOpenChange={setShowAccountSheet}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Mi cuenta</SheetTitle>
+            <SheetDescription>
+              Gestionar información de la cuenta
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="py-6">
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Nombre</h3>
+                <p className="text-base">{userData.name}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Email</h3>
+                <p className="text-base">{userData.email}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Teléfono</h3>
+                <p className="text-base">{userData.phone}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Rol</h3>
+                <p className="text-base">{userData.role === 'customer_user' ? 'Cliente' : 'Administrador'}</p>
+              </div>
+            </div>
+          </div>
+
+          <Separator className="my-4" />
+
+          <SheetFooter className="flex flex-col space-y-3 sm:space-y-0">
+            <Button
+              variant="outline"
+              onClick={handleOpenPasswordModal}
+              className="w-full sm:w-auto"
+            >
+              Cambiar contraseña
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleLogout}
+              className="w-full sm:w-auto"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Cerrar sesión
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* Change Password Modal */}
       {showPasswordModal && (
@@ -547,5 +732,3 @@ function Cotizador() {
     </div>
   );
 }
-
-export default Cotizador;
