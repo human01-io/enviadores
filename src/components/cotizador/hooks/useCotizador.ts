@@ -9,6 +9,7 @@ import {
 } from '../utils/cotizadorTypes';
 import { calculateZone } from '../../postalUtils';
 import { apiService } from '../../../services';
+import { Cliente, Destino } from '../../../types';
 
 const initialState: CotizadorState = {
   originZip: "",
@@ -32,8 +33,11 @@ const initialState: CotizadorState = {
   flowStage: 'quote',
   // Initialize new client and destination ID fields
   clienteId: null,
-  destinoId: null
+  destinoId: null,
+
 };
+
+
 
 export function useCotizador() {
   const [state, setState] = useState<CotizadorState>(initialState);
@@ -62,6 +66,19 @@ export function useCotizador() {
   const [destCiudad, setDestCiudad] = useState("");
   const [destColonias, setDestColonias] = useState<string[]>([]);
   const [selectedDestColonia, setSelectedDestColonia] = useState("");
+
+  const [useExistingClient, setUseExistingClient] = useState(false);
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [clientSuggestions, setClientSuggestions] = useState<Cliente[]>([]);
+  const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
+  const [loadingClients, setLoadingClients] = useState(false);
+
+  // State for existing destination search
+  const [useExistingDestination, setUseExistingDestination] = useState(false);
+  const [destSearchQuery, setDestSearchQuery] = useState('');
+  const [destSuggestions, setDestSuggestions] = useState<Destino[]>([]);
+  const [selectedDestination, setSelectedDestination] = useState<Destino | null>(null);
+  const [loadingDestinations, setLoadingDestinations] = useState(false);
 
 
   // Calculate volumetric weight when dimensions change
@@ -132,8 +149,6 @@ export function useCotizador() {
           }
         }
       } catch (error) {
-        console.error("Error fetching ZIP code data:", error);
-        // Reset on error
         if (isOrigin) {
           setOriginState("");
           setOriginMunicipio("");
@@ -433,6 +448,16 @@ export function useCotizador() {
     setDestCiudad("");
     setDestColonias([]);
     setSelectedDestColonia("");
+    setUseExistingClient(false);
+    setClientSearchQuery('');
+    setClientSuggestions([]);
+    setSelectedClient(null);
+    setLoadingClients(false)
+    setUseExistingDestination(false);
+    setDestSearchQuery('');
+    setDestSuggestions([]);
+    setSelectedDestination(null);
+    setLoadingDestinations(false)
   };
 
   // Function to continue to customer data entry
@@ -565,6 +590,26 @@ export function useCotizador() {
     fetchQuote,
     resetForm,
     proceedToCustomerData,
-    backToQuote
+    backToQuote,
+    useExistingClient,
+    setUseExistingClient,
+    clientSearchQuery,
+    setClientSearchQuery,
+    selectedClient,
+    setSelectedClient,
+    clientSuggestions,
+    setClientSuggestions,
+    loadingClients,
+    setLoadingClients,
+    useExistingDestination,
+    setUseExistingDestination,
+    destSearchQuery,
+    setDestSearchQuery,
+    selectedDestination,
+    setSelectedDestination,
+    destSuggestions,
+    setDestSuggestions,
+    loadingDestinations,
+    setLoadingDestinations,
   };
 }

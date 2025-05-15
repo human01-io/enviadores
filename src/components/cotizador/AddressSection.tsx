@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { CotizadorState } from './utils/cotizadorTypes';
 import { Cliente, Destino, ServicioCotizado, ShipmentDetails } from '../../types';
 import { apiService } from '../../services/apiService';
 import { AnimatePresence, motion } from 'framer-motion';
-import { 
-  Globe, 
-  MapPin, 
-  Search, 
-  CheckCircle, 
-  XCircle, 
-  Info, 
-  AlertTriangle, 
-  Check, 
+import {
+  Globe,
+  MapPin,
+  Search,
+  CheckCircle,
+  XCircle,
+  Info,
+  AlertTriangle,
+  Check,
   Loader2,
   ArrowRight
 } from 'lucide-react';
@@ -19,7 +19,6 @@ import {
 // UI Components
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/BadgeComponent';
-import { Card } from '../ui/CardComponent';
 import { Input } from '@headlessui/react';
 import { Separator } from '../ui/SeparatorComponent';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/SelectComponent';
@@ -50,6 +49,26 @@ interface AddressSectionProps {
   servicios?: ServicioCotizado[];
   detallesCotizacion?: ShipmentDetails;
   onContinueToPackage?: () => void;
+  useExistingClient: boolean;
+  setUseExistingClient: (value: boolean) => void;
+  clientSearchQuery: string;
+  setClientSearchQuery: (value: string) => void;
+  selectedClient: Cliente | null;
+  setSelectedClient: (client: Cliente | null) => void;
+  clientSuggestions: Cliente[];
+  setClientSuggestions: (suggestions: Cliente[]) => void;
+  loadingClients: boolean;
+  setLoadingClients: (loading: boolean) => void;
+  useExistingDestination: boolean;
+  setUseExistingDestination: (value: boolean) => void;
+  destSearchQuery: string;
+  setDestSearchQuery: (value: string) => void;
+  selectedDestination: Destino | null;
+  setSelectedDestination: (destination: Destino | null) => void;
+  destSuggestions: Destino[];
+  setDestSuggestions: (suggestions: Destino[]) => void;
+  loadingDestinations: boolean;
+  setLoadingDestinations: (loading: boolean) => void;
 }
 
 interface ToggleProps {
@@ -80,28 +99,35 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
   isInternational,
   selectedZone,
   isValidated,
-  onContinueToPackage
+  onContinueToPackage,
+  useExistingClient,
+  setUseExistingClient,
+  clientSearchQuery,
+  setClientSearchQuery,
+  selectedClient,
+  setSelectedClient,
+  clientSuggestions,
+  setClientSuggestions,
+  loadingClients,
+  setLoadingClients,
+  useExistingDestination,
+  setUseExistingDestination,
+  destSearchQuery,
+  setDestSearchQuery,
+  selectedDestination,
+  setSelectedDestination,
+  destSuggestions,
+  setDestSuggestions,
+  loadingDestinations,
+  setLoadingDestinations
 }) => {
-  // State for existing client search
-  const [useExistingClient, setUseExistingClient] = useState(false);
-  const [clientSearchQuery, setClientSearchQuery] = useState('');
-  const [clientSuggestions, setClientSuggestions] = useState<Cliente[]>([]);
-  const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
-  const [loadingClients, setLoadingClients] = useState(false);
-
-  // State for existing destination search
-  const [useExistingDestination, setUseExistingDestination] = useState(false);
-  const [destSearchQuery, setDestSearchQuery] = useState('');
-  const [destSuggestions, setDestSuggestions] = useState<Destino[]>([]);
-  const [selectedDestination, setSelectedDestination] = useState<Destino | null>(null);
-  const [loadingDestinations, setLoadingDestinations] = useState(false);
 
   // Animation variants
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.3 } }
   };
-  
+
   const listVariants = {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { duration: 0.2 } }
@@ -138,25 +164,25 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
         setDestSuggestions([]);
         return;
       }
-  
+
       setLoadingDestinations(true);
       try {
         const results = await apiService.getCustomerDestinations(selectedClient.id);
-        
+
         // If search query is empty, show all results
         if (!destSearchQuery.trim()) {
           setDestSuggestions(results);
           return;
         }
-        
+
         // Otherwise filter results based on query
-        const filteredResults = results.filter(dest => 
+        const filteredResults = results.filter(dest =>
           dest.nombre_destinatario?.toLowerCase().includes(destSearchQuery.toLowerCase()) ||
           dest.direccion?.toLowerCase().includes(destSearchQuery.toLowerCase()) ||
           dest.colonia?.toLowerCase().includes(destSearchQuery.toLowerCase()) ||
           dest.codigo_postal?.includes(destSearchQuery)
         );
-        
+
         setDestSuggestions(filteredResults);
       } catch (error) {
         console.error("Error searching destinations:", error);
@@ -165,7 +191,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
         setLoadingDestinations(false);
       }
     };
-  
+
     const timer = setTimeout(searchDestinations, 300);
     return () => clearTimeout(timer);
   }, [selectedClient, destSearchQuery]);
@@ -175,10 +201,10 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
     setSelectedClient(client);
     setClientSuggestions([]);
     setClientSearchQuery('');
-    
+
     // Update the originZip field
     updateField('originZip', client.codigo_postal);
-    
+
     // Also store the client ID in a clienteId field
     updateField('clienteId', client.id);
   };
@@ -188,10 +214,10 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
     setSelectedDestination(destination);
     setDestSuggestions([]);
     setDestSearchQuery('');
-    
+
     // Update the destZip field
     updateField('destZip', destination.codigo_postal);
-    
+
     // Also store the destination ID in a destinoId field
     updateField('destinoId', destination.id);
   };
@@ -206,7 +232,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
       }
     }
     updateField('isInternational', newValue);
-    
+
     // Reset related fields when switching modes
     updateField('selectedZone', null);
     updateField('zone', null);
@@ -225,21 +251,19 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
       <button
         type="button"
         onClick={() => !disabled && onChange(!checked)}
-        className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-          disabled 
-            ? 'cursor-not-allowed bg-gray-200' 
-            : checked 
-              ? 'bg-blue-600' 
-              : 'bg-gray-300'
-        }`}
+        className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${disabled
+          ? 'cursor-not-allowed bg-gray-200'
+          : checked
+            ? 'bg-blue-600'
+            : 'bg-gray-300'
+          }`}
         disabled={disabled}
         aria-pressed={checked}
         aria-labelledby={`${id}-label`}
       >
-        <span 
-          className={`flex items-center justify-center text-xs font-bold inline-block h-5 w-5 transform rounded-full bg-white text-blue-600 transition-transform ${
-            checked ? 'translate-x-7' : 'translate-x-1'
-          }`} 
+        <span
+          className={`flex items-center justify-center text-xs font-bold h-5 w-5 transform rounded-full bg-white text-blue-600 transition-transform ${checked ? 'translate-x-7' : 'translate-x-1'
+            }`}
         >
           {checked && (
             <CheckCircle className="h-3 w-3" />
@@ -252,7 +276,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
   return (
     <div className="space-y-4">
       {/* International Shipping Toggle with Graphics */}
-      <motion.div 
+      <motion.div
         className="p-4 rounded-lg bg-white shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
         initial="hidden"
         animate="visible"
@@ -269,7 +293,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
               <p className="text-xs text-gray-500">Activa para envíos fuera de México</p>
             </div>
           </div>
-          <Toggle 
+          <Toggle
             id="internationalShipping"
             checked={isInternational}
             onChange={handleToggleInternational}
@@ -279,7 +303,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
       </motion.div>
 
       {isInternational ? (
-        <motion.div 
+        <motion.div
           className="space-y-6"
           initial="hidden"
           animate="visible"
@@ -290,7 +314,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
               <Globe className="h-5 w-5 text-blue-500 mr-2" />
               <h3 className="font-medium text-blue-700">Zona de Envío Internacional</h3>
             </div>
-          
+
             <div className="mb-4">
               <p className="text-sm text-gray-600 mb-2">Selecciona la zona de destino para tu envío internacional:</p>
               <Select
@@ -310,7 +334,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-600 bg-white p-3 rounded border border-gray-200 mb-4">
               <div>
                 <div className="font-semibold mb-1">Zona 1:</div>
@@ -359,8 +383,8 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
           </div>
         </motion.div>
       ) : (
-        <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4"
+        <motion.div
+          className="space-y-4"
           initial="hidden"
           animate="visible"
           variants={cardVariants}
@@ -369,7 +393,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
           <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-medium text-gray-700 mb-1">Origen</h3>
-              <Toggle 
+              <Toggle
                 id="useExistingClient"
                 checked={useExistingClient}
                 onChange={setUseExistingClient}
@@ -388,7 +412,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
                     placeholder="Buscar cliente..."
                     value={clientSearchQuery}
                     onChange={(e) => setClientSearchQuery(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 w-full"
                   />
                   {loadingClients && (
                     <div className="absolute top-2 right-2">
@@ -396,10 +420,10 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
                     </div>
                   )}
                 </div>
-                
+
                 <AnimatePresence>
                   {clientSuggestions.length > 0 && (
-                    <motion.div 
+                    <motion.div
                       className="mt-1 border rounded shadow-lg max-h-48 overflow-y-auto z-10 bg-white"
                       initial="hidden"
                       animate="visible"
@@ -407,7 +431,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
                       variants={listVariants}
                     >
                       {clientSuggestions.map((client) => (
-                        <div 
+                        <div
                           key={client.id}
                           className="px-3 py-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center"
                           onClick={() => handleClientSelect(client)}
@@ -426,88 +450,150 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
                 </AnimatePresence>
 
                 {selectedClient && (
-                  <motion.div 
-                    className="mt-2 p-2 bg-blue-50 rounded border border-blue-100"
+                  <motion.div
+                    className=" mt-2 p-3 bg-blue-50 rounded-lg border border-blue-100"
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                   >
-                    <div className="flex justify-between">
-                      <div className="text-sm font-medium">
+                    <div className="flex justify-between items-center">
+                      <div className="font-medium text-blue-800">
                         {selectedClient.nombre} {selectedClient.apellido_paterno}
                       </div>
-                      <button 
+                      <button
                         onClick={() => {
                           setSelectedClient(null);
                           updateField('clienteId', null);
                         }}
-                        className="text-xs text-red-600 hover:text-red-800"
+                        className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-50"
                       >
-                        <XCircle className="h-4 w-4" />
+                        <XCircle className="h-5 w-5" />
                       </button>
                     </div>
-                    <div className="text-xs mt-1">CP: {selectedClient.codigo_postal}</div>
+                    <div className="mt-2 text-sm flex items-center text-blue-700">
+                      <MapPin className="h-4 w-4 mr-1" />
+                      <span>CP: {selectedClient.codigo_postal}</span>
+                    </div>
+                    
                   </motion.div>
                 )}
               </div>
             ) : (
-              <div className="flex">
-                <Input
-                  type="text"
-                  placeholder="Código Postal"
-                  value={state.originZip}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 5);
-                    updateField('originZip', value);
-                  }}
-                  className="rounded-r-none"
-                  maxLength={5}
-                />
-                {state.originZip.length === 5 && (
-                  <div className="bg-gray-100 border-t border-r border-b rounded-r px-2 flex items-center">
-                    <Check className="h-4 w-4 text-green-600" />
+              <div className="space-y-4">
+                {/* Improved ZIP code input */}
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MapPin className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <Input
+                    type="text"
+                    placeholder="Código Postal"
+                    value={state.originZip}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 5);
+                      updateField('originZip', value);
+                    }}
+                    className="pl-10 w-full"
+                    maxLength={5}
+                  />
+                  {state.originZip.length === 5 && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="absolute inset-y-0 right-0 flex items-center"
+                    >
+                      <div className="bg-green-50 text-green-600 rounded-full p-1 mr-2">
+                        <Check className="h-4 w-4" />
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* Improved validation results display */}
+                {isValidated && originState && !selectedClient && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> {/* New grid container */}
+                    {/* Origin validation section - now in left column */}
+                    <motion.div
+                      className="space-y-3"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                        <div className="flex items-center mb-2">
+                          <CheckCircle className="h-4 w-4 text-blue-600 mr-2" />
+                          <h4 className="text-sm font-medium text-blue-700">Código postal verificado</h4>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <p className="text-gray-500 mb-1">Estado:</p>
+                            <p className="font-medium">{originState}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 mb-1">Ciudad:</p>
+                            <p className="font-medium">{originCiudad}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 mb-1">Municipio:</p>
+                            <p className="font-medium">{originMunicipio}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    {/* Destination colonias selector - now in right column */}
+                    {destColonias.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <div className="bg-white rounded-lg border border-gray-200 p-3 h-full">
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">
+                            Seleccione su colonia de destino:
+                          </label>
+                          <Select
+                            value={selectedDestColonia || "placeholder"}
+                            onValueChange={setSelectedDestColonia}
+                          >
+                            <SelectTrigger className="w-full">
+                              <div className="flex items-center">
+                                <Search className="h-4 w-4 mr-2 text-gray-400" />
+                                <SelectValue placeholder="Busca una colonia" />
+                              </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="placeholder" disabled>Busca una Colonia</SelectItem>
+                              {destColonias.map((colonia, index) => (
+                                <SelectItem key={index} value={colonia || `colonia-${index}`}>{colonia}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          {selectedDestColonia && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-2 p-2 bg-green-50 rounded border border-green-100 flex items-center"
+                            >
+                              <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                              <span className="text-sm text-green-700">Colonia seleccionada: <strong>{selectedDestColonia}</strong></span>
+                            </motion.div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
                   </div>
                 )}
               </div>
             )}
-
-            {/* Only show origin ZIP validation results if not using an existing client */}
-            {isValidated && originState && !selectedClient && (
-              <motion.div 
-                className="mt-2 p-2 bg-blue-50 rounded border border-blue-100"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <p className="text-sm"><span className="font-semibold">Estado:</span> {originState}</p>
-                <p className="text-sm"><span className="font-semibold">Municipio:</span> {originMunicipio}</p>
-                {originColonias.length > 0 && (
-                  <div className="mt-2">
-                    <label className="text-sm font-semibold">Colonia:</label>
-                    <Select
-                value={selectedOriginColonia || "placeholder"}
-                onValueChange={setSelectedOriginColonia}
-              >
-                      <SelectTrigger className="w-full mt-1">
-                        <SelectValue placeholder="Busca una colonia" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="placeholder">Busca una Colonia</SelectItem>
-                        {originColonias.map((colonia, index) => (
-                          <SelectItem key={index} value={colonia || `colonia-${index}`}>{colonia}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </motion.div>
-            )}
           </div>
 
-          {/* Destination ZIP Code */}
+          {/* Destination ZIP Code - similarly updated */}
           <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-medium text-gray-700 mb-1">Destino</h3>
               {selectedClient && (
-                <Toggle 
+                <Toggle
                   id="useExistingDestination"
                   checked={useExistingDestination}
                   onChange={setUseExistingDestination}
@@ -528,7 +614,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
                     placeholder="Buscar destino..."
                     value={destSearchQuery}
                     onChange={(e) => setDestSearchQuery(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 w-full"
                   />
                   {loadingDestinations && (
                     <div className="absolute top-2 right-2">
@@ -536,10 +622,10 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
                     </div>
                   )}
                 </div>
-                
+
                 <AnimatePresence>
                   {destSuggestions.length > 0 && (
-                    <motion.div 
+                    <motion.div
                       className="mt-1 border rounded shadow-lg max-h-48 overflow-y-auto bg-white z-10"
                       initial="hidden"
                       animate="visible"
@@ -547,7 +633,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
                       variants={listVariants}
                     >
                       {destSuggestions.map((destination) => (
-                        <div 
+                        <div
                           key={destination.id}
                           className="px-3 py-2 hover:bg-blue-50 cursor-pointer"
                           onClick={() => handleDestinationSelect(destination)}
@@ -563,101 +649,148 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
                 </AnimatePresence>
 
                 {selectedDestination && (
-                  <motion.div 
-                    className="mt-2 p-2 bg-blue-50 rounded border border-blue-100"
+                  <motion.div
+                    className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-100"
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                   >
-                    <div className="flex justify-between">
-                      <div className="text-sm font-medium">
+                    <div className="flex justify-between items-center">
+                      <div className="font-medium text-blue-800">
                         {selectedDestination.nombre_destinatario}
                       </div>
-                      <button 
+                      <button
                         onClick={() => {
                           setSelectedDestination(null);
                           updateField('destinoId', null);
+                          setDestSearchQuery('');
                         }}
-                        className="text-xs text-red-600 hover:text-red-800"
+                        className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-50"
                       >
-                        <XCircle className="h-4 w-4" />
+                        <XCircle className="h-5 w-5" />
                       </button>
                     </div>
-                    <div className="text-xs mt-1">
-                      {selectedDestination.direccion}, {selectedDestination.colonia}, 
-                      CP: {selectedDestination.codigo_postal}
+                    <div className="mt-2 text-sm text-blue-700">
+                      <div className="flex items-center">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        <span>{selectedDestination.direccion}, {selectedDestination.colonia}, CP: {selectedDestination.codigo_postal}</span>
+                      </div>
                     </div>
                   </motion.div>
                 )}
               </div>
             ) : (
-              <div className="flex">
-                <Input
-                  type="text"
-                  placeholder="Código Postal"
-                  value={state.destZip}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '').slice(0, 5);
-                    updateField('destZip', value);
-                  }}
-                  className="rounded-r-none"
-                  maxLength={5}
-                />
-                {state.destZip.length === 5 && (
-                  <div className="bg-gray-100 border-t border-r border-b rounded-r px-2 flex items-center">
-                    <Check className="h-4 w-4 text-green-600" />
+              <div className="space-y-4">
+                {/* Improved ZIP code input */}
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MapPin className="h-4 w-4 text-gray-400" />
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Only show destination ZIP validation results if not using an existing destination */}
-            {isValidated && destState && !selectedDestination && (
-              <motion.div 
-                className="mt-2 p-2 bg-blue-50 rounded border border-blue-100"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <p className="text-sm"><span className="font-semibold">Estado:</span> {destState}</p>
-                <p className="text-sm"><span className="font-semibold">Municipio:</span> {destMunicipio}</p>
-                {destColonias.length > 0 && (
-                  <div className="mt-2">
-                    <label className="text-sm font-semibold">Colonia:</label>
-                    <Select
-                      value={selectedDestColonia || "placeholder"}
-                      onValueChange={setSelectedDestColonia}
+                  <Input
+                    type="text"
+                    placeholder="Código Postal"
+                    value={state.destZip}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 5);
+                      updateField('destZip', value);
+                    }}
+                    className="pl-10 w-full"
+                    maxLength={5}
+                  />
+                  {state.destZip.length === 5 && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="absolute inset-y-0 right-0 flex items-center"
                     >
-                      <SelectTrigger className="w-full mt-1">
-                        <SelectValue placeholder="Busca una Colonia" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="placeholder">Busca una Colonia</SelectItem>
-                        {destColonias.map((colonia, index) => (
-                          <SelectItem key={index} value={colonia || `colonia-${index}`}>{colonia}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </motion.div>
+                      <div className="bg-green-50 text-green-600 rounded-full p-1 mr-2">
+                        <Check className="h-4 w-4" />
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* Improved validation results display */}
+                {isValidated && destState && !selectedDestination && (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+    {/* Destination validation card - left column */}
+    <motion.div
+      className="bg-blue-50 p-3 rounded-lg border border-blue-100"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="flex items-center mb-2">
+        <CheckCircle className="h-4 w-4 text-blue-600 mr-2" />
+        <h4 className="text-sm font-medium text-blue-700">Código postal verificado (Destino)</h4>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+        <div>
+          <p className="text-gray-500 mb-1">Estado:</p>
+          <p className="font-medium">{destState}</p>
+        </div>
+        <div>
+          <p className="text-gray-500 mb-1">Ciudad:</p>
+          <p className="font-medium">{destCiudad}</p>
+        </div>
+        <div className="col-span-2 md:col-span-1">
+          <p className="text-gray-500 mb-1">Municipio:</p>
+          <p className="font-medium">{destMunicipio}</p>
+        </div>
+      </div>
+    </motion.div>
+
+    {/* Destination colonias selector - right column */}
+    {destColonias.length > 0 && (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="bg-white rounded-lg border border-gray-200 p-3 h-full">
+          <label className="text-sm font-medium text-gray-700 mb-2 block">
+            Seleccione colonia de destino:
+          </label>
+          <Select
+            value={selectedDestColonia || "placeholder"}
+            onValueChange={setSelectedDestColonia}
+          >
+            <SelectTrigger className="w-full">
+              <div className="flex items-center">
+                <Search className="h-4 w-4 mr-2 text-gray-400" />
+                <SelectValue placeholder="Busca una colonia" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="placeholder" disabled>Busca una Colonia</SelectItem>
+              {destColonias.map((colonia, index) => (
+                <SelectItem key={index} value={colonia || `colonia-${index}`}>{colonia}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {selectedDestColonia && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-2 p-2 bg-green-50 rounded border border-green-100 flex items-center"
+            >
+              <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+              <span className="text-sm text-green-700">Colonia seleccionada: <strong>{selectedDestColonia}</strong></span>
+            </motion.div>
+          )}
+        </div>
+      </motion.div>
+    )}
+  </div>
+)}
+              </div>
             )}
           </div>
 
-          {/* Zone information - displayed only when validated */}
-          {isValidated && zone !== null && (
-            <motion.div 
-              className="md:col-span-2 p-3 bg-green-100 text-green-800 rounded-lg border border-green-200"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <div className="flex items-center">
-                <MapPin className="h-5 w-5 mr-2" />
-                <p className="font-semibold text-center">Zona de Envío: {zone}</p>
-              </div>
-            </motion.div>
-          )}
+
 
           {/* Validate Button */}
-          <motion.div 
+          <motion.div
             className="md:col-span-2"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { delay: 0.2 } }}

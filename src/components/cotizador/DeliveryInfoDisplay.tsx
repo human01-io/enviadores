@@ -192,6 +192,7 @@ export const DeliveryInfoDisplay: React.FC<DeliveryInfoDisplayProps> = ({
           {/* Delivery Days */}
           {renderEstafetaDeliveryDays(estafetaResult.estafetaDeliveryDays)}
         </CardContent>
+        
         {estafetaResult.error && (
   <CardFooter className="pt-0">
     <Alert variant="destructive" className="w-full">

@@ -63,7 +63,27 @@ export default function Cotizador() {
     fetchQuote,
     resetForm,
     proceedToCustomerData,
-    backToQuote
+    backToQuote,
+    useExistingClient,
+    setUseExistingClient,
+    clientSearchQuery,
+    setClientSearchQuery,
+    selectedClient,
+    setSelectedClient,
+    clientSuggestions,
+    setClientSuggestions,
+    loadingClients,
+    setLoadingClients,
+    useExistingDestination,
+    setUseExistingDestination,
+    destSearchQuery,
+    setDestSearchQuery,
+    selectedDestination,
+    setSelectedDestination,
+    destSuggestions,
+    setDestSuggestions,
+    loadingDestinations,
+    setLoadingDestinations,
   } = useCotizador();
 
   // Account management states
@@ -217,6 +237,7 @@ export default function Cotizador() {
     if (confirm("¿Está seguro que desea reiniciar la cotización? Se perderán todos los datos ingresados.")) {
       localStorage.removeItem('current_cotizacion_id');
       resetForm();
+      setCurrentTab('address');
       setNotification({
         show: true,
         message: 'Cotización reiniciada correctamente',
@@ -253,16 +274,16 @@ export default function Cotizador() {
     return null;
   };
 
-const handleContinueToPackage = () => {
-  setAllowTabNavigation(true);
-  setCurrentTab('package');
-};
+  const handleContinueToPackage = () => {
+    setAllowTabNavigation(true);
+    setCurrentTab('package');
+  };
 
 
-const handleContinueToResults = () => {
-  setAllowTabNavigation(true);
-  setCurrentTab('results');
-};
+  const handleContinueToResults = () => {
+    setAllowTabNavigation(true);
+    setCurrentTab('results');
+  };
 
 
   const calculateProgress = () => {
@@ -510,40 +531,87 @@ const handleContinueToResults = () => {
                 <CardContent>
                   <TabsContent value="address" className="mt-0">
                     <ScrollArea className="h-[calc(100vh-250px)] pr-4">
-                      <div className="space-y-6">
-                        <AddressSection
-                          state={state}
-                          updateField={updateField}
-                          originState={originState}
-                          originMunicipio={originMunicipio}
-                          originCiudad={originCiudad}
-                          originColonias={originColonias}
-                          selectedOriginColonia={selectedOriginColonia}
-                          setSelectedOriginColonia={setSelectedOriginColonia}
-                          destState={destState}
-                          destMunicipio={destMunicipio}
-                          destCiudad={destCiudad}
-                          destColonias={destColonias}
-                          selectedDestColonia={selectedDestColonia}
-                          setSelectedDestColonia={setSelectedDestColonia}
-                          validateZipCodes={validateZipCodesWithEstafeta}
-                          zone={state.zone}
-                          isInternational={state.isInternational}
-                          selectedZone={state.selectedZone}
-                          isValidated={state.isValidated}
-                          onContinueToPackage={handleContinueToPackage}
-                        />
+                      <div className="flex flex-col md:flex-row gap-6">
+                        <div className="w-full md:w-2/4">
+                          <div className="space-y-4">
+                            <AddressSection
+                              state={state}
+                              updateField={updateField}
+                              originState={originState}
+                              originMunicipio={originMunicipio}
+                              originCiudad={originCiudad}
+                              originColonias={originColonias}
+                              selectedOriginColonia={selectedOriginColonia}
+                              setSelectedOriginColonia={setSelectedOriginColonia}
+                              destState={destState}
+                              destMunicipio={destMunicipio}
+                              destCiudad={destCiudad}
+                              destColonias={destColonias}
+                              selectedDestColonia={selectedDestColonia}
+                              setSelectedDestColonia={setSelectedDestColonia}
+                              validateZipCodes={validateZipCodesWithEstafeta}
+                              zone={state.zone}
+                              isInternational={state.isInternational}
+                              selectedZone={state.selectedZone}
+                              isValidated={state.isValidated}
+                              onContinueToPackage={handleContinueToPackage}
+                              // New client-related props
+                              useExistingClient={useExistingClient}
+                              setUseExistingClient={setUseExistingClient}
+                              clientSearchQuery={clientSearchQuery}
+                              setClientSearchQuery={setClientSearchQuery}
+                              selectedClient={selectedClient}
+                              setSelectedClient={setSelectedClient}
+                              clientSuggestions={clientSuggestions}
+                              setClientSuggestions={setClientSuggestions}
+                              loadingClients={loadingClients}
+                              setLoadingClients={setLoadingClients}
 
-                        {state.isValidated && !state.isInternational && (
-                          <DeliveryInfoDisplay
-                            estafetaResult={estafetaResult}
-                            loadingEstafeta={loadingEstafeta}
-                            validateThreeTimes={validateThreeTimes}
-                            handleReport={handleReport}
-                            reportSubmitted={reportSubmitted}
-                            onContinue={handleContinueToPackage}
-                          />
-                        )}
+                              // New destination-related props
+                              useExistingDestination={useExistingDestination}
+                              setUseExistingDestination={setUseExistingDestination}
+                              destSearchQuery={destSearchQuery}
+                              setDestSearchQuery={setDestSearchQuery}
+                              selectedDestination={selectedDestination}
+                              setSelectedDestination={setSelectedDestination}
+                              destSuggestions={destSuggestions}
+                              setDestSuggestions={setDestSuggestions}
+                              loadingDestinations={loadingDestinations}
+                              setLoadingDestinations={setLoadingDestinations}
+                            />
+                          </div>
+
+                        </div>
+
+                        
+                        {/* Right column - Zone info and DeliveryInfoDisplay stacked */}
+      {state.isValidated && !state.isInternational && (
+        <div className="w-full md:w-2/4 flex flex-col gap-4">
+          {/* Zone information - now properly aligned at top right */}
+          {state.zone !== null && (
+            <motion.div
+              className="bg-orange-100 text-orange-700 rounded-lg border border-orange-300 p-3"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center">
+                <MapPin className="h-5 w-5 mr-2" />
+                <p className="font-semibold">Zona de Envío: {state.zone}</p>
+              </div>
+            </motion.div>
+          )}
+          
+          {/* DeliveryInfoDisplay - appears below zone info */}
+          <DeliveryInfoDisplay
+            estafetaResult={estafetaResult}
+            loadingEstafeta={loadingEstafeta}
+            validateThreeTimes={validateThreeTimes}
+            handleReport={handleReport}
+            reportSubmitted={reportSubmitted}
+            onContinue={handleContinueToPackage}
+          />
+        </div>
+      )}
                       </div>
                     </ScrollArea>
                   </TabsContent>
