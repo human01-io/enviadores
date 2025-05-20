@@ -1,4 +1,3 @@
-import React from 'react';
 import { Cliente, Destino, ServicioCotizado } from '../../types';
 
 interface EnvioConfirmationProps {

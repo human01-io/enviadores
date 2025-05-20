@@ -80,6 +80,10 @@ export function useCotizador() {
   const [selectedDestination, setSelectedDestination] = useState<Destino | null>(null);
   const [loadingDestinations, setLoadingDestinations] = useState(false);
 
+const [originZipError, setOriginZipError] = useState<string | null>(null);
+const [destZipError, setDestZipError] = useState<string | null>(null);
+
+const [sameZipWarning, setSameZipWarning] = useState<string | null>(null);
 
   // Calculate volumetric weight when dimensions change
   useEffect(() => {
@@ -110,59 +114,109 @@ export function useCotizador() {
     setState(prev => ({ ...prev, [field]: value }));
   };
 
+  const resetLocationData = (isOrigin: boolean) => {
+  if (isOrigin) {
+    setOriginState("");
+    setOriginMunicipio("");
+    setOriginCiudad("");
+    setOriginColonias([]);
+    setSelectedOriginColonia("");
+  } else {
+    setDestState("");
+    setDestMunicipio("");
+    setDestCiudad("");
+    setDestColonias([]);
+    setSelectedDestColonia("");
+  }
+};
+
   // Function to fetch ZIP code data
   const fetchZipCodeData = async (zip: string, isOrigin: boolean) => {
-    if (zip.length === 5) {
-      try {
-        const response = await fetch(`https://sepomex.icalialabs.com/api/v1/zip_codes?zip_code=${zip}`);
-        if (!response.ok) throw new Error("ZIP Code not found");
-        const data = await response.json();
-
-        if (data && data.zip_codes.length > 0) {
-          const zipData = data.zip_codes[0];
-
-          if (isOrigin) {
-            setOriginState(zipData.d_estado);
-            setOriginMunicipio(zipData.d_mnpio);
-            setOriginCiudad(zipData.d_ciudad || "");
-            setOriginColonias(data.zip_codes.map((z: any) => z.d_asenta));
-            setSelectedOriginColonia("");
-          } else {
-            setDestState(zipData.d_estado);
-            setDestMunicipio(zipData.d_mnpio);
-            setDestCiudad(zipData.d_ciudad || "");
-            setDestColonias(data.zip_codes.map((z: any) => z.d_asenta));
-            setSelectedDestColonia("");
-          }
-        } else {
-          // Reset values if no data found
-          if (isOrigin) {
-            setOriginState("");
-            setOriginMunicipio("");
-            setOriginCiudad("");
-            setOriginColonias([]);
-          } else {
-            setDestState("");
-            setDestMunicipio("");
-            setDestCiudad("");
-            setDestColonias([]);
-          }
-        }
-      } catch (error) {
-        if (isOrigin) {
-          setOriginState("");
-          setOriginMunicipio("");
-          setOriginCiudad("");
-          setOriginColonias([]);
-        } else {
-          setDestState("");
-          setDestMunicipio("");
-          setDestCiudad("");
-          setDestColonias([]);
-        }
+  if (zip.length === 5) {
+    try {
+      // Reset the appropriate error state before new request
+      if (isOrigin) {
+        setOriginZipError(null);
+      } else {
+        setDestZipError(null);
       }
+      
+      // Make the API request
+      const response = await fetch(`https://sepomex.icalialabs.com/api/v1/zip_codes?zip_code=${zip}`);
+      
+      // Check if response is OK (200-299)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+
+      // Check if we actually got valid data (non-empty zip_codes array)
+      if (data?.zip_codes?.length > 0) {
+        const zipData = data.zip_codes[0];
+
+        if (isOrigin) {
+          // Set origin location data
+          setOriginState(zipData.d_estado);
+          setOriginMunicipio(zipData.d_mnpio);
+          setOriginCiudad(zipData.d_ciudad || "");
+          setOriginColonias(data.zip_codes.map((z: any) => z.d_asenta));
+          setSelectedOriginColonia("");
+        } else {
+          // Set destination location data
+          setDestState(zipData.d_estado);
+          setDestMunicipio(zipData.d_mnpio);
+          setDestCiudad(zipData.d_ciudad || "");
+          setDestColonias(data.zip_codes.map((z: any) => z.d_asenta));
+          setSelectedDestColonia("");
+        }
+      } else {
+        // No data found case - empty zip_codes array
+        if (isOrigin) {
+          setOriginZipError("Código Postal de origen inexistente");
+          console.log('Set originZipError');
+        } else {
+          setDestZipError("Código Postal de destino inexistente");
+          console.log('Set destZipError');
+        }
+        resetLocationData(isOrigin);
+      }
+    } catch (error) {
+      console.error(`Error fetching ${isOrigin ? 'origin' : 'destination'} ZIP code data:`, error);
+      if (isOrigin) {
+        setOriginZipError("Error al validar el código postal de origen");
+      } else {
+        setDestZipError("Error al validar el código postal de destino");
+      }
+      resetLocationData(isOrigin);
     }
-  };
+  } else {
+    // ZIP code not complete (not 5 digits)
+    if (isOrigin) {
+      setOriginZipError(null);
+    } else {
+      setDestZipError(null);
+    }
+    
+    // Clear location data if input is empty
+    if (zip.length === 0) {
+      resetLocationData(isOrigin);
+    }
+  }
+};
+
+const checkSameZipCodes = () => {
+  // Only check when both ZIPs are provided and valid
+  if (state.originZip.length === 5 && state.destZip.length === 5) {
+    if (state.originZip === state.destZip) {
+      setSameZipWarning("¿Estás seguro de esta acción?");
+    } else {
+      setSameZipWarning(null);
+    }
+  } else {
+    setSameZipWarning(null);
+  }
+};
 
   // Function to fetch delivery frequency
   const fetchDeliveryFrequency = async (postalCode: string) => {
@@ -184,8 +238,12 @@ export function useCotizador() {
   // Function to validate ZIP codes
   const validateZipCodes = () => {
     // Reset Estafeta results when validating new ZIP codes
+    setOriginZipError(null);
+    setDestZipError(null);
     setEstafetaResult(null);
     setLoadingEstafeta(false);
+
+    
 
     if (state.originZip.length === 5 && state.destZip.length === 5) {
       // Reset the zone before new validation
@@ -209,8 +267,15 @@ export function useCotizador() {
 
       // Automatically trigger the Estafeta validation as well
       validateOnExternalSite();
+      checkSameZipCodes();
     }
   };
+
+  useEffect(() => {
+  if (state.isValidated) {
+    checkSameZipCodes();
+  }
+}, [state.originZip, state.destZip, state.isValidated]);
 
   // Function to validate with Estafeta
   const validateOnExternalSite = async () => {
@@ -231,7 +296,7 @@ export function useCotizador() {
 
       const data = await response.json();
       setEstafetaResult(data);
-      console.log("Estafeta API Response:", data);
+      //console.log("Estafeta API Response:", data);
     } catch (error) {
       setEstafetaResult({
         reexpe: 'No',
@@ -374,21 +439,36 @@ export function useCotizador() {
         const ivaRate = data.iva || 0.16; // Default to 16% if not provided
 
         const serviciosConTotales = data.servicios.map((servicio: any) => {
-          const iva = servicio.precioFinal * ivaRate;
-          return {
-            ...servicio,
-            precioTotal: servicio.precioFinal,
-            precioConIva: servicio.precioFinal + iva,
-            iva: iva,
-            esInternacional: state.isInternational,
-            peso: parsedWeight, // The actual weight entered by user
-            pesoVolumetrico: state.volumetricWeight,
-            alto: state.packageType === "Paquete" ? parseFloat(state.height) || 0 : 1,
-            largo: state.packageType === "Paquete" ? parseFloat(state.length) || 0 : 30,
-            ancho: state.packageType === "Paquete" ? parseFloat(state.width) || 0 : 25,
-            valorSeguro: state.insurance ? parseFloat(state.insuranceValue) || 1 : 1,
-          };
-        });
+  // Calculate the total of additional charges
+  const additionalChargesTotal = 
+    data.cargosAdicionales.empaque + 
+    data.cargosAdicionales.seguro + 
+    data.cargosAdicionales.recoleccion + 
+    (data.cargosAdicionales.reexpedicion || 0);
+  
+  // Calculate complete price including base price, overweight, and additional charges
+  const precioCompleto = servicio.precioFinal + additionalChargesTotal;
+  
+  // Calculate IVA on the complete price
+  const iva = precioCompleto * ivaRate;
+  
+  return {
+    ...servicio,
+    precioBase: servicio.precioBase,
+    cargoSobrepeso: servicio.cargoSobrepeso,
+    cargosAdicionales: additionalChargesTotal,
+    precioTotal: precioCompleto,  // Now includes additional charges
+    precioConIva: precioCompleto + iva,  // Now includes additional charges with IVA
+    iva: iva,
+    esInternacional: state.isInternational,
+    peso: parsedWeight, // The actual weight entered by user
+    pesoVolumetrico: state.volumetricWeight,
+    alto: state.packageType === "Paquete" ? parseFloat(state.height) || 0 : 1,
+    largo: state.packageType === "Paquete" ? parseFloat(state.length) || 0 : 30,
+    ancho: state.packageType === "Paquete" ? parseFloat(state.width) || 0 : 25,
+    valorSeguro: state.insurance ? parseFloat(state.insuranceValue) || 1 : 1,
+  };
+});
 
         const calcularConIva = (amount: number) => amount + (amount * ivaRate);
 
@@ -457,7 +537,9 @@ export function useCotizador() {
     setDestSearchQuery('');
     setDestSuggestions([]);
     setSelectedDestination(null);
-    setLoadingDestinations(false)
+    setLoadingDestinations(false);
+    setDestZipError(null);
+    setOriginZipError(null)
   };
 
   // Function to continue to customer data entry
@@ -611,5 +693,11 @@ export function useCotizador() {
     setDestSuggestions,
     loadingDestinations,
     setLoadingDestinations,
+    originZipError,
+    setOriginZipError,
+    destZipError,
+    setDestZipError,
+    sameZipWarning,
+  setSameZipWarning,
   };
 }

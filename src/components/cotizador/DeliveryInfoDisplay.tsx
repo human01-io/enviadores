@@ -15,7 +15,7 @@ interface DeliveryInfoDisplayProps {
   validateThreeTimes: () => void;
   handleReport: () => void;
   reportSubmitted: boolean;
-  onContinue?: () => void;
+  
 }
 
 export const DeliveryInfoDisplay: React.FC<DeliveryInfoDisplayProps> = ({
@@ -24,7 +24,6 @@ export const DeliveryInfoDisplay: React.FC<DeliveryInfoDisplayProps> = ({
   validateThreeTimes,
   handleReport,
   reportSubmitted,
-  onContinue
 }) => {
   // Animation variants
   const containerVariants = {
@@ -231,16 +230,7 @@ export const DeliveryInfoDisplay: React.FC<DeliveryInfoDisplayProps> = ({
           )}
         </Button>
 
-        {onContinue && (
-          <Button
-  onClick={onContinue}
-  size="sm"
-  className="fixed bottom-10 right-10 flex items-center bg-blue-600 hover:bg-blue-700 text-white z-50"
->
-  Continuar a Paquete
-  <ArrowRight className="h-4 w-4 ml-1" />
-</Button>
-        )}
+
       </div>
     </motion.div>
   );

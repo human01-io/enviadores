@@ -9,7 +9,7 @@ import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { Separator } from '../ui/SeparatorComponent';
 import { RadioGroup, RadioGroupItem } from '../ui/Radio';
-import { Checkbox } from '@headlessui/react';
+import { Checkbox } from '../ui/Checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/SelectComponent';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../ui/Tooltip';
 
@@ -84,7 +84,7 @@ export const PackageDetailsSection: React.FC<PackageDetailsSectionProps> = ({
           {/* Package Type Selection */}
           <div className="mb-6">
             <Label className="text-sm font-medium mb-2 block">Tipo de Envío</Label>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Button
                 type="button"
                 onClick={() => updateField('packageType', "Sobre")}
@@ -93,10 +93,10 @@ export const PackageDetailsSection: React.FC<PackageDetailsSectionProps> = ({
                   state.packageType === "Sobre" ? 'border-blue-500 bg-blue-50 text-blue-700' : ''
                 }`}
               >
-                <Mail className="h-5 w-5 mr-2" />
+                <Mail className="h-5 w-5 min-w-5 mr-2 flex-shrink-0" />
                 <div className="text-left">
                   <div className="font-medium">Sobre</div>
-                  <div className="text-xs opacity-80">Documentos o artículos planos</div>
+                  <div className="text-xs opacity-80 break-words hyphens-auto">Documentos o artículos planos</div>
                 </div>
               </Button>
               <Button
@@ -107,10 +107,10 @@ export const PackageDetailsSection: React.FC<PackageDetailsSectionProps> = ({
                   state.packageType === "Paquete" ? 'border-blue-500 bg-blue-50 text-blue-700' : ''
                 }`}
               >
-                <Box className="h-5 w-5 mr-2" />
-                <div className="text-left">
+                <Box className="h-5 w-5 min-w-5 mr-2 flex-shrink-0" />
+                <div className="text-left overflow-hidden">
                   <div className="font-medium">Paquete</div>
-                  <div className="text-xs opacity-80">Cajas y artículos con volumen</div>
+                  <div className="text-xs opacity-80 break-words hyphens-auto">Cajas y artículos con volumen</div>
                 </div>
               </Button>
             </div>
@@ -344,24 +344,24 @@ export const PackageDetailsSection: React.FC<PackageDetailsSectionProps> = ({
       </Card>
 
       {/* Cotizar Button */}
-      <Button
-        onClick={fetchQuote}
-        disabled={!canQuote}
-        className="w-full h-12 text-base"
-        variant={canQuote ? "default" : "outline"}
-      >
-        {canQuote ? (
-          <>
-            <DollarSign className="h-5 w-5 mr-2" />
-            Cotizar Envío
-          </>
-        ) : (
-          <>
-            <AlertTriangle className="h-5 w-5 mr-2" />
-            Complete los detalles del envío
-          </>
-        )}
-      </Button>
+      {canQuote ? (
+        <Button
+          onClick={fetchQuote}
+          className="fixed bottom-10 right-6 flex items-center h-12 font-medium bg-red-600 hover:bg-red-700 text-white"
+          variant="default"
+        >
+          <DollarSign className="h-5 w-5 mr-2" />
+          Cotizar Envío
+        </Button>
+      ) : (
+        <div 
+          className="fixed bottom-10 right-6 flex items-center h-12 font-medium px-4 py-2 rounded-md bg-gray-200 text-gray-700 border border-gray-300 cursor-not-allowed"
+        >
+          <AlertTriangle className="h-5 w-5 mr-2 text-gray-600" />
+          Complete los detalles del envío
+        </div>
+      )}
+
 
       {servicios && servicios.length > 0 && (
   <div className="mt-4">

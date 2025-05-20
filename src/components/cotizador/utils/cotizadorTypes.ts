@@ -36,6 +36,8 @@ export interface DeliveryFrequency {
     iva: number;
     pesoFacturable?: number;
     esInternacional: boolean;
+    peso: number;
+    pesoVolumetrico: number;
   }
   
   export interface DetallesCotizacion {

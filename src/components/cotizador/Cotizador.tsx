@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, RefreshCw, MapPin, Package, Check, CheckCircle } from 'lucide-react';
+import { User, LogOut, RefreshCw, MapPin, Package, Check, CheckCircle, AlertTriangle, ArrowRight } from 'lucide-react';
 import { AddressSection } from './AddressSection';
 import { DeliveryInfoDisplay } from './DeliveryInfoDisplay';
 import { PackageDetailsSection } from './PackageDetailsSection';
@@ -84,6 +84,12 @@ export default function Cotizador() {
     setDestSuggestions,
     loadingDestinations,
     setLoadingDestinations,
+    destZipError,
+    setDestZipError,
+    originZipError,
+    setOriginZipError,
+    sameZipWarning,
+    setSameZipWarning
   } = useCotizador();
 
   // Account management states
@@ -391,7 +397,7 @@ export default function Cotizador() {
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <main className="flex-1 container mx-auto px-4 py-6 sm:px-4 lg:px-8">
         {state.flowStage === 'quote' ? (
           <div className="w-full">
             {/* Simple progress bar */}
@@ -411,9 +417,9 @@ export default function Cotizador() {
               }}
               className="w-full"
             >
-              <Card>
-                <CardHeader className="pb-4">
-                  <TabsList className="grid grid-cols-3 mb-2">
+              <Card className='overflow-hidden'>
+                <CardHeader className="pb-2 px-2 sm:px-4">
+                  <TabsList className="grid grid-cols-3 mb-2 w-full">
                     <TabsTrigger
                       value="address"
                       className={`flex items-center justify-center relative
@@ -439,7 +445,7 @@ export default function Cotizador() {
                         ) : (
                           <MapPin className="h-4 w-4 mr-1" />
                         )}
-                        <span>Dirección</span>
+                        <span>Código Postal</span>
                       </div>
                     </TabsTrigger>
 
@@ -515,12 +521,12 @@ export default function Cotizador() {
                     <span className="text-sm text-gray-500">
                       {state.flowStage === 'quote' ? (
                         selectedService
-                          ? "Listo para proceder a datos del cliente"
+                          ? "Resultados de cotización"
                           : servicios && servicios.length > 0
                             ? "Seleccione un servicio"
                             : state.isValidated
                               ? "Ingrese detalles del paquete"
-                              : "Ingrese direcciones"
+                              : "Ingrese códigos postales"
                       ) : (
                         "Ingresando datos del cliente"
                       )}
@@ -578,6 +584,14 @@ export default function Cotizador() {
                               setDestSuggestions={setDestSuggestions}
                               loadingDestinations={loadingDestinations}
                               setLoadingDestinations={setLoadingDestinations}
+
+                              // Zip Error
+  originZipError={originZipError}
+  setOriginZipError={setOriginZipError}
+  destZipError={destZipError}
+  setDestZipError={setDestZipError}
+    sameZipWarning={sameZipWarning}
+  setSameZipWarning={setSameZipWarning}
                             />
                           </div>
 
@@ -590,17 +604,37 @@ export default function Cotizador() {
           {/* Zone information - now properly aligned at top right */}
           {state.zone !== null && (
             <motion.div
-              className="bg-orange-100 text-orange-700 rounded-lg border border-orange-300 p-3"
+              className="bg-purple-100 text-purple-800 rounded-lg border border-purple-300 p-3"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
             >
               <div className="flex items-center">
                 <MapPin className="h-5 w-5 mr-2" />
-                <p className="font-semibold">Zona de Envío: {state.zone}</p>
+                <p className="font-semibold">Zona: {state.zone}</p>
               </div>
             </motion.div>
           )}
           
+          {/* Same ZIP Warning - Below Zone info */}
+    {sameZipWarning && !originZipError && !destZipError && (
+      <motion.div
+        className="bg-yellow-50 p-3 rounded-lg border border-yellow-200"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="flex items-start">
+          <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2 mt-0.5" />
+          <div>
+            <h4 className="text-sm font-medium text-yellow-700">Advertencia: El código postal de origen y destino son idénticos.</h4>
+            <p className="text-xs text-yellow-600 mt-1">
+              {sameZipWarning}
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    )}
+
           {/* DeliveryInfoDisplay - appears below zone info */}
           <DeliveryInfoDisplay
             estafetaResult={estafetaResult}
@@ -608,11 +642,37 @@ export default function Cotizador() {
             validateThreeTimes={validateThreeTimes}
             handleReport={handleReport}
             reportSubmitted={reportSubmitted}
-            onContinue={handleContinueToPackage}
           />
         </div>
       )}
                       </div>
+{state.isValidated && (
+  <div className="flex justify-end mt-6">
+    <Button
+      onClick={handleContinueToPackage}
+      size="sm"
+      disabled={!!originZipError || !!destZipError} // Disable if either error exists
+      className="fixed bottom-10 right-6 flex items-center bg-blue-600 hover:bg-blue-700 text-white z-50 shadow-lg"
+    >
+      {originZipError || destZipError ? (
+        <span className="flex items-center">
+          <AlertTriangle className="h-4 w-4 mr-2" />
+          {originZipError && destZipError
+            ? 'Verifique ambos códigos postales'
+            : originZipError
+              ? 'Verifique código postal de origen'
+              : 'Verifique código postal de destino'}
+        </span>
+      ) : (
+        <>
+          Continuar a Paquete
+          <ArrowRight className="h-4 w-4 ml-2" />
+        </>
+      )}
+    </Button>
+  </div>
+)}
+
                     </ScrollArea>
                   </TabsContent>
 
@@ -638,6 +698,7 @@ export default function Cotizador() {
                           selectedService={selectedService}
                           setSelectedService={setSelectedService}
                           proceedToCustomerData={proceedToCustomerData}
+                          originalWeight={state.weight}
                         />
                       )}
                     </ScrollArea>
