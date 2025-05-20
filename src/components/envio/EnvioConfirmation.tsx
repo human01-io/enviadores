@@ -4,6 +4,7 @@ interface EnvioConfirmationProps {
   cliente: Cliente;
   destino: Destino;
   selectedService: ServicioCotizado;
+  contenido: string;
   onBack: () => void;
 }
 

@@ -24,6 +24,8 @@ interface ShippingOptionsProps {
   setManuableServices: (services: ManuableRate[]) => void;
   selectedManuableService: ManuableRate | null;
   setSelectedManuableService: (service: ManuableRate | null) => void;
+  labelData: ManuableLabelResponse | null;
+  setLabelData: (data: ManuableLabelResponse | null) => void;
   // Additional props for Manuable integration
   originZip: string;
   destZip: string;
@@ -55,7 +57,9 @@ export default function ShippingOptions({
   destZip,
   packageDetails,
   cliente,
-  destino
+  destino,
+  labelData,
+  setLabelData
 }: ShippingOptionsProps) {
   // Helper component for checkmark icon
   const CheckIcon = ({ className = "w-3 h-3 text-white" }: { className?: string }) => (
@@ -80,8 +84,7 @@ export default function ShippingOptions({
     setSelectedManuableService(service);
   };
 
-  // State for storing the generated label
-  const [labelData, setLabelData] = useState<ManuableLabelResponse | null>(null);
+
   
 
   useEffect(() => {

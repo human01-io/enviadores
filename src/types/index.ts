@@ -128,6 +128,7 @@ export interface ServicioCotizado {
     numero_guia_externa?: string;
     ruta_etiqueta_externa?: string;
     uuid_manuable?: string;
+    manuable_label_url?: string;
     servicio_manuable?: string;
     costo_neto?: number;
     created_at?: string;              // Creation timestamp
@@ -171,6 +172,7 @@ export interface ServicioCotizado {
     paqueteria_externa: string | null;
     numero_guia_externa: string | null;
     ruta_etiqueta: string | null;
+    manuable_label_url: string | null;
     uuid_manuable: string | null;
     servicio_manuable: string | null;
     costo_neto: number;

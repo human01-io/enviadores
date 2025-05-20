@@ -63,6 +63,29 @@ export const NotificationPopup: React.FC<NotificationPopupProps> = ({
   };
 
   const style = getNotificationStyle();
+  
+  // Format details content if it's an object
+  const formatDetails = () => {
+    if (!notification.details) return null;
+    
+    // If details is a simple string, return it directly
+    if (typeof notification.details === 'string') {
+      return notification.details;
+    }
+    
+    // If details is an object, return a formatted string
+    if (typeof notification.details === 'object') {
+      // Check if it has the service, client, destination structure
+      if (notification.details.service && notification.details.client) {
+        return `Servicio: ${notification.details.service.nombre || 'No especificado'}`;
+      }
+      
+      // For other objects, return a generic message
+      return 'Detalles disponibles: Haga clic para ver más información';
+    }
+    
+    return String(notification.details);
+  };
 
   return (
     <AnimatePresence>
@@ -82,7 +105,7 @@ export const NotificationPopup: React.FC<NotificationPopupProps> = ({
               <div className="flex-1">
                 <h3 className={`font-bold ${style.textColor}`}>{notification.message}</h3>
                 {notification.details && (
-                  <p className="text-sm mt-1">{notification.details}</p>
+                  <p className="text-sm mt-1">{formatDetails()}</p>
                 )}
               </div>
               <button

@@ -126,7 +126,8 @@ export function createShipmentData(
   externalLabelData?: { carrier: string; trackingNumber: string; labelFile: File | null },
   externalCost?: number | null,
   selectedManuableService?: any,
-  tempCotizacionId?: string | null
+  tempCotizacionId?: string,
+  manuableLabelData?: { tracking_number?: string; label_url?: string; price?: string }
 ): any {
   const shipmentData: any = {
     cliente_id: clienteId,
@@ -149,8 +150,8 @@ export function createShipmentData(
     metodo_creacion: selectedOption === 'external' ? 'externo' : 
                     selectedOption === 'manuable' ? 'manuable' : 'interno',
     
-    // Add the temporary ID from quotation to link records - handle null/undefined
-    temp_cotizacion_id: tempCotizacionId || undefined
+    // Add the temporary ID from quotation to link records - handle empty string
+    temp_cotizacion_id: tempCotizacionId ? tempCotizacionId : undefined
   };
 
   // Add external label data if applicable
@@ -158,15 +159,26 @@ export function createShipmentData(
     shipmentData.paqueteria_externa = externalLabelData.carrier;
     shipmentData.numero_guia_externa = externalLabelData.trackingNumber;
     shipmentData.costo_neto = externalCost;
+    // For external option, we don't set ruta_etiqueta here as it will be 
+    // uploaded as a file in the form data
   }
 
   // Add Manuable data if applicable
-  if (selectedOption === 'manuable' && selectedManuableService && externalLabelData) {
+  if (selectedOption === 'manuable' && selectedManuableService) {
     shipmentData.uuid_manuable = selectedManuableService.uuid;
     shipmentData.servicio_manuable = `${selectedManuableService.carrier} - ${selectedManuableService.service}`;
     shipmentData.costo_neto = parseFloat(selectedManuableService.total_amount);
     shipmentData.paqueteria_externa = selectedManuableService.carrier;
-    shipmentData.numero_guia_externa = externalLabelData.trackingNumber;
+    
+    // Add tracking number if available from Manuable API response
+    if (manuableLabelData?.tracking_number) {
+      shipmentData.numero_guia_externa = manuableLabelData.tracking_number;
+    }
+    
+    // Use the new dedicated field for Manuable label URLs
+    if (manuableLabelData?.label_url) {
+      shipmentData.manuable_label_url = manuableLabelData.label_url;
+    }
   }
 
   return shipmentData;

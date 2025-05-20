@@ -11,6 +11,7 @@ import {
   updateDestinationWithRetry,
   createShipmentData
 } from './utils/envioUtils';
+import { ManuableLabelResponse } from '../../services/manuableService';
 
 interface DatosEnvioProps {
   selectedService: ServicioCotizado;
@@ -94,6 +95,8 @@ export default function DatosEnvio({
     content: contenido || "GIFT",
     tipo_paquete: selectedService.tipoPaquete || 'paquete'
   });
+
+   const [labelData, setLabelData] = useState<ManuableLabelResponse | null>(null);
 
   // Effects
   // Update package details when content changes
@@ -292,6 +295,13 @@ export default function DatosEnvio({
       await updateQuotationStatus(tempCotizacionId);
     }
 
+    // Extract Manuable label data if available
+    const manuableLabelData = labelData ? {
+      tracking_number: labelData.tracking_number,
+      label_url: labelData.label_url,
+      price: labelData.price
+    } : undefined;
+
     // Create shipment data using utility function
     const shipmentData = createShipmentData(
       clientId,
@@ -302,12 +312,13 @@ export default function DatosEnvio({
       externalLabelData,
       externalCost,
       selectedManuableService,
-      tempCotizacionId
+      tempCotizacionId || '', // Provide empty string as fallback
+      manuableLabelData
     );
 
     // Create the shipment with options
     const shipmentOptions: { labelFile?: File } = {};
-    if (externalLabelData.labelFile) {
+    if (selectedOption === 'external' && externalLabelData.labelFile) {
       shipmentOptions.labelFile = externalLabelData.labelFile;
     }
 
@@ -319,6 +330,11 @@ export default function DatosEnvio({
 
     return { clienteId: clientId, destinoId: destId, shipmentId };
   }
+
+const handleLabelGenerated = (data: ManuableLabelResponse) => {
+  console.log('Label generated with data:', data);
+  setLabelData(data);
+};
 
   async function updateQuotationStatus(tempCotizacionId: string) {
     if (selectedOption === 'external') {
@@ -384,6 +400,8 @@ export default function DatosEnvio({
           destZip={destZip}
           onBack={handleBackToForm}
           onSubmit={handleSubmit}
+          labelData={labelData}
+          setLabelData={setLabelData}
         />
       )}
     </div>

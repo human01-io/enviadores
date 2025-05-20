@@ -7,6 +7,8 @@
 export const manuableConfig = {
   // API base URL (pointing to our Cloudflare Worker)
   baseURL: 'https://manuable-proxy.alejandro-sarmiento-pa.workers.dev',
+
+  environment: import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production',
   
   // API request configuration
   requestConfig: {

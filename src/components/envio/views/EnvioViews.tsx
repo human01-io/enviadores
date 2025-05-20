@@ -1,6 +1,6 @@
 import React from 'react';
 import { Cliente, Destino, ServicioCotizado } from '../../../types';
-import { ManuableRate } from '../../../services/manuableService';
+import { ManuableRate, ManuableLabelResponse } from '../../../services/manuableService';
 import ClienteForm from '../ClienteForm';
 import DestinoForm from '../DestinoForm';
 import ContentField from '../ContentField';
@@ -136,6 +136,8 @@ interface ConfirmationViewProps {
   destZip: string;
   onBack: () => void;
   onSubmit: () => void;
+  labelData: ManuableLabelResponse | null;
+  setLabelData: (data: ManuableLabelResponse | null) => void;
 }
 
 export function ConfirmationView({
@@ -157,7 +159,9 @@ export function ConfirmationView({
   originZip,
   destZip,
   onBack,
-  onSubmit
+  onSubmit,
+  labelData,
+  setLabelData
 }: ConfirmationViewProps) {
   return (
     <div>
@@ -189,6 +193,8 @@ export function ConfirmationView({
           }}
           cliente={cliente}
           destino={destino}
+           labelData={labelData}
+          setLabelData={setLabelData}
         />
       </div>
 
