@@ -72,6 +72,13 @@ export interface ManuableLabelResponse {
   price: string;
 }
 
+// New interface for balance response
+export interface ManuableBalanceResponse {
+  balance: number;
+  currency: string; 
+  lastUpdated?: string;
+}
+
 class ManuableService {
   private api: AxiosInstance;
   private token: string | null = null;
@@ -238,9 +245,60 @@ class ManuableService {
   }
 
   /**
-* Ensure all required fields are present in the request
-* This is to prevent common validation issues
-*/
+   * Get account balance
+   */
+  async getBalance(): Promise<ManuableBalanceResponse> {
+    try {
+      // Ensure we're authenticated
+      if (!this.token) {
+        await this.login();
+      }
+
+      console.log('Getting account balance from Manuable API');
+      // Use the balance endpoint from config
+      const response = await this.api.get(manuableConfig.endpoints.balance);
+      console.log('Received balance response:', response.data);
+      console.log('Balance response structure:', JSON.stringify(response.data));
+
+      // Extract and format the balance data
+      let balanceData = response.data;
+      if (response.data && response.data.data) {
+        console.log('Detected nested data in response, extracting...');
+        balanceData = response.data.data;
+      }
+
+      // Ensure consistent response format - check for both 'balance' and 'total' fields
+      const processedResponse: ManuableBalanceResponse = {
+        balance: parseFloat(balanceData.total || balanceData.balance || balanceData.amount || '0'),
+        currency: balanceData.currency || 'MXN',
+        lastUpdated: balanceData.updated_at || new Date().toISOString()
+      };
+
+      return processedResponse;
+    } catch (error) {
+      console.error('Manuable get balance error:', error);
+
+      // If it's an Axios error with a response, we can provide more details
+      if (axios.isAxiosError(error)) {
+        console.error('API response status:', error.response?.status);
+        console.error('API response data:', JSON.stringify(error.response?.data));
+
+        // For authentication issues, try to login again
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          this.token = null; // Clear invalid token
+          throw new Error('Authentication required to get balance');
+        }
+      }
+
+      // For other types of errors, just throw a generic message
+      throw new Error('Error retrieving account balance');
+    }
+  }
+
+  /**
+   * Ensure all required fields are present in the request
+   * This is to prevent common validation issues
+   */
   private ensureRequiredFields(params: ManuableLabelRequest) {
     // Ensure address_from has all required fields
     if (params.address_from) {

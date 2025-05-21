@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { manuableService, ManuableRate, ManuableLabelResponse } from '../services/manuableService';
+import { manuableService, ManuableRate, ManuableLabelResponse, ManuableBalanceResponse } from '../services/manuableService';
 import { Cliente, Destino } from '../types';
 
 interface UseManuableProps {
@@ -17,6 +17,7 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
   const [rates, setRates] = useState<ManuableRate[]>([]);
   const [selectedRate, setSelectedRate] = useState<ManuableRate | null>(null);
   const [labelResponse, setLabelResponse] = useState<ManuableLabelResponse | null>(null);
+  const [accountBalance, setAccountBalance] = useState<ManuableBalanceResponse | null>(null);
 
   /**
    * Login to Manuable API
@@ -37,6 +38,33 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
       setIsLoading(false);
     }
   }, []);
+
+  /**
+   * Get account balance
+   */
+  const getBalance = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // First ensure we're authenticated
+      if (!isAuthenticated && autoLogin) {
+        await login();
+      }
+
+      const balanceData = await manuableService.getBalance();
+      console.log('Account balance retrieved:', balanceData);
+      console.log('Balance details - value:', balanceData.balance, 'type:', typeof balanceData.balance);
+      setAccountBalance(balanceData);
+      return balanceData;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to retrieve account balance';
+      console.error('Error getting balance:', errorMessage);
+      setError(errorMessage);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, autoLogin, login]);
 
   /**
    * Get rate quotes from Manuable
@@ -200,6 +228,7 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
     setRates([]);
     setSelectedRate(null);
     setLabelResponse(null);
+    setAccountBalance(null);
   }, []);
 
   return {
@@ -210,7 +239,9 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
     selectedRate,
     setSelectedRate,
     labelResponse,
+    accountBalance,
     login,
+    getBalance,
     getRates,
     createLabel,
     logout

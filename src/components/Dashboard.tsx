@@ -11,7 +11,8 @@ import { CSSTransition } from 'react-transition-group';
 import { apiService } from '../services/apiService';
 import { ClientModal } from './ClientModal';
 import { DestinoModal } from './DestinoModal';
-import { ChangePasswordModal } from './ChangePasswordModal'; // Import the ChangePasswordModal
+import { ChangePasswordModal } from './ChangePasswordModal';
+import { ManuableAccountModal } from './ManuableAccountModal';
 import logo from '../assets/logo.svg';
 
 export default function Dashboard() {
@@ -22,13 +23,14 @@ export default function Dashboard() {
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
   const [showAccountModal, setShowAccountModal] = useState(false);
-  const [showPasswordModal, setShowPasswordModal] = useState(false); // State for password modal
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showClientModal, setShowClientModal] = useState(false);
   const [showClientOptions, setShowClientOptions] = useState(false);
   const [clientOptionsPosition, setClientOptionsPosition] = useState({ top: 0, left: 0 });
   const [showDestinoModal, setShowDestinoModal] = useState(false);
   const [showDestinoOptions, setShowDestinoOptions] = useState(false);
   const [destinoOptionsPosition, setDestinoOptionsPosition] = useState({ top: 0, left: 0 });
+  const [showManuableModal, setShowManuableModal] = useState(false); // New state for Manuable modal
 
   const [userData, setUserData] = useState<{
     name: string;
@@ -103,6 +105,16 @@ export default function Dashboard() {
           break;
        
       }
+    }
+  };
+
+  // Handle provider card item clicks
+  const handleProviderItemClick = (item: string) => {
+    if (item === "Manuable") {
+      setShowManuableModal(true);
+    } else {
+      // Handle other provider options
+      console.log(`Selected provider: ${item}`);
     }
   };
 
@@ -192,8 +204,8 @@ export default function Dashboard() {
           />
           <DashboardCard
             title="Proveedores"
-            items={["Manuales", "Otros"]}
-            onItemClick={(item) => console.log(item)}
+            items={["Manuable", "Otros"]}
+            onItemClick={handleProviderItemClick} // Use the new handler for provider items
           />
           <DashboardCard
             title="Usuarios"
@@ -322,6 +334,12 @@ export default function Dashboard() {
           onError={(error) => setError(error)}
         />
       )}
+
+      {/* Manuable Account Modal */}
+      <ManuableAccountModal 
+        isOpen={showManuableModal}
+        onClose={() => setShowManuableModal(false)}
+      />
 
       {/* Success Notification */}
       {successMessage && (

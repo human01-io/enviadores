@@ -22,7 +22,8 @@ export const manuableConfig = {
   endpoints: {
     session: '?endpoint=session',
     rates: '?endpoint=rates',
-    labels: '?endpoint=labels'
+    labels: '?endpoint=labels',
+    balance: '?endpoint=accounts/balance'
   },
   
   // Default values for API requests
