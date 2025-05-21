@@ -15,13 +15,9 @@ export const getCurrentRole = (): string | null => {
 };
 
 export const isAuthenticated = (): boolean => {
-  console.log("Checking auth on:", window.location.href);
-  console.log("Document cookie:", document.cookie);
-  console.log("localStorage user_role:", localStorage.getItem('user_role'));
   
   // If URL has logout parameter, ALWAYS return false
   if (window.location.search.includes('logout')) {
-    console.log("Logout parameter detected, returning false");
     return false;
   }
   
@@ -36,7 +32,6 @@ export const logout = async (): Promise<void> => {
       credentials: 'include', // Important for cookies
     });
   } catch (error) {
-    console.error('Error during logout:', error);
     // Continue with local logout even if server request fails
   }
 
@@ -69,8 +64,6 @@ export const logout = async (): Promise<void> => {
       }
     }
   }
-  
-  console.log("After logout - cookies:", document.cookie);
   
   // Perform a clean redirect to login page
   if (import.meta.env.PROD) {
