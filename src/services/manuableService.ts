@@ -72,6 +72,16 @@ export interface ManuableLabelResponse {
   price: string;
 }
 
+// New interface for getting labels list
+export interface ManuableLabelsListResponse {
+  data: ManuableLabelResponse[];
+  meta?: {
+    current_page: number;
+    total_pages: number;
+    total_items: number;
+  };
+}
+
 // New interface for balance response
 export interface ManuableBalanceResponse {
   balance: number;
@@ -292,6 +302,86 @@ class ManuableService {
 
       // For other types of errors, just throw a generic message
       throw new Error('Error retrieving account balance');
+    }
+  }
+
+  /**
+   * Get labels list with optional tracking number filter and pagination
+   */
+  async getLabels(params?: {
+    tracking_number?: string;
+    page?: number;
+  }): Promise<ManuableLabelsListResponse> {
+    try {
+      // Ensure we're authenticated
+      if (!this.token) {
+        await this.login();
+      }
+
+      console.log('Getting labels from Manuable API with params:', params);
+      
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params?.tracking_number) {
+        queryParams.append('tracking_number', params.tracking_number);
+      }
+      if (params?.page && params.page > 1) {
+        queryParams.append('page', params.page.toString());
+      }
+      
+      // Create the URL with query parameters
+      const endpoint = manuableConfig.endpoints.getLabels;
+      const url = queryParams.toString() ? `${endpoint}&${queryParams.toString()}` : endpoint;
+      
+      console.log('Fetching labels with URL:', url);
+      const response = await this.api.get(url);
+      console.log('Received labels response:', response.data);
+      
+      // Process and normalize the response
+      let labelsData: ManuableLabelsListResponse = { data: [] };
+      
+      // Check if the data is directly in the response or nested
+      if (Array.isArray(response.data)) {
+        labelsData = { data: response.data };
+      } else if (response.data && Array.isArray(response.data.data)) {
+        labelsData = response.data;
+      } else if (response.data && typeof response.data === 'object') {
+        // Try to extract data if it's in a different structure
+        const possibleData = Object.values(response.data).find(v => Array.isArray(v));
+        if (possibleData) {
+          labelsData = { data: possibleData as ManuableLabelResponse[] };
+        }
+      }
+      
+      // Add pagination metadata if available
+      if (response.data.meta) {
+        labelsData.meta = response.data.meta;
+      } else if (response.data.current_page || response.data.total_pages) {
+        labelsData.meta = {
+          current_page: response.data.current_page || 1,
+          total_pages: response.data.total_pages || 1,
+          total_items: response.data.total_items || labelsData.data.length
+        };
+      }
+      
+      return labelsData;
+    } catch (error) {
+      console.error('Manuable get labels error:', error);
+
+      // If it's an Axios error with a response, we can provide more details
+      if (axios.isAxiosError(error)) {
+        console.error('API response status:', error.response?.status);
+        console.error('API response data:', JSON.stringify(error.response?.data));
+
+        // For authentication issues, try to login again
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          this.token = null; // Clear invalid token
+          throw new Error('Authentication required to get labels');
+        }
+      }
+
+      // For other types of errors, just throw a generic message
+      throw new Error('Error retrieving shipping labels');
     }
   }
 

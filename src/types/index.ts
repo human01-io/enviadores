@@ -256,7 +256,7 @@ export interface ServicioCotizado {
 export interface DashboardCardProps {
   title: string;
   items: string[];
-  onItemClick?: (item: string, event: React.MouseEvent) => void;
+  onItemClick?: (item: string, event: React.MouseEvent<HTMLLIElement, MouseEvent>) => void;
 }
 
 export type UserRole = 'admin_user' | 'customer_user';

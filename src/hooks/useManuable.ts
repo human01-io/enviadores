@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { manuableService, ManuableRate, ManuableLabelResponse, ManuableBalanceResponse } from '../services/manuableService';
+import { manuableService, ManuableRate, ManuableLabelResponse, ManuableBalanceResponse, ManuableLabelsListResponse } from '../services/manuableService';
 import { Cliente, Destino } from '../types';
 
 interface UseManuableProps {
@@ -18,6 +18,8 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
   const [selectedRate, setSelectedRate] = useState<ManuableRate | null>(null);
   const [labelResponse, setLabelResponse] = useState<ManuableLabelResponse | null>(null);
   const [accountBalance, setAccountBalance] = useState<ManuableBalanceResponse | null>(null);
+  const [labelsList, setLabelsList] = useState<ManuableLabelsListResponse>({ data: [] });
+  const [labelsPage, setLabelsPage] = useState<number>(1);
 
   /**
    * Login to Manuable API
@@ -220,6 +222,51 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
   }, [isAuthenticated, autoLogin, login]);
 
   /**
+   * Get shipping labels list
+   */
+  const getLabels = useCallback(async (params?: {
+    tracking_number?: string;
+    page?: number;
+  }) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // First ensure we're authenticated
+      if (!isAuthenticated && autoLogin) {
+        await login();
+      }
+
+      // Use provided page or current state
+      const page = params?.page || labelsPage;
+      
+      // Get labels from service
+      const response = await manuableService.getLabels({
+        tracking_number: params?.tracking_number,
+        page
+      });
+      
+      console.log('Labels retrieved:', response);
+      
+      // Update state with response
+      setLabelsList(response);
+      
+      // Update page state if it changed
+      if (params?.page) {
+        setLabelsPage(params.page);
+      }
+      
+      return response;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to retrieve labels';
+      console.error('Error getting labels:', errorMessage);
+      setError(errorMessage);
+      return { data: [] } as ManuableLabelsListResponse;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, autoLogin, login, labelsPage]);
+
+  /**
    * Logout from Manuable
    */
   const logout = useCallback(() => {
@@ -240,10 +287,13 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
     setSelectedRate,
     labelResponse,
     accountBalance,
+    labelsList,
+    labelsPage,
     login,
     getBalance,
     getRates,
     createLabel,
+    getLabels,
     logout
   };
 }

@@ -13,6 +13,7 @@ import { ClientModal } from './ClientModal';
 import { DestinoModal } from './DestinoModal';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { ManuableAccountModal } from './ManuableAccountModal';
+import { ManuableLabelsModal } from './ManuableLabelsModal'; // Import the new component
 import logo from '../assets/logo.svg';
 
 export default function Dashboard() {
@@ -30,7 +31,10 @@ export default function Dashboard() {
   const [showDestinoModal, setShowDestinoModal] = useState(false);
   const [showDestinoOptions, setShowDestinoOptions] = useState(false);
   const [destinoOptionsPosition, setDestinoOptionsPosition] = useState({ top: 0, left: 0 });
-  const [showManuableModal, setShowManuableModal] = useState(false); // New state for Manuable modal
+  const [showManuableOptions, setShowManuableOptions] = useState(false);
+  const [manuableOptionsPosition, setManuableOptionsPosition] = useState({ top: 0, left: 0 });
+  const [showManuableModal, setShowManuableModal] = useState(false); // State for Manuable account modal
+  const [showManuableLabelsModal, setShowManuableLabelsModal] = useState(false); // State for Manuable labels modal
 
   const [userData, setUserData] = useState<{
     name: string;
@@ -109,9 +113,15 @@ export default function Dashboard() {
   };
 
   // Handle provider card item clicks
-  const handleProviderItemClick = (item: string) => {
+  const handleProviderItemClick = (item: string, event: React.MouseEvent) => {
     if (item === "Manuable") {
-      setShowManuableModal(true);
+      // When clicking on Manuable, show a quick menu with options
+      const rect = event.currentTarget.getBoundingClientRect();
+      setManuableOptionsPosition({
+        top: rect.bottom + window.scrollY + 5,
+        left: rect.left + window.scrollX
+      });
+      setShowManuableOptions(prev => !prev);
     } else {
       // Handle other provider options
       console.log(`Selected provider: ${item}`);
@@ -320,6 +330,48 @@ export default function Dashboard() {
           setSuccessMessage(`Destino ${destino.id ? 'actualizado' : 'creado'} correctamente`);
           setShowDestinoModal(false);
         }}
+      />
+
+      {/* Manuable Options Dropdown */}
+      {showManuableOptions && (
+        <div
+          className="fixed z-40 bg-white shadow-lg rounded-md py-1 w-48"
+          style={{
+            top: `${manuableOptionsPosition.top}px`,
+            left: `${manuableOptionsPosition.left}px`
+          }}
+        >
+          <button
+            onClick={() => {
+              setShowManuableModal(true);
+              setShowManuableOptions(false);
+            }}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100"
+          >
+            Ver saldo de cuenta
+          </button>
+          <button
+            onClick={() => {
+              setShowManuableLabelsModal(true);
+              setShowManuableOptions(false);
+            }}
+            className="w-full text-left px-4 py-2 hover:bg-gray-100"
+          >
+            Ver guías generadas
+          </button>
+        </div>
+      )}
+
+      {/* Manuable Account Modal */}
+      <ManuableAccountModal 
+        isOpen={showManuableModal}
+        onClose={() => setShowManuableModal(false)}
+      />
+
+      {/* Manuable Labels Modal */}
+      <ManuableLabelsModal
+        isOpen={showManuableLabelsModal}
+        onClose={() => setShowManuableLabelsModal(false)}
       />
 
       {/* User Creation Modal */}
