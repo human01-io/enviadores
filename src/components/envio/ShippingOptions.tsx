@@ -5,6 +5,7 @@ import ManuableLabelGenerator from './ManuableLabelGeneration';
 import ManuableLabelDisplay from './ManuableLabelDisplay';
 import { mapToManuableParcel } from '../../utils/manuableUtils';
 import { Cliente, Destino } from '../../types';
+import { Truck, FileText, Upload, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 // Types
 interface ExternalLabelData {
@@ -26,7 +27,6 @@ interface ShippingOptionsProps {
   setSelectedManuableService: (service: ManuableRate | null) => void;
   labelData: ManuableLabelResponse | null;
   setLabelData: (data: ManuableLabelResponse | null) => void;
-  // Additional props for Manuable integration
   originZip: string;
   destZip: string;
   packageDetails: {
@@ -37,7 +37,6 @@ interface ShippingOptionsProps {
     valor_declarado?: number;
     content?: string;
   };
-  // Cliente and Destino data for label generation
   cliente: Cliente;
   destino: Destino;
 }
@@ -61,197 +60,281 @@ export default function ShippingOptions({
   labelData,
   setLabelData
 }: ShippingOptionsProps) {
-  // Helper component for checkmark icon
-  const CheckIcon = ({ className = "w-3 h-3 text-white" }: { className?: string }) => (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M5 13l4 4L19 7"
-      />
-    </svg>
-  );
 
   // Handler for selecting a Manuable service
   const handleSelectManuableService = (service: ManuableRate) => {
     setSelectedManuableService(service);
   };
 
-
-  
-
   useEffect(() => {
-  if (labelData && labelData.tracking_number) {
-    // Update tracking number and carrier
-    setExternalLabelData({
-      ...externalLabelData,
-      carrier: selectedManuableService?.carrier || 'Manuable',
-      trackingNumber: labelData.tracking_number
-    });
-    
-    // Set cost if available
-    if (labelData.price) {
-      setExternalCost(parseFloat(labelData.price));
+    if (labelData && labelData.tracking_number) {
+      setExternalLabelData({
+        ...externalLabelData,
+        carrier: selectedManuableService?.carrier || 'Manuable',
+        trackingNumber: labelData.tracking_number
+      });
+      
+      if (labelData.price) {
+        setExternalCost(parseFloat(labelData.price));
+      }
     }
-  }
-}, [labelData, selectedManuableService, setExternalLabelData, setExternalCost]);
+  }, [labelData, selectedManuableService, setExternalLabelData, setExternalCost]);
 
   // Handler for successful label generation
   const handleLabelGenerated = (data: ManuableLabelResponse) => {
     console.log('Label generated with data:', data);
     setLabelData(data);
   };
-  
+
+  // Check if external option is complete
+  const isExternalComplete = selectedOption === 'external' && 
+    externalLabelData.carrier && 
+    externalLabelData.trackingNumber && 
+    externalLabelData.labelFile && 
+    externalCost !== null;
+
+  // Check if manuable option is complete
+  const isManuableComplete = selectedOption === 'manuable' && labelData;
 
   return (
-    <div className="border-t pt-4">
-      <h3 className="font-semibold mb-4">Opciones de Envío</h3>
+    <div className="space-y-6">
+      {/* Section Header */}
+      <div className="flex items-center space-x-3 pb-4 border-b border-gray-200">
+        <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full">
+          <Truck className="w-4 h-4 text-blue-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Opciones de Envío</h3>
+          <p className="text-sm text-gray-500">Seleccione cómo desea procesar este envío</p>
+        </div>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {/* Option 1: External Label */}
+      {/* Option Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* External Label Option */}
         <div
-          className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedOption === 'external' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-300'}`}
+          className={`relative p-6 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+            selectedOption === 'external' 
+              ? 'border-blue-500 bg-blue-50 shadow-md' 
+              : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
+          }`}
           onClick={() => setSelectedOption('external')}
         >
-          <div className="flex items-center">
-            <div className={`w-5 h-5 rounded-full border mr-3 flex items-center justify-center ${selectedOption === 'external' ? 'border-blue-500 bg-blue-500' : 'border-gray-400'}`}>
-              {selectedOption === 'external' && <CheckIcon />}
+          <div className="flex items-start space-x-4">
+            {/* Radio Button */}
+            <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-1 ${
+              selectedOption === 'external' 
+                ? 'border-blue-500 bg-blue-500' 
+                : 'border-gray-300'
+            }`}>
+              {selectedOption === 'external' && (
+                <div className="w-2 h-2 bg-white rounded-full" />
+              )}
             </div>
-            <h4 className="font-medium">Registrar envío con guía externa</h4>
+            
+            {/* Option Content */}
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-2">
+                <FileText className="w-5 h-5 text-gray-600" />
+                <h4 className="font-semibold text-gray-900">Guía Externa</h4>
+                {isExternalComplete && (
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                )}
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-3">
+                Registre un envío con guía de otra paquetería
+              </p>
+              
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full">FedEx</span>
+                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full">DHL</span>
+                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full">Estafeta</span>
+                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full">+más</span>
+              </div>
+            </div>
           </div>
-          <p className="text-sm text-gray-600 mt-2">
-            Si ya tienes una guía de otra paquetería, puedes registrarla aquí.
-          </p>
         </div>
 
-        {/* Option 2: Manuable API */}
+        {/* Manuable Option */}
         <div
-          className={`p-4 border rounded-lg cursor-pointer transition-all ${selectedOption === 'manuable' ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-300'}`}
+          className={`relative p-6 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+            selectedOption === 'manuable' 
+              ? 'border-blue-500 bg-blue-50 shadow-md' 
+              : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
+          }`}
           onClick={() => setSelectedOption('manuable')}
         >
-          <div className="flex items-center">
-            <div className={`w-5 h-5 rounded-full border mr-3 flex items-center justify-center ${selectedOption === 'manuable' ? 'border-blue-500 bg-blue-500' : 'border-gray-400'}`}>
-              {selectedOption === 'manuable' && <CheckIcon />}
+          <div className="flex items-start space-x-4">
+            {/* Radio Button */}
+            <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-1 ${
+              selectedOption === 'manuable' 
+                ? 'border-blue-500 bg-blue-500' 
+                : 'border-gray-300'
+            }`}>
+              {selectedOption === 'manuable' && (
+                <div className="w-2 h-2 bg-white rounded-full" />
+              )}
             </div>
-            <h4 className="font-medium">Obtener opciones de Manuable</h4>
+            
+            {/* Option Content */}
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-2">
+                <Truck className="w-5 h-5 text-gray-600" />
+                <h4 className="font-semibold text-gray-900">Manuable API</h4>
+                {isManuableComplete && (
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                )}
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-3">
+                Obtenga cotizaciones y genere guías automáticamente
+              </p>
+              
+              <div className="flex items-center space-x-2">
+                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                  Automatizado
+                </span>
+                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                  Múltiples opciones
+                </span>
+              </div>
+            </div>
           </div>
-          <p className="text-sm text-gray-600 mt-2">
-            Obtén cotizaciones y genera guías directamente con nuestros socios.
-          </p>
         </div>
       </div>
 
       {/* External Label Form */}
       {selectedOption === 'external' && (
-        <div className="bg-gray-50 p-4 rounded-lg mb-6">
-          <h4 className="font-semibold mb-4">Datos de la Guía Externa</h4>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Paquetería</label>
-              <select
-                value={externalLabelData.carrier}
-                onChange={(e) => setExternalLabelData({ ...externalLabelData, carrier: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              >
-                <option value="">Seleccionar paquetería</option>
-                <option value="FEDEX">FedEx</option>
-                <option value="DHL">DHL</option>
-                <option value="ESTAFETA">Estafeta</option>
-                <option value="UPS">UPS</option>
-                <option value="REDPACK">Redpack</option>
-                <option value="OTRO">Otra</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Número de Rastreo/Guía</label>
-              <input
-                type="text"
-                value={externalLabelData.trackingNumber}
-                onChange={(e) => setExternalLabelData({ ...externalLabelData, trackingNumber: e.target.value })}
-                className="w-full p-2 border border-gray-300 rounded-md"
-                placeholder="Ej: 1234567890"
-              />
-            </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="flex items-center space-x-2 mb-6">
+            <FileText className="w-5 h-5 text-blue-600" />
+            <h4 className="text-lg font-semibold text-gray-900">Datos de la Guía Externa</h4>
           </div>
 
-          <div className="mt-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Costo Neto (MXN)</label>
-            <input
-              type="number"
-              value={externalCost ?? ''}
-              onChange={(e) => {
-                const value = parseFloat(e.target.value);
-                setExternalCost(isNaN(value) ? null : value);
-              }}
-              className="w-full p-2 border border-gray-300 rounded-md"
-              placeholder="Ej: 250.00"
-              step="0.01"
-              min="0"
-              required
-            />
-          </div>
+          <div className="space-y-6">
+            {/* Carrier and Tracking Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Paquetería <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={externalLabelData.carrier}
+                  onChange={(e) => setExternalLabelData({ ...externalLabelData, carrier: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Seleccionar paquetería</option>
+                  <option value="FEDEX">FedEx</option>
+                  <option value="DHL">DHL</option>
+                  <option value="ESTAFETA">Estafeta</option>
+                  <option value="UPS">UPS</option>
+                  <option value="REDPACK">Redpack</option>
+                  <option value="OTRO">Otra</option>
+                </select>
+              </div>
 
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Etiqueta de Envío (PDF o imagen)</label>
-            <div className="flex items-center">
-              <label className="cursor-pointer bg-white border border-gray-300 rounded-md px-4 py-2 hover:bg-gray-50">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Número de Rastreo <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={externalLabelData.trackingNumber}
+                  onChange={(e) => setExternalLabelData({ ...externalLabelData, trackingNumber: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ej: 1234567890"
+                />
+              </div>
+            </div>
+
+            {/* Cost */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Costo Neto (MXN) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2 text-gray-500">$</span>
+                <input
+                  type="number"
+                  value={externalCost ?? ''}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value);
+                    setExternalCost(isNaN(value) ? null : value);
+                  }}
+                  className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="250.00"
+                  step="0.01"
+                  min="0"
+                />
+              </div>
+            </div>
+
+            {/* File Upload */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Etiqueta de Envío <span className="text-red-500">*</span>
+              </label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
                 <input
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png"
                   className="hidden"
+                  id="label-upload"
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
                       setExternalLabelData({ ...externalLabelData, labelFile: e.target.files[0] });
                     }
                   }}
                 />
-                Seleccionar archivo
-              </label>
-              {externalLabelData.labelFile && (
-                <span className="ml-3 text-sm text-gray-600">{externalLabelData.labelFile.name}</span>
-              )}
+                <label htmlFor="label-upload" className="cursor-pointer">
+                  {externalLabelData.labelFile ? (
+                    <div className="space-y-2">
+                      <CheckCircle2 className="w-8 h-8 text-green-500 mx-auto" />
+                      <p className="text-sm font-medium text-gray-900">{externalLabelData.labelFile.name}</p>
+                      <p className="text-xs text-gray-500">Clic para cambiar archivo</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Upload className="w-8 h-8 text-gray-400 mx-auto" />
+                      <p className="text-sm font-medium text-gray-900">Subir etiqueta de envío</p>
+                      <p className="text-xs text-gray-500">PDF, JPG, PNG (máx. 10MB)</p>
+                    </div>
+                  )}
+                </label>
+              </div>
             </div>
-            <p className="text-xs text-gray-500 mt-1">Sube la etiqueta de envío en formato PDF o imagen</p>
           </div>
         </div>
       )}
 
       {/* Manuable Options Form */}
       {selectedOption === 'manuable' && (
-        <div className="bg-gray-50 p-4 rounded-lg mb-6">
-          <h4 className="font-semibold mb-4">Opciones de Manuable</h4>
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="flex items-center space-x-2 mb-6">
+            <Truck className="w-5 h-5 text-blue-600" />
+            <h4 className="text-lg font-semibold text-gray-900">Opciones de Manuable</h4>
+          </div>
          
-          
           {/* Display label if generated */}
           {labelData ? (
-            <>
-              <ManuableLabelDisplay labelData={labelData} />
-              
-              
-            </>
+            <ManuableLabelDisplay labelData={labelData} />
           ) : (
             <>
               {/* Show label generator if service is selected */}
-              {selectedManuableService ? (
-                <ManuableLabelGenerator 
-                  cliente={cliente}
-                  destino={destino}
-                  selectedService={selectedManuableService}
-                  onLabelGenerated={handleLabelGenerated}
-                  content={packageDetails.content}
-                />
-              ) : null}
+              {selectedManuableService && (
+                <div className="mb-6">
+                  <ManuableLabelGenerator 
+                    cliente={cliente}
+                    destino={destino}
+                    selectedService={selectedManuableService}
+                    onLabelGenerated={handleLabelGenerated}
+                    content={packageDetails.content}
+                  />
+                </div>
+              )}
               
-              {/* Use our ManuableRatesComponent */}
+              {/* Manuable Rates Component */}
               <ManuableRatesComponent
                 originZip={originZip}
                 destZip={destZip}
@@ -264,23 +347,54 @@ export default function ShippingOptions({
         </div>
       )}
       
-      {/* Validation Section */}
+      {/* Status Indicator */}
       {selectedOption !== 'none' && (
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-          <div className="flex items-start">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mt-0.5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
+        <div className={`p-4 rounded-xl border ${
+          (isExternalComplete || isManuableComplete) 
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-blue-50 border-blue-200'
+        }`}>
+          <div className="flex items-start space-x-3">
+            {(isExternalComplete || isManuableComplete) ? (
+              <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            )}
             <div>
               {selectedOption === 'external' && (
-                <p className="text-sm text-blue-700">
-                  <strong>Guía externa:</strong> Complete todos los campos incluyendo la etiqueta para registrar su envío con una guía externa.
-                </p>
+                <>
+                  {isExternalComplete ? (
+                    <p className="text-sm font-medium text-green-800">
+                      ✓ Guía externa configurada correctamente
+                    </p>
+                  ) : (
+                    <div>
+                      <p className="text-sm font-medium text-blue-800">Complete la información de la guía externa:</p>
+                      <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                        {!externalLabelData.carrier && <li>• Seleccione la paquetería</li>}
+                        {!externalLabelData.trackingNumber && <li>• Ingrese el número de rastreo</li>}
+                        {externalCost === null && <li>• Ingrese el costo del envío</li>}
+                        {!externalLabelData.labelFile && <li>• Suba la etiqueta de envío</li>}
+                      </ul>
+                    </div>
+                  )}
+                </>
               )}
               {selectedOption === 'manuable' && (
-                <p className="text-sm text-blue-700">
-                  <strong>Manuable:</strong> Seleccione una opción de servicio para generar su envío a través de nuestros socios.
-                </p>
+                <>
+                  {isManuableComplete ? (
+                    <p className="text-sm font-medium text-green-800">
+                      ✓ Etiqueta de Manuable generada correctamente
+                    </p>
+                  ) : (
+                    <p className="text-sm font-medium text-blue-800">
+                      {selectedManuableService 
+                        ? 'Genere la etiqueta para completar el proceso'
+                        : 'Seleccione un servicio de Manuable para continuar'
+                      }
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>

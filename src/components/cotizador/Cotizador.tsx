@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, RefreshCw, MapPin, Package, Check, CheckCircle, AlertTriangle, ArrowRight } from 'lucide-react';
+import { User, LogOut, RefreshCw, MapPin, Package, Check, CheckCircle, AlertTriangle, ArrowRight, ArrowLeft, Clock } from 'lucide-react';
 import { AddressSection } from './AddressSection';
 import { DeliveryInfoDisplay } from './DeliveryInfoDisplay';
 import { PackageDetailsSection } from './PackageDetailsSection';
@@ -709,26 +709,51 @@ export default function Cotizador() {
           </div>
         ) : (
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between bg-blue-50">
-              <div className="flex items-center">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="mr-2"
-                  onClick={backToQuote}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </Button>
-                <CardTitle>Datos del Envío</CardTitle>
-              </div>
-              {selectedService && (
-                <Badge className="text-sm bg-blue-100 text-blue-800 hover:bg-blue-200">
-                  <span className="font-semibold">{selectedService.nombre}</span> - ${selectedService.precioConIva.toFixed(2)}
-                </Badge>
-              )}
-            </CardHeader>
+            <CardHeader className="px-4 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
+  <div className="flex items-center justify-between">
+    <div className="flex items-center space-x-3">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={backToQuote}
+        className="hover:bg-white/80 -ml-1"
+      >
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        <span className="hidden sm:inline">Volver</span>
+      </Button>
+      
+      {/* Compact service info instead of just title */}
+      <div className="flex items-center space-x-3">
+        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+          <Package className="w-4 h-4 text-blue-600" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-900 text-base">Datos del Envío</h3>
+          {selectedService && (
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <span>{selectedService.nombre}</span>
+              <span>•</span>
+              <span className="font-medium">${selectedService.precioConIva.toFixed(2)}</span>
+              <span>•</span>
+              <span className="flex items-center space-x-1">
+                <Clock className="w-3 h-3" />
+                <span>{selectedService.diasEstimados}d</span>
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+
+    {/* Step indicator for confirmation phase */}
+    <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 px-3 py-1 bg-white/60 rounded-full text-xs font-medium text-gray-700">
+        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+        <span>Paso 2 de 2</span>
+      </div>
+    </div>
+  </div>
+</CardHeader>
             <CardContent className="p-0">
               <div className="p-4">
                 {selectedService && (

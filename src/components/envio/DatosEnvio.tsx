@@ -6,7 +6,7 @@ import { ManuableRate, ManuableLabelResponse } from '../../services/manuableServ
 import EnvioDataDisplay from './EnvioDataDisplay';
 import EnvioConfirmation from './EnvioConfirmation';
 import ShippingOptions from './ShippingOptions';
-import { Check, ArrowLeft, AlertTriangle, Package } from 'lucide-react';
+import { Check, ArrowLeft, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Alert, AlertDescription } from '../ui/Alert';
 import {
@@ -101,16 +101,16 @@ export default function DatosEnvio({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-const handleRemoveCliente = () => {
-  setCliente(null);
-  setDestino(null); // Remove destino as well since it depends on cliente
-  setErrorMessage(null);
-};
+  const handleRemoveCliente = () => {
+    setCliente(null);
+    setDestino(null); // Remove destino as well since it depends on cliente
+    setErrorMessage(null);
+  };
 
-const handleRemoveDestino = () => {
-  setDestino(null);
-  setErrorMessage(null);
-};
+  const handleRemoveDestino = () => {
+    setDestino(null);
+    setErrorMessage(null);
+  };
 
   // Effects
   // Update package details when content changes
@@ -378,14 +378,35 @@ const handleRemoveDestino = () => {
     }
   }
 
+
   // Render component based on current step
   return (
     <div className="w-full">
+      {/* Loading Overlay */}
       {isLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-600"></div>
-            <span className="text-gray-700">Procesando...</span>
+          <div className="bg-white p-6 rounded-xl shadow-xl flex items-center space-x-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+            <span className="text-gray-700 font-medium">Procesando envío...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Optional: Internal step indicator for the form/confirmation phases */}
+      {step === 'confirmation' && (
+        <div className="mb-6">
+          <div className="flex items-center justify-center">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                <span>Datos completados</span>
+              </div>
+              <div className="w-8 h-px bg-gray-300"></div>
+              <div className="flex items-center space-x-2 text-sm font-medium text-blue-700">
+                <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
+                <span>Confirmar envío</span>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -412,8 +433,8 @@ const handleRemoveDestino = () => {
             destino={destino}
             onUpdateCliente={handleUpdateCliente}
             onUpdateDestino={handleUpdateDestino}
-              onRemoveCliente={handleRemoveCliente}  // Add this
-  onRemoveDestino={handleRemoveDestino}
+            onRemoveCliente={handleRemoveCliente}
+            onRemoveDestino={handleRemoveDestino}
             clienteId={clienteId}
             contenido={contenido}
             onUpdateContenido={handleUpdateContenido}
@@ -421,16 +442,7 @@ const handleRemoveDestino = () => {
           />
 
           {/* Form Actions */}
-          <div className="flex justify-between items-center pt-4 border-t mt-6">
-            <Button
-              variant="outline"
-              onClick={onBack}
-              className="flex items-center"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Regresar
-            </Button>
-
+          <div className="flex justify-end items-center pt-4 border-t">
             <Button
               onClick={handleContinueToConfirmation}
               disabled={!isFormValid()}
@@ -438,12 +450,12 @@ const handleRemoveDestino = () => {
             >
               {isFormValid() ? (
                 <>
-                  Continuar a Confirmación
+                  Continuar a confirmación
                   <Check className="h-4 w-4 ml-2" />
                 </>
               ) : (
                 <>
-                  Completar Información
+                  Completar información
                   <AlertTriangle className="h-4 w-4 ml-2" />
                 </>
               )}
@@ -452,7 +464,7 @@ const handleRemoveDestino = () => {
 
           {/* ZIP Validation Warning */}
           {isFormValid() && !isZipValidationPassing() && (
-            <Alert className="mt-4 border-yellow-200 bg-yellow-50">
+            <Alert className="border-yellow-200 bg-yellow-50">
               <AlertTriangle className="h-4 w-4 mr-2 text-yellow-600" />
               <AlertDescription className="text-yellow-800">
                 Los códigos postales seleccionados no coinciden con la cotización original.
@@ -478,69 +490,51 @@ const handleRemoveDestino = () => {
           )}
 
           {/* Confirmation View */}
-          <div className="bg-white rounded-lg shadow-sm border">
-            <div className="bg-blue-50 p-4 border-b">
-              <div className="flex items-center">
-                <Package className="h-5 w-5 text-blue-600 mr-2" />
-                <h3 className="text-lg font-semibold text-blue-800">Confirmar Envío</h3>
-              </div>
-            </div>
-            <div className="p-4">
-              <EnvioConfirmation
-                cliente={cliente!}
-                destino={destino!}
-                selectedService={selectedService}
-                onBack={handleBackToForm}
-                contenido={contenido}
-              />
-            </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <EnvioConfirmation
+              cliente={cliente!}
+              destino={destino!}
+              selectedService={selectedService}
+              onBack={handleBackToForm}
+              contenido={contenido}
+            />
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border">
-            <div className="bg-blue-50 p-4 border-b">
-              <div className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-                  <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h2a1 1 0 001-1V8a1 1 0 00-.416-.789l-2-1.666A1 1 0 0014 5.333V4a1 1 0 00-1-1H3zM16 8.8V8l-2-1.667V5H14v3.8l2 .8z" />
-                </svg>
-                <h3 className="text-lg font-semibold text-blue-800">Opciones de Envío</h3>
-              </div>
-            </div>
-            <div className="p-4">
-              <ShippingOptions
-                selectedOption={selectedOption}
-                setSelectedOption={setSelectedOption}
-                externalLabelData={externalLabelData}
-                setExternalLabelData={setExternalLabelData}
-                externalCost={externalCost}
-                setExternalCost={setExternalCost}
-                manuableServices={manuableServices}
-                setManuableServices={setManuableServices}
-                selectedManuableService={selectedManuableService}
-                setSelectedManuableService={setSelectedManuableService}
-                originZip={originZip}
-                destZip={destZip}
-                packageDetails={{
-                  ...packageDetails,
-                  content: contenido
-                }}
-                cliente={cliente!}
-                destino={destino!}
-                labelData={labelData}
-                setLabelData={setLabelData}
-              />
-            </div>
+          {/* Shipping Options */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <ShippingOptions
+              selectedOption={selectedOption}
+              setSelectedOption={setSelectedOption}
+              externalLabelData={externalLabelData}
+              setExternalLabelData={setExternalLabelData}
+              externalCost={externalCost}
+              setExternalCost={setExternalCost}
+              manuableServices={manuableServices}
+              setManuableServices={setManuableServices}
+              selectedManuableService={selectedManuableService}
+              setSelectedManuableService={setSelectedManuableService}
+              originZip={originZip}
+              destZip={destZip}
+              packageDetails={{
+                ...packageDetails,
+                content: contenido
+              }}
+              cliente={cliente!}
+              destino={destino!}
+              labelData={labelData}
+              setLabelData={setLabelData}
+            />
           </div>
 
           {/* Form Actions */}
-          <div className="flex justify-between items-center pt-4 border-t mt-6">
+          <div className="flex justify-between items-center pt-4 border-t">
             <Button
               variant="outline"
               onClick={handleBackToForm}
               className="flex items-center"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Modificar Datos
+              Modificar datos
             </Button>
 
             <Button
@@ -548,7 +542,7 @@ const handleRemoveDestino = () => {
               disabled={selectedOption === 'none' || isLoading}
               className="flex items-center"
             >
-              Finalizar y Crear Envío
+              Finalizar y crear envío
               <Check className="h-4 w-4 ml-2" />
             </Button>
           </div>

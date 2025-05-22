@@ -264,7 +264,7 @@ const EnvioDataDisplay: React.FC<EnvioDataDisplayProps> = ({
                   <Button 
                     variant="default"
                     size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 text-xs lg:text-sm"
+                    className="bg-blue-400 hover:bg-blue-500 text-xs lg:text-sm"
                     onClick={() => setShowClientModal(true)}
                   >
                     <User className="h-3 w-3 lg:h-4 lg:w-4 mr-1" />
@@ -378,7 +378,7 @@ const EnvioDataDisplay: React.FC<EnvioDataDisplayProps> = ({
                   <Button 
                     variant="default"
                     size="sm"
-                    className="bg-green-600 hover:bg-green-700 text-xs lg:text-sm"
+                    className="bg-green-100 hover:bg-green-200 text-xs lg:text-sm"
                     onClick={() => setShowDestinoModal(true)}
                     disabled={!cliente}
                   >
@@ -399,18 +399,18 @@ const EnvioDataDisplay: React.FC<EnvioDataDisplayProps> = ({
         variants={cardVariants}
       >
         <Card>
-          <CardHeader className="pb-2 bg-blue-50 border-b">
+          <CardHeader className="pb-2 bg-purple-50 border-b">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <Package className="h-5 w-5 text-blue-600 mr-2" />
-                <CardTitle className="text-blue-800">Contenido del Envío</CardTitle>
+                <Package className="h-5 w-5 text-purple-600 mr-2" />
+                <CardTitle className="text-puerple-800">Contenido del Envío</CardTitle>
               </div>
               <div className="flex items-center space-x-2">
                 {!editingContenido && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-blue-600 border-blue-200 hover:bg-blue-100"
+                    className="text-purple-600 border-purple-200 hover:bg-purple-100"
                     onClick={() => setEditingContenido(true)}
                   >
                     <Edit className="h-4 w-4 mr-1" />
@@ -438,7 +438,7 @@ const EnvioDataDisplay: React.FC<EnvioDataDisplayProps> = ({
                     type="text"
                     value={tempContenido}
                     onChange={(e) => setTempContenido(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
                     placeholder="Descripción del contenido..."
                   />
                 </div>
@@ -449,7 +449,7 @@ const EnvioDataDisplay: React.FC<EnvioDataDisplayProps> = ({
                       key={suggestion}
                       type="button"
                       onClick={() => setTempContenido(suggestion)}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs hover:bg-blue-200"
+                      className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs hover:bg-purple-200"
                     >
                       {suggestion}
                     </button>
@@ -494,7 +494,7 @@ const EnvioDataDisplay: React.FC<EnvioDataDisplayProps> = ({
                     <Button 
                       variant="default"
                       size="sm"
-                      className="bg-blue-600 hover:bg-blue-700"
+                      className="bg-purple-300 hover:bg-purple-400"
                       onClick={() => setEditingContenido(true)}
                     >
                       <Edit className="h-4 w-4 mr-1" />
