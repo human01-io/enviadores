@@ -63,7 +63,7 @@ export interface ServicioCotizado {
     pais?: string;                 // Country, default 'México' (varchar 50)
     referencia?: string;           // Address reference (text)
     notas?: string;                // Notes (text)
-    activo?: boolean;              // Active status (tinyint)
+    activo?: number;              // Active status (tinyint)
     colonias?: string[];           // Available neighborhoods (UI helper, not in DB)
     created_at?: string;           // Creation timestamp
     updated_at?: string;           // Last update timestamp

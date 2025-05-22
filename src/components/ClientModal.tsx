@@ -93,7 +93,7 @@ export function ClientModal({ isOpen, onClose, onClientSaved, initialClient }: C
     const fetchAddressData = async (zip: string) => {
       if (zip.length === 5) {
         try {
-          const response = await fetch(`https://sepomex.icalialabs.com/api/v1/zip_codes?zip_code=${zip}`);
+          const response = await fetch(`https://enviadores.com.mx/api/zip_codes.php?zip_code=${zip}`);
           if (!response.ok) throw new Error("Código postal no encontrado");
 
           const data = await response.json();

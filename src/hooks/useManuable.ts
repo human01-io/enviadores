@@ -1,5 +1,12 @@
 import { useState, useCallback } from 'react';
-import { manuableService, ManuableRate, ManuableLabelResponse, ManuableBalanceResponse, ManuableLabelsListResponse } from '../services/manuableService';
+import { 
+  manuableService, 
+  ManuableRate, 
+  ManuableLabelResponse, 
+  ManuableBalanceResponse, 
+  ManuableLabelsListResponse,
+  ManuableSurchargesResponse
+} from '../services/manuableService';
 import { Cliente, Destino } from '../types';
 
 interface UseManuableProps {
@@ -20,6 +27,8 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
   const [accountBalance, setAccountBalance] = useState<ManuableBalanceResponse | null>(null);
   const [labelsList, setLabelsList] = useState<ManuableLabelsListResponse>({ data: [] });
   const [labelsPage, setLabelsPage] = useState<number>(1);
+  const [surchargesList, setSurchargesList] = useState<ManuableSurchargesResponse>({ data: [] });
+  const [surchargesPage, setSurchargesPage] = useState<number>(1);
 
   /**
    * Login to Manuable API
@@ -265,6 +274,49 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
       setIsLoading(false);
     }
   }, [isAuthenticated, autoLogin, login, labelsPage]);
+  
+  /**
+   * Get surcharges list with pagination
+   */
+  const getSurcharges = useCallback(async (params?: {
+    page?: number;
+  }) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      // First ensure we're authenticated
+      if (!isAuthenticated && autoLogin) {
+        await login();
+      }
+
+      // Use provided page or current state
+      const page = params?.page || surchargesPage;
+      
+      // Get surcharges from service
+      const response = await manuableService.getSurcharges({
+        page
+      });
+      
+      console.log('Surcharges retrieved:', response);
+      
+      // Update state with response
+      setSurchargesList(response);
+      
+      // Update page state if it changed
+      if (params?.page) {
+        setSurchargesPage(params.page);
+      }
+      
+      return response;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to retrieve surcharges';
+      console.error('Error getting surcharges:', errorMessage);
+      setError(errorMessage);
+      return { data: [] } as ManuableSurchargesResponse;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, autoLogin, login, surchargesPage]);
 
   /**
    * Logout from Manuable
@@ -289,11 +341,14 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
     accountBalance,
     labelsList,
     labelsPage,
+    surchargesList,
+    surchargesPage,
     login,
     getBalance,
     getRates,
     createLabel,
     getLabels,
+    getSurcharges,
     logout
   };
 }

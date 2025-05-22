@@ -362,7 +362,7 @@ export default function Cotizador() {
                 disabled={!selectedService}
                 className="rounded-l-none opacity-100 disabled:opacity-50"
               >
-                2. Datos del Cliente
+                2. Datos del Envío
               </Button>
             </div>
 

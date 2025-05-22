@@ -142,7 +142,7 @@ const [sameZipWarning, setSameZipWarning] = useState<string | null>(null);
       }
       
       // Make the API request
-      const response = await fetch(`https://sepomex.icalialabs.com/api/v1/zip_codes?zip_code=${zip}`);
+      const response = await fetch(`https://enviadores.com.mx/api/zip_codes.php?zip_code=${zip}`);
       
       // Check if response is OK (200-299)
       if (!response.ok) {

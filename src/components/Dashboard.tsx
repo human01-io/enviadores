@@ -13,7 +13,8 @@ import { ClientModal } from './ClientModal';
 import { DestinoModal } from './DestinoModal';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { ManuableAccountModal } from './ManuableAccountModal';
-import { ManuableLabelsModal } from './ManuableLabelsModal'; // Import the new component
+import { ManuableLabelsModal } from './ManuableLabelsModal';
+import { ManuableSurchargesModal } from './ManuableSurchargesModal';
 import logo from '../assets/logo.svg';
 
 export default function Dashboard() {
@@ -35,6 +36,7 @@ export default function Dashboard() {
   const [manuableOptionsPosition, setManuableOptionsPosition] = useState({ top: 0, left: 0 });
   const [showManuableModal, setShowManuableModal] = useState(false); // State for Manuable account modal
   const [showManuableLabelsModal, setShowManuableLabelsModal] = useState(false); // State for Manuable labels modal
+  const [showManuableSurchargesModal, setShowManuableSurchargesModal] = useState(false); // State for Manuable surcharges modal
 
   const [userData, setUserData] = useState<{
     name: string;
@@ -332,35 +334,45 @@ export default function Dashboard() {
         }}
       />
 
-      {/* Manuable Options Dropdown */}
-      {showManuableOptions && (
-        <div
-          className="fixed z-40 bg-white shadow-lg rounded-md py-1 w-48"
-          style={{
-            top: `${manuableOptionsPosition.top}px`,
-            left: `${manuableOptionsPosition.left}px`
-          }}
-        >
-          <button
-            onClick={() => {
-              setShowManuableModal(true);
-              setShowManuableOptions(false);
-            }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100"
-          >
-            Ver saldo de cuenta
-          </button>
-          <button
-            onClick={() => {
-              setShowManuableLabelsModal(true);
-              setShowManuableOptions(false);
-            }}
-            className="w-full text-left px-4 py-2 hover:bg-gray-100"
-          >
-            Ver guías generadas
-          </button>
-        </div>
-      )}
+      
+{/* Manuable Options Dropdown */}
+{showManuableOptions && (
+  <div
+    className="fixed z-40 bg-white shadow-lg rounded-md py-1 w-48"
+    style={{
+      top: `${manuableOptionsPosition.top}px`,
+      left: `${manuableOptionsPosition.left}px`
+    }}
+  >
+    <button
+      onClick={() => {
+        setShowManuableModal(true);
+        setShowManuableOptions(false);
+      }}
+      className="w-full text-left px-4 py-2 hover:bg-gray-100"
+    >
+      Ver saldo de cuenta
+    </button>
+    <button
+      onClick={() => {
+        setShowManuableLabelsModal(true);
+        setShowManuableOptions(false);
+      }}
+      className="w-full text-left px-4 py-2 hover:bg-gray-100"
+    >
+      Ver guías generadas
+    </button>
+    <button
+      onClick={() => {
+        setShowManuableSurchargesModal(true);
+        setShowManuableOptions(false);
+      }}
+      className="w-full text-left px-4 py-2 hover:bg-gray-100"
+    >
+      Ver sobrecargos
+    </button>
+  </div>
+)}
 
       {/* Manuable Account Modal */}
       <ManuableAccountModal 
@@ -372,6 +384,12 @@ export default function Dashboard() {
       <ManuableLabelsModal
         isOpen={showManuableLabelsModal}
         onClose={() => setShowManuableLabelsModal(false)}
+      />
+      
+      {/* Manuable Surcharges Modal */}
+      <ManuableSurchargesModal
+        isOpen={showManuableSurchargesModal}
+        onClose={() => setShowManuableSurchargesModal(false)}
       />
 
       {/* User Creation Modal */}

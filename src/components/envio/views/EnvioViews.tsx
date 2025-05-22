@@ -1,4 +1,3 @@
-import React from 'react';
 import { Cliente, Destino, ServicioCotizado } from '../../../types';
 import { ManuableRate, ManuableLabelResponse } from '../../../services/manuableService';
 import ClienteForm from '../ClienteForm';

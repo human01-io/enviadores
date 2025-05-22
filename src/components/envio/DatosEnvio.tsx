@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { apiService } from '../../services/apiService';
 import { Cliente, Destino, ServicioCotizado } from '../../types';
-import { ManuableRate } from '../../services/manuableService';
-import { FormView, ConfirmationView } from './views/EnvioViews';
+import { ManuableRate, ManuableLabelResponse } from '../../services/manuableService';
+import EnvioDataDisplay from './EnvioDataDisplay';
+import EnvioConfirmation from './EnvioConfirmation';
+import ShippingOptions from './ShippingOptions';
+import { Check, ArrowLeft, AlertTriangle, Package } from 'lucide-react';
+import { Button } from '../ui/Button';
+import { Alert, AlertDescription } from '../ui/Alert';
 import {
-  getInitialClienteState,
-  getInitialDestinoState,
-  validateClienteForm,
-  validateDestinoForm,
   updateDestinationWithRetry,
   createShipmentData
 } from './utils/envioUtils';
-import { ManuableLabelResponse } from '../../services/manuableService';
 
 interface DatosEnvioProps {
   selectedService: ServicioCotizado;
@@ -58,10 +59,8 @@ export default function DatosEnvio({
   const [contenido, setContenido] = useState<string>('');
 
   // Client and destination state
-  const [cliente, setCliente] = useState<Cliente>(getInitialClienteState(originZip));
-  const [destino, setDestino] = useState<Destino>(getInitialDestinoState(destZip));
-  const [isExistingCustomer, setIsExistingCustomer] = useState(false);
-  const [isExistingDestino, setIsExistingDestino] = useState(false);
+  const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [destino, setDestino] = useState<Destino | null>(null);
 
   // Validation state
   const [zipValidation, setZipValidation] = useState({
@@ -96,7 +95,22 @@ export default function DatosEnvio({
     tipo_paquete: selectedService.tipoPaquete || 'paquete'
   });
 
-   const [labelData, setLabelData] = useState<ManuableLabelResponse | null>(null);
+  const [labelData, setLabelData] = useState<ManuableLabelResponse | null>(null);
+
+  // Loading states
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+const handleRemoveCliente = () => {
+  setCliente(null);
+  setDestino(null); // Remove destino as well since it depends on cliente
+  setErrorMessage(null);
+};
+
+const handleRemoveDestino = () => {
+  setDestino(null);
+  setErrorMessage(null);
+};
 
   // Effects
   // Update package details when content changes
@@ -114,78 +128,75 @@ export default function DatosEnvio({
 
   // Validate ZIP codes when they change
   useEffect(() => {
-    validateZipCodes();
-  }, [cliente.codigo_postal, destino.codigo_postal, originZip, destZip]);
-
-  // Validation functions
-  const isClientFormValid = (): boolean => validateClienteForm(cliente);
-  const isDestinoFormValid = (): boolean => validateDestinoForm(destino);
-  const isContentValid = (): boolean => contenido.trim() !== '';
-  const isFormValid = (): boolean => isClientFormValid() && isDestinoFormValid() && isContentValid();
+    if (cliente?.codigo_postal || destino?.codigo_postal) {
+      validateZipCodes();
+    }
+  }, [cliente?.codigo_postal, destino?.codigo_postal, originZip, destZip]);
 
   // Helper functions
   async function loadExistingData() {
-    if (clienteId) {
-      try {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      if (clienteId) {
         const results = await apiService.searchCustomers(clienteId);
         if (results && results.length > 0) {
           const clienteData = results[0];
-          setCliente(prev => ({
-            ...prev,
-            ...clienteData,
-            id: clienteData.id
-          }));
-          setIsExistingCustomer(true);
+          setCliente(clienteData);
         }
-      } catch (error) {
-        console.error('Error loading client data:', error);
       }
-    }
 
-    if (clienteId && destinoId) {
-      try {
+      if (clienteId && destinoId) {
         const results = await apiService.getCustomerDestinations(clienteId);
         if (results && results.length > 0) {
           const destinoData = results.find(d => d.id === destinoId);
           if (destinoData) {
-            setDestino(prev => ({
-              ...prev,
-              ...destinoData,
-              id: destinoData.id
-            }));
-            setIsExistingDestino(true);
+            setDestino(destinoData);
           }
         }
-      } catch (error) {
-        console.error('Error loading destination data:', error);
       }
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setErrorMessage('Error al cargar los datos del cliente/destino');
+    } finally {
+      setIsLoading(false);
     }
   }
 
   function validateZipCodes() {
     // Validate ZIP codes against the original quote
-    if (cliente.codigo_postal !== originZip || destino.codigo_postal !== destZip) {
+    if (cliente && destino) {
       setZipValidation({
         originValid: cliente.codigo_postal === originZip,
         destValid: destino.codigo_postal === destZip
-      });
-    } else {
-      setZipValidation({
-        originValid: true,
-        destValid: true
       });
     }
   }
 
   // Event handlers
+  const handleUpdateCliente = (updatedCliente: Cliente) => {
+    setCliente(updatedCliente);
+    validateZipCodes();
+  };
+
+  const handleUpdateDestino = (updatedDestino: Destino) => {
+    setDestino(updatedDestino);
+    validateZipCodes();
+  };
+
+  const handleUpdateContenido = (newContenido: string) => {
+    setContenido(newContenido);
+  };
+
   const handleContinueToConfirmation = () => {
     if (!isFormValid()) {
-      if (!isClientFormValid()) {
-        alert('Por favor complete todos los campos requeridos del remitente.');
-      } else if (!isDestinoFormValid()) {
-        alert('Por favor complete todos los campos requeridos del destinatario.');
-      } else if (!isContentValid()) {
-        alert('Por favor describa el contenido del envío.');
+      if (!cliente) {
+        setErrorMessage('Por favor complete los datos del remitente');
+      } else if (!destino) {
+        setErrorMessage('Por favor complete los datos del destinatario');
+      } else if (!contenido.trim()) {
+        setErrorMessage('Por favor describa el contenido del envío');
       }
       return;
     }
@@ -197,48 +208,59 @@ export default function DatosEnvio({
     setStep('form');
   };
 
+  const isFormValid = (): boolean => {
+    return !!cliente && !!destino && contenido.trim() !== '';
+  };
+
+  const isZipValidationPassing = (): boolean => {
+    return zipValidation.originValid && zipValidation.destValid;
+  };
+
   const handleSubmit = async () => {
     // Basic validation
     if (!isFormValid()) {
-      alert('Por favor complete todos los campos requeridos');
+      setErrorMessage('Por favor complete todos los campos requeridos');
       return;
     }
 
     if (selectedOption === 'none') {
-      alert('Por favor seleccione una opción de envío');
+      setErrorMessage('Por favor seleccione una opción de envío');
       return;
     }
 
     // Shipping option specific validation
     if (selectedOption === 'external') {
       if (!externalLabelData.carrier) {
-        alert('Por favor seleccione una paquetería');
+        setErrorMessage('Por favor seleccione una paquetería');
         return;
       }
       if (!externalLabelData.trackingNumber) {
-        alert('Por favor ingrese el número de guía');
+        setErrorMessage('Por favor ingrese el número de guía');
         return;
       }
       if (!externalLabelData.labelFile) {
-        alert('Por favor seleccione un archivo de etiqueta');
+        setErrorMessage('Por favor seleccione un archivo de etiqueta');
         return;
       }
       if (externalCost === null) {
-        alert('Por favor ingrese el costo neto');
+        setErrorMessage('Por favor ingrese el costo neto');
         return;
       }
     }
 
     if (selectedOption === 'manuable' && !selectedManuableService) {
-      alert('Por favor seleccione un servicio de Manuable');
+      setErrorMessage('Por favor seleccione un servicio de Manuable');
       return;
     }
 
     // ZIP code validation
-    if (!zipValidation.originValid || !zipValidation.destValid) {
-      alert("Los códigos postales no coinciden con la cotización original. Por favor genere una nueva cotización.");
+    if (!isZipValidationPassing()) {
+      setErrorMessage("Los códigos postales no coinciden con la cotización original. Por favor genere una nueva cotización.");
       return;
     }
+
+    setIsLoading(true);
+    setErrorMessage(null);
 
     try {
       // Process the shipment
@@ -246,24 +268,30 @@ export default function DatosEnvio({
 
       // Call onSubmit with all data
       onSubmit({
-        cliente: { ...cliente, id: clienteId },
-        destino: { ...destino, id: destinoId, cliente_id: clienteId },
+        cliente: cliente!,
+        destino: destino!,
         shipmentId
       });
 
     } catch (error) {
       console.error('Error saving data:', error);
-      alert('Error al guardar los datos. Por favor intente nuevamente.');
+      setErrorMessage('Error al guardar los datos. Por favor intente nuevamente.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   async function processShipment() {
+    if (!cliente || !destino) {
+      throw new Error('Missing cliente or destino data');
+    }
+
     // Save or update client
     let clientId = cliente.id;
     if (!clientId) {
       const { id } = await apiService.createCustomer(cliente);
       clientId = id;
-    } else if (isExistingCustomer) {
+    } else {
       await apiService.updateCustomer(clientId, cliente);
     }
 
@@ -282,7 +310,7 @@ export default function DatosEnvio({
         console.error('Error creating destination:', error);
         throw new Error('Failed to create destination. Please try again.');
       }
-    } else if (isExistingDestino) {
+    } else {
       // Use utility function for retrying on rate limiting
       await updateDestinationWithRetry(destId, destinoPayload);
     }
@@ -331,11 +359,6 @@ export default function DatosEnvio({
     return { clienteId: clientId, destinoId: destId, shipmentId };
   }
 
-const handleLabelGenerated = (data: ManuableLabelResponse) => {
-  console.log('Label generated with data:', data);
-  setLabelData(data);
-};
-
   async function updateQuotationStatus(tempCotizacionId: string) {
     if (selectedOption === 'external') {
       try {
@@ -358,51 +381,178 @@ const handleLabelGenerated = (data: ManuableLabelResponse) => {
   // Render component based on current step
   return (
     <div className="w-full">
+      {isLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg shadow-lg flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-600"></div>
+            <span className="text-gray-700">Procesando...</span>
+          </div>
+        </div>
+      )}
+
       {step === 'form' ? (
-        <FormView
-          cliente={cliente}
-          setCliente={setCliente}
-          isExistingCustomer={isExistingCustomer}
-          setIsExistingCustomer={setIsExistingCustomer}
-          isClientFormValid={isClientFormValid()}
-          destino={destino}
-          setDestino={setDestino}
-          isExistingDestino={isExistingDestino}
-          setIsExistingDestino={setIsExistingDestino}
-          isDestinoFormValid={isDestinoFormValid()}
-          contenido={contenido}
-          setContenido={setContenido}
-          originData={originData}
-          destData={destData}
-          zipValidation={zipValidation}
-          isFormValid={isFormValid()}
-          onContinue={handleContinueToConfirmation}
-          onBack={onBack}
-        />
+        <div className="space-y-6">
+          {/* Error Message */}
+          {errorMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
+
+          {/* Main Data Display */}
+          <EnvioDataDisplay
+            cliente={cliente}
+            destino={destino}
+            onUpdateCliente={handleUpdateCliente}
+            onUpdateDestino={handleUpdateDestino}
+              onRemoveCliente={handleRemoveCliente}  // Add this
+  onRemoveDestino={handleRemoveDestino}
+            clienteId={clienteId}
+            contenido={contenido}
+            onUpdateContenido={handleUpdateContenido}
+            zipValidation={zipValidation}
+          />
+
+          {/* Form Actions */}
+          <div className="flex justify-between items-center pt-4 border-t mt-6">
+            <Button
+              variant="outline"
+              onClick={onBack}
+              className="flex items-center"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Regresar
+            </Button>
+
+            <Button
+              onClick={handleContinueToConfirmation}
+              disabled={!isFormValid()}
+              className={`flex items-center ${!isFormValid() ? 'opacity-50' : ''}`}
+            >
+              {isFormValid() ? (
+                <>
+                  Continuar a Confirmación
+                  <Check className="h-4 w-4 ml-2" />
+                </>
+              ) : (
+                <>
+                  Completar Información
+                  <AlertTriangle className="h-4 w-4 ml-2" />
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* ZIP Validation Warning */}
+          {isFormValid() && !isZipValidationPassing() && (
+            <Alert className="mt-4 border-yellow-200 bg-yellow-50">
+              <AlertTriangle className="h-4 w-4 mr-2 text-yellow-600" />
+              <AlertDescription className="text-yellow-800">
+                Los códigos postales seleccionados no coinciden con la cotización original.
+                Esto puede causar discrepancias en el precio y servicio.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
       ) : (
-        <ConfirmationView
-          cliente={cliente}
-          destino={destino}
-          selectedService={selectedService}
-          contenido={contenido}
-          selectedOption={selectedOption}
-          setSelectedOption={setSelectedOption}
-          externalLabelData={externalLabelData}
-          setExternalLabelData={setExternalLabelData}
-          externalCost={externalCost}
-          setExternalCost={setExternalCost}
-          manuableServices={manuableServices}
-          setManuableServices={setManuableServices}
-          selectedManuableService={selectedManuableService}
-          setSelectedManuableService={setSelectedManuableService}
-          packageDetails={packageDetails}
-          originZip={originZip}
-          destZip={destZip}
-          onBack={handleBackToForm}
-          onSubmit={handleSubmit}
-          labelData={labelData}
-          setLabelData={setLabelData}
-        />
+        <div className="space-y-6">
+          {/* Error Message */}
+          {errorMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>{errorMessage}</AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
+
+          {/* Confirmation View */}
+          <div className="bg-white rounded-lg shadow-sm border">
+            <div className="bg-blue-50 p-4 border-b">
+              <div className="flex items-center">
+                <Package className="h-5 w-5 text-blue-600 mr-2" />
+                <h3 className="text-lg font-semibold text-blue-800">Confirmar Envío</h3>
+              </div>
+            </div>
+            <div className="p-4">
+              <EnvioConfirmation
+                cliente={cliente!}
+                destino={destino!}
+                selectedService={selectedService}
+                onBack={handleBackToForm}
+                contenido={contenido}
+              />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border">
+            <div className="bg-blue-50 p-4 border-b">
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                  <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H14a1 1 0 001-1v-3h2a1 1 0 001-1V8a1 1 0 00-.416-.789l-2-1.666A1 1 0 0014 5.333V4a1 1 0 00-1-1H3zM16 8.8V8l-2-1.667V5H14v3.8l2 .8z" />
+                </svg>
+                <h3 className="text-lg font-semibold text-blue-800">Opciones de Envío</h3>
+              </div>
+            </div>
+            <div className="p-4">
+              <ShippingOptions
+                selectedOption={selectedOption}
+                setSelectedOption={setSelectedOption}
+                externalLabelData={externalLabelData}
+                setExternalLabelData={setExternalLabelData}
+                externalCost={externalCost}
+                setExternalCost={setExternalCost}
+                manuableServices={manuableServices}
+                setManuableServices={setManuableServices}
+                selectedManuableService={selectedManuableService}
+                setSelectedManuableService={setSelectedManuableService}
+                originZip={originZip}
+                destZip={destZip}
+                packageDetails={{
+                  ...packageDetails,
+                  content: contenido
+                }}
+                cliente={cliente!}
+                destino={destino!}
+                labelData={labelData}
+                setLabelData={setLabelData}
+              />
+            </div>
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex justify-between items-center pt-4 border-t mt-6">
+            <Button
+              variant="outline"
+              onClick={handleBackToForm}
+              className="flex items-center"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Modificar Datos
+            </Button>
+
+            <Button
+              onClick={handleSubmit}
+              disabled={selectedOption === 'none' || isLoading}
+              className="flex items-center"
+            >
+              Finalizar y Crear Envío
+              <Check className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
