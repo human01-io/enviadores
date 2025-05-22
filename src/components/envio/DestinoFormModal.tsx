@@ -302,7 +302,8 @@ export default function DestinoFormModal({
     }
   };
 
-  const fetchDestinosForCliente = async (clientId: string) => {
+const fetchDestinosForCliente = useCallback(
+  debounce(async (clientId: string) => {
     try {
       setIsSearching(true);
       const destinos = await apiService.getCustomerDestinations(clientId);
@@ -313,7 +314,10 @@ export default function DestinoFormModal({
     } finally {
       setIsSearching(false);
     }
-  };
+  }, 300),
+  []
+);
+
 
   const resetForm = () => {
     setDestino({
@@ -1118,4 +1122,12 @@ function inputClassName(error?: string | boolean) {
       ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
       : 'border-gray-300 focus:border-green-500 focus:ring-green-500'
   } disabled:bg-gray-50 disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-600`;
+}
+
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
+  let timeout: NodeJS.Timeout;
+  return ((...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  }) as T;
 }
