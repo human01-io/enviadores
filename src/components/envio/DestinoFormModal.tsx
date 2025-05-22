@@ -185,7 +185,7 @@ export default function DestinoFormModal({
       fetchCliente(clienteId);
       fetchDestinosForCliente(clienteId);
     }
-  }, [clienteId]);
+  }, [clienteId, destinoSearchQuery]);
 
   // ZIP code validation - Fixed to prevent infinite loops
   const fetchAddressData = useCallback(async (zip: string) => {
