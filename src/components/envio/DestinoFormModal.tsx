@@ -180,12 +180,12 @@ export default function DestinoFormModal({
   }, [showColoniaDropdown]);
 
   // Fetch client and destinations when needed
-  useEffect(() => {
-    if (clienteId) {
-      fetchCliente(clienteId);
-      fetchDestinosForCliente(clienteId);
-    }
-  }, [clienteId, destinoSearchQuery]);
+ useEffect(() => {
+  if (!clienteId) return;
+  // trim off whitespace so empty string === no q parameter
+  const q = destinoSearchQuery.trim();
+  fetchDestinosForCliente(clienteId, q || undefined);
+}, [clienteId, destinoSearchQuery]);
 
   // ZIP code validation - Fixed to prevent infinite loops
   const fetchAddressData = useCallback(async (zip: string) => {
@@ -303,18 +303,21 @@ export default function DestinoFormModal({
   };
 
 const fetchDestinosForCliente = useCallback(
-  debounce(async (clientId: string) => {
-    try {
-      setIsSearching(true);
-      const destinos = await apiService.getCustomerDestinations(clientId);
-      setDestinoSuggestions(destinos);
-    } catch (error) {
-      console.error('Error fetching destinations:', error);
-      setDestinoSuggestions([]);
-    } finally {
-      setIsSearching(false);
-    }
-  }, 300),
+  debounce(
+    async (clientId: string, q?: string) => {
+      try {
+        setIsSearching(true);
+        const destinos = await apiService.getCustomerDestinations(clientId, q);
+        setDestinoSuggestions(destinos);
+      } catch (err) {
+        console.error('Error fetching destinations:', err);
+        setDestinoSuggestions([]);
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    300
+  ),
   []
 );
 
