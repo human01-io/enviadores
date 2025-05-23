@@ -25,6 +25,7 @@ export interface ManuableAddress {
   email?: string;
   country?: string;
   reference?: string;
+  company?: string;
 }
 
 export interface ManuableParcel {
@@ -550,6 +551,7 @@ class ManuableService {
       country_code: 'MX', // Default to Mexico
       reference: data.referencia || '',
       zip_code: data.codigo_postal,
+      company: 'Enviadores'
     };
   }
 

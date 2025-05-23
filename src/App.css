@@ -111,6 +111,11 @@
     align-items: center;
     gap: 1rem;
   }
+
+   .min-h-screen {
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height for mobile browsers */
+  }
   
   .keyword-item {
     font-size: 1.2rem;
@@ -121,12 +126,6 @@
   }
 }
 
-@media (max-width: 768px) {
-  .footer-content {
-    flex-direction: column;
-    gap: 1rem;
-  }
-}
 
 /* Layout container for your keyword chips */
 .keywords-cloud {

@@ -18,7 +18,8 @@ import {
   Settings,
   BarChart3,
   User,
-  Loader2
+  Loader2,
+  ChevronDown
 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { Button } from './ui/Button';
@@ -77,6 +78,8 @@ interface DashboardItemProps {
   label: string;
   onClick: (item: string, event: React.MouseEvent) => void;
   variant?: 'default' | 'primary' | 'featured';
+  hasDropdown?: boolean;
+  isDropdownOpen?: boolean;
 }
 
 interface StatCardProps {
@@ -120,15 +123,16 @@ export default function ImprovedDashboard() {
   // Additional state for the client selection flow
   const [showClienteSelector, setShowClienteSelector] = useState(false);
   
-  // Other state variables
-  const [createdUserId, setCreatedUserId] = useState('');
+  // Simplified dropdown state - no position tracking needed
   const [showClientOptions, setShowClientOptions] = useState(false);
-  const [clientOptionsPosition, setClientOptionsPosition] = useState({ top: 0, left: 0 });
   const [showDestinoOptions, setShowDestinoOptions] = useState(false);
-  const [destinoOptionsPosition, setDestinoOptionsPosition] = useState({ top: 0, left: 0 });
   const [showManuableOptions, setShowManuableOptions] = useState(false);
-  const [manuableOptionsPosition, setManuableOptionsPosition] = useState({ top: 0, left: 0 });
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Refs for dropdown containers
+  const clientDropdownRef = useRef<HTMLDivElement>(null);
+  const destinoDropdownRef = useRef<HTMLDivElement>(null);
+  const manuableDropdownRef = useRef<HTMLDivElement>(null);
 
   const [userData, setUserData] = useState<UserData>({
     name: 'Usuario',
@@ -186,11 +190,6 @@ export default function ImprovedDashboard() {
   // Client item click handler
   const handleClientItemClick = useCallback((item: string, event: React.MouseEvent) => {
     if (item === "Clientes / Remitentes") {
-      const rect = event.currentTarget.getBoundingClientRect();
-      setClientOptionsPosition({
-        top: rect.bottom + window.scrollY + 5,
-        left: rect.left + window.scrollX
-      });
       setShowClientOptions(prev => !prev);
       // Close other dropdowns
       setShowDestinoOptions(false);
@@ -221,11 +220,6 @@ export default function ImprovedDashboard() {
   // Provider item click handler
   const handleProviderItemClick = useCallback((item: string, event: React.MouseEvent) => {
     if (item === "Manuable") {
-      const rect = event.currentTarget.getBoundingClientRect();
-      setManuableOptionsPosition({
-        top: rect.bottom + window.scrollY + 5,
-        left: rect.left + window.scrollX
-      });
       setShowManuableOptions(prev => !prev);
       // Close other dropdowns
       setShowClientOptions(false);
@@ -239,11 +233,6 @@ export default function ImprovedDashboard() {
   // Update destination selection to handle the client selector flow
   const handleDestinatariosClick = useCallback((item: string, event: React.MouseEvent) => {
     if (item === "Destinatarios") {
-      const rect = event.currentTarget.getBoundingClientRect();
-      setDestinoOptionsPosition({
-        top: rect.bottom + window.scrollY + 5,
-        left: rect.left + window.scrollX
-      });
       setShowDestinoOptions(prev => !prev);
       // Close other dropdowns
       setShowClientOptions(false);
@@ -308,17 +297,21 @@ export default function ImprovedDashboard() {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Only close if click is outside dropdown elements
-      if (showClientOptions || showDestinoOptions || showManuableOptions) {
-        const targetElement = event.target as HTMLElement;
-        // Check if the click is outside of dropdown areas
-        const isOutsideClick = !targetElement.closest('.dropdown-menu');
-        
-        if (isOutsideClick) {
-          setShowClientOptions(false);
-          setShowDestinoOptions(false);
-          setShowManuableOptions(false);
-        }
+      const target = event.target as HTMLElement;
+      
+      // Check if click is outside client dropdown
+      if (showClientOptions && clientDropdownRef.current && !clientDropdownRef.current.contains(target)) {
+        setShowClientOptions(false);
+      }
+      
+      // Check if click is outside destino dropdown
+      if (showDestinoOptions && destinoDropdownRef.current && !destinoDropdownRef.current.contains(target)) {
+        setShowDestinoOptions(false);
+      }
+      
+      // Check if click is outside manuable dropdown
+      if (showManuableOptions && manuableDropdownRef.current && !manuableDropdownRef.current.contains(target)) {
+        setShowManuableOptions(false);
       }
     };
 
@@ -344,33 +337,33 @@ export default function ImprovedDashboard() {
 
   return (
     <div ref={dashboardRef} className="min-h-screen bg-gray-50">
-      {/* Header - Full width, minimal padding */}
+      {/* Header - Improved styling */}
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
-        <div className="px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Left section */}
+            {/* Left section - Better alignment */}
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 flex items-center justify-center">
-                  <img src={logo} alt="Logo" className="w-8 h-8" />
+                <div className="w-8 h-8 flex items-center justify-center flex-shrink-0">
+                  <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
                 </div>
-                <div>
-                  <h1 className="text-xl font-semibold text-gray-900">
+                <div className="min-w-0">
+                  <h1 className="text-xl font-semibold text-gray-900 truncate">
                     Centro de Envíos
                   </h1>
-                  <Badge variant={role === 'admin_user' ? 'default' : 'secondary'} className="text-xs">
+                  <Badge variant={role === 'admin_user' ? 'default' : 'secondary'} className="text-xs mt-1">
                     {role === 'admin_user' ? 'Administrador' : 'Cliente'}
                   </Badge>
                 </div>
               </div>
             </div>
 
-            {/* Right section */}
-            <div className="flex items-center space-x-4">
+            {/* Right section - Better spacing */}
+            <div className="flex items-center space-x-3">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="relative transition-transform hover:scale-110 focus:ring-2 focus:ring-blue-300"
+                className="relative transition-transform hover:scale-110 focus:ring-2 focus:ring-blue-300 flex-shrink-0"
                 aria-label="Notificaciones"
                 title="Notificaciones"
               >
@@ -382,11 +375,11 @@ export default function ImprovedDashboard() {
               
               <button
                 onClick={accountModal.open}
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-md px-2 py-1"
+                className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300 rounded-md px-2 py-1 text-sm font-medium"
                 aria-label="Mi cuenta"
               >
-                <User className="w-5 h-5" />
-                <span>Mi cuenta</span>
+                <User className="w-4 h-4 flex-shrink-0" />
+                <span className="hidden sm:inline">Mi cuenta</span>
               </button>
               
               <button
@@ -394,15 +387,16 @@ export default function ImprovedDashboard() {
                 className="text-red-600 hover:text-red-800 text-sm font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-300 rounded-md px-2 py-1"
                 aria-label="Cerrar sesión"
               >
-                Cerrar sesión
+                <span className="hidden sm:inline">Cerrar sesión</span>
+                <span className="sm:hidden">Salir</span>
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content - Full width, minimal padding */}
-      <main className="px-4 sm:px-6 py-6">
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6">
         {/* Search Bar */}
         <div className="mb-6">
           <div className="relative max-w-md">
@@ -424,7 +418,7 @@ export default function ImprovedDashboard() {
         </div>
 
         {/* Dashboard Cards Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Envíos Card */}
           <Card className="bg-white border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
             <CardHeader className="pb-3">
@@ -442,33 +436,97 @@ export default function ImprovedDashboard() {
               <DashboardItem 
                 icon={Send} 
                 label="Cotizar envío" 
-                onClick={(item, e) => handleClientItemClick(item, e)}
+                onClick={handleClientItemClick}
                 variant="primary"
               />
-              <DashboardItem 
-                icon={Building2} 
-                label="Clientes / Remitentes" 
-                onClick={(item, e) => handleClientItemClick(item, e)}
-              />
-              <DashboardItem 
-                icon={MapPin} 
-                label="Destinatarios" 
-                onClick={(item, e) => handleDestinatariosClick(item, e)}
-              />
+              <div ref={clientDropdownRef} className="relative">
+                <DashboardItem 
+                  icon={Building2} 
+                  label="Clientes / Remitentes" 
+                  onClick={handleClientItemClick}
+                  hasDropdown={true}
+                  isDropdownOpen={showClientOptions}
+                />
+                {/* Client Options Dropdown */}
+                {showClientOptions && (
+                  <div className="absolute top-full left-0 right-0 z-50 bg-white shadow-lg rounded-lg border border-gray-200 py-1 mt-1">
+                    <button
+                      onClick={() => {
+                        clientModal.open();
+                        setShowClientOptions(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
+                    >
+                      Crear o Modificar rápido
+                    </button>
+                    <button
+                      onClick={() => {
+                        const isProd = window.location.hostname === 'app.enviadores.com.mx';
+                        if (isProd) {
+                          navigate('/clientes');
+                        } else {
+                          navigate('/dashboard/clientes');
+                        }
+                        setShowClientOptions(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
+                    >
+                      Ver todos los remitentes
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div ref={destinoDropdownRef} className="relative">
+                <DashboardItem 
+                  icon={MapPin} 
+                  label="Destinatarios" 
+                  onClick={handleDestinatariosClick}
+                  hasDropdown={true}
+                  isDropdownOpen={showDestinoOptions}
+                />
+                {/* Destino Options Dropdown */}
+                {showDestinoOptions && (
+                  <div className="absolute top-full left-0 right-0 z-50 bg-white shadow-lg rounded-lg border border-gray-200 py-1 mt-1">
+                    <button
+                      onClick={() => {
+                        setShowClienteSelector(true);
+                        setShowDestinoOptions(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
+                    >
+                      Crear o Modificar rápido
+                    </button>
+                    <button
+                      onClick={() => {
+                        const isProd = window.location.hostname === 'app.enviadores.com.mx';
+                        if (isProd) {
+                          navigate('/destinos');
+                        } else {
+                          navigate('/dashboard/destinos');
+                        }
+                        setShowDestinoOptions(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
+                    >
+                      Ver todos los destinos
+                    </button>
+                  </div>
+                )}
+              </div>
               <DashboardItem 
                 icon={History} 
                 label="Historial de envíos" 
-                onClick={(item, e) => handleClientItemClick(item, e)}
+                onClick={handleClientItemClick}
               />
               <DashboardItem 
                 icon={FileText} 
                 label="Recibir guías externas" 
-                onClick={(item, e) => handleClientItemClick(item, e)}
+                onClick={handleClientItemClick}
               />
               <DashboardItem 
                 icon={Search} 
                 label="Rastrear envío" 
-                onClick={(item, e) => handleClientItemClick(item, e)}
+                onClick={handleClientItemClick}
               />
             </CardContent>
           </Card>
@@ -487,16 +545,52 @@ export default function ImprovedDashboard() {
               </div>
             </CardHeader>
             <CardContent className="space-y-1">
-              <DashboardItem 
-                icon={Zap} 
-                label="Manuable" 
-                onClick={(item, e) => handleProviderItemClick(item, e)}
-                variant="featured"
-              />
+              <div ref={manuableDropdownRef} className="relative">
+                <DashboardItem 
+                  icon={Zap} 
+                  label="Manuable" 
+                  onClick={handleProviderItemClick}
+                  variant="featured"
+                  hasDropdown={true}
+                  isDropdownOpen={showManuableOptions}
+                />
+                {/* Manuable Options Dropdown */}
+                {showManuableOptions && (
+                  <div className="absolute top-full left-0 right-0 z-50 bg-white shadow-lg rounded-lg border border-gray-200 py-1 mt-1">
+                    <button
+                      onClick={() => {
+                        manuableAccountModal.open();
+                        setShowManuableOptions(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
+                    >
+                      Ver saldo de cuenta
+                    </button>
+                    <button
+                      onClick={() => {
+                        manuableLabelsModal.open();
+                        setShowManuableOptions(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
+                    >
+                      Ver guías generadas
+                    </button>
+                    <button
+                      onClick={() => {
+                        manuableSurchargesModal.open();
+                        setShowManuableOptions(false);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
+                    >
+                      Ver sobrecargos
+                    </button>
+                  </div>
+                )}
+              </div>
               <DashboardItem 
                 icon={TruckIcon} 
                 label="Otros" 
-                onClick={(item, e) => handleProviderItemClick(item, e)}
+                onClick={handleProviderItemClick}
               />
             </CardContent>
           </Card>
@@ -547,7 +641,7 @@ export default function ImprovedDashboard() {
           </Card>
         </div>
 
-        {/* Quick Stats Section - Full width */}
+        {/* Quick Stats Section */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
           <StatCard title="Envíos este mes" value="127" change="+12%" />
           <StatCard title="Ahorro total" value="$15,420" change="+8%" />
@@ -555,158 +649,6 @@ export default function ImprovedDashboard() {
           <StatCard title="Envíos pendientes" value="12" change="-5%" />
         </div>
       </main>
-
-      {/* Client Options Dropdown */}
-      {showClientOptions && (
-        <>
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => {
-              setShowClientOptions(false);
-            }}
-            aria-hidden="true"
-          ></div>
-          <div
-            className="fixed z-50 bg-white shadow-lg rounded-lg border border-gray-200 py-1 w-48 dropdown-menu"
-            style={{
-              top: `${clientOptionsPosition.top}px`,
-              left: `${clientOptionsPosition.left}px`
-            }}
-            role="menu"
-            aria-orientation="vertical"
-            aria-labelledby="client-options-menu"
-          >
-            <button
-              onClick={() => {
-                clientModal.open();
-                setShowClientOptions(false);
-              }}
-              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150"
-              role="menuitem"
-            >
-              Crear o Modificar rápido
-            </button>
-            <button
-              onClick={() => {
-                const isProd = window.location.hostname === 'app.enviadores.com.mx';
-                if (isProd) {
-                  navigate('/clientes');
-                } else {
-                  navigate('/dashboard/clientes');
-                }
-                setShowClientOptions(false);
-              }}
-              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150"
-              role="menuitem"
-            >
-              Ver todos los remitentes
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* Destino Options Dropdown */}
-      {showDestinoOptions && (
-        <>
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => {
-              setShowDestinoOptions(false);
-            }}
-            aria-hidden="true"
-          ></div>
-          <div
-            className="fixed z-50 bg-white shadow-lg rounded-lg border border-gray-200 py-1 w-48 dropdown-menu"
-            style={{
-              top: `${destinoOptionsPosition.top}px`,
-              left: `${destinoOptionsPosition.left}px`
-            }}
-            role="menu"
-            aria-orientation="vertical"
-            aria-labelledby="destino-options-menu"
-          >
-            <button
-              onClick={() => {
-                setShowClienteSelector(true);
-                setShowDestinoOptions(false);
-              }}
-              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150"
-              role="menuitem"
-            >
-              Crear o Modificar rápido
-            </button>
-            <button
-              onClick={() => {
-                const isProd = window.location.hostname === 'app.enviadores.com.mx';
-                if (isProd) {
-                  navigate('/destinos');
-                } else {
-                  navigate('/dashboard/destinos');
-                }
-                setShowDestinoOptions(false);
-              }}
-              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150"
-              role="menuitem"
-            >
-              Ver todos los destinos
-            </button>
-          </div>
-        </>
-      )}
-
-      {/* Manuable Options Dropdown */}
-      {showManuableOptions && (
-        <>
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => {
-              setShowManuableOptions(false);
-            }}
-            aria-hidden="true"
-          ></div>
-          <div
-            className="fixed z-50 bg-white shadow-lg rounded-lg border border-gray-200 py-1 w-48 dropdown-menu"
-            style={{
-              top: `${manuableOptionsPosition.top}px`,
-              left: `${manuableOptionsPosition.left}px`
-            }}
-            role="menu"
-            aria-orientation="vertical"
-            aria-labelledby="manuable-options-menu"
-          >
-            <button
-              onClick={() => {
-                manuableAccountModal.open();
-                setShowManuableOptions(false);
-              }}
-              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150"
-              role="menuitem"
-            >
-              Ver saldo de cuenta
-            </button>
-            <button
-              onClick={() => {
-                manuableLabelsModal.open();
-                setShowManuableOptions(false);
-              }}
-              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150"
-              role="menuitem"
-            >
-              Ver guías generadas
-            </button>
-            <button
-              onClick={() => {
-                manuableSurchargesModal.open();
-                setShowManuableOptions(false);
-              }}
-              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150"
-              role="menuitem"
-            >
-              Ver sobrecargos
-            </button>
-          </div>
-        </>
-      )}
 
       {/* All Modals - Using Suspense for lazy loading */}
       <Suspense fallback={
@@ -777,7 +719,6 @@ export default function ImprovedDashboard() {
           <UserCreationModal
             onClose={userModal.close}
             onCreate={(userId) => {
-              setCreatedUserId(userId);
               toast.success(`Usuario creado con ID: ${userId}`);
               userModal.close();
             }}
@@ -818,7 +759,6 @@ export default function ImprovedDashboard() {
       {/* Toast Container for notifications */}
       <ToastContainer 
         position="bottom-right"
-        autoClose={5000}
         hideProgressBar={false}
         closeOnClick
         pauseOnHover
@@ -833,9 +773,11 @@ const DashboardItem = React.memo(function DashboardItem({
   icon: Icon, 
   label, 
   onClick, 
-  variant = 'default' 
+  variant = 'default',
+  hasDropdown = false,
+  isDropdownOpen = false
 }: DashboardItemProps) {
-  const baseClasses = "flex items-center space-x-3 p-3 rounded-lg transition-all duration-200 cursor-pointer group";
+  const baseClasses = "flex items-center justify-between p-3 rounded-lg transition-all duration-200 cursor-pointer group w-full";
   const variantClasses = {
     default: "hover:bg-gray-50 text-gray-700 hover:text-gray-900 focus:ring-2 focus:ring-gray-200",
     primary: "hover:bg-blue-50 text-blue-700 hover:text-blue-800 border border-blue-100 focus:ring-2 focus:ring-blue-200",
@@ -849,6 +791,7 @@ const DashboardItem = React.memo(function DashboardItem({
       role="button"
       tabIndex={0}
       aria-label={label}
+      aria-expanded={hasDropdown ? isDropdownOpen : undefined}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -856,10 +799,19 @@ const DashboardItem = React.memo(function DashboardItem({
         }
       }}
     >
-      <Icon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
-      <span className="text-sm font-medium">
-        {label}
-      </span>
+      <div className="flex items-center space-x-3">
+        <Icon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200 flex-shrink-0" />
+        <span className="text-sm font-medium">
+          {label}
+        </span>
+      </div>
+      {hasDropdown && (
+        <ChevronDown 
+          className={`h-4 w-4 transition-transform duration-200 flex-shrink-0 ${
+            isDropdownOpen ? 'rotate-180' : ''
+          }`} 
+        />
+      )}
     </div>
   );
 });

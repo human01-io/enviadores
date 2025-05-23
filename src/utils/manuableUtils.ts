@@ -23,6 +23,7 @@ export const mapClienteToManuableAddress = (cliente: Cliente): ManuableAddress =
     country_code: 'MX', // Default to Mexico
     reference: cliente.referencia || '',
     zip_code: cliente.codigo_postal,
+    company: 'Enviadores',
   };
 };
 
