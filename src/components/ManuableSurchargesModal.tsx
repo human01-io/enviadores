@@ -99,9 +99,9 @@ export const ManuableSurchargesModal: React.FC<ManuableSurchargesModalProps> = (
       classNames="modal"
       unmountOnExit
     >
-      <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="fixed inset-0  bg-black/60 backdrop-blur-sm z-50 overflow-y-auto">
         <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
-          <div className="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onClick={onClose}></div>
+          <div className="fixed inset-0 transition-opacity bg-opacity-75" onClick={onClose}></div>
 
           <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 

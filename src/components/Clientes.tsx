@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { apiService } from '../services/apiService';
 import { Cliente, Destino } from '../types';
-import { ClientModal } from './ClientModal'; // Import the ClientModal component
+import ClienteFormModal from './shared/ClienteFormModal';
 
 type FilterField = keyof Cliente;
 
@@ -751,11 +751,11 @@ export default function AdvancedClientes() {
         )}
 
         {/* Client Modal */}
-        <ClientModal 
+        <ClienteFormModal 
           isOpen={isClientModalOpen} 
           onClose={() => setIsClientModalOpen(false)} 
           onClientSaved={handleClientSaved}
-          initialClient={selectedCliente} // Pass the selected client for editing
+          initialCliente={selectedCliente} // Pass the selected client for editing
         />
       </main>
     </div>

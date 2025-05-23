@@ -254,24 +254,17 @@
 /* Animation Classes */
 .modal-enter {
   opacity: 0;
-  transform: scale(1.01);
 }
-
 .modal-enter-active {
   opacity: 1;
-  transform: scale(1);
-  transition: opacity 200ms, transform 200ms;
+  transition: opacity 300ms;
 }
-
 .modal-exit {
-  opacity: 0.5;
-  transform: scale(1);
+  opacity: 1;
 }
-
 .modal-exit-active {
   opacity: 0;
-  transform: scale(0.95);
-  transition: opacity 200ms, transform 200ms;
+  transition: opacity 300ms;
 }
 
 /* User Creation Modal Specific Styles */

@@ -6,6 +6,7 @@ import '../App.css'
 interface UserCreationModalProps {
   onClose: () => void;
   onCreate: (userId: string) => void;
+  onError: (error: string) => void;
 }
 
 export function UserCreationModal({ onClose, onCreate }: UserCreationModalProps) {
