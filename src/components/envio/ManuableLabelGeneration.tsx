@@ -5,6 +5,7 @@ import { useManuable } from '../../hooks/useManuable';
 import ValidationErrors from './ValidationErrors';
 import { apiService } from '../../services';
 import { isAxiosError } from 'axios';
+import { Package, FileText, Loader2, AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
 
 interface ManuableLabelGeneratorProps {
   cliente: Cliente;
@@ -190,9 +191,13 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
 
   if (isGenerating) {
     return (
-      <div className="text-center py-4">
-        <div className="animate-spin h-8 w-8 border-4 border-green-500 border-t-transparent rounded-full mx-auto"></div>
-        <p className="mt-2 text-gray-600">Generando etiqueta de envío...</p>
+      <div className="flex flex-col items-center justify-center py-8 px-4 bg-blue-50 rounded-lg border border-blue-200">
+        <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
+        <h3 className="text-lg font-semibold text-blue-900 mb-2">Generando etiqueta...</h3>
+        <p className="text-sm text-blue-700 text-center max-w-md">
+          Estamos procesando su solicitud con Manuable. 
+          Este proceso puede tardar unos segundos.
+        </p>
       </div>
     );
   }
@@ -210,15 +215,17 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
         <div className="flex flex-col sm:flex-row gap-3 mt-4">
           <button
             onClick={handleFixValidationIssues}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex-1"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex-1 flex items-center justify-center"
           >
+            <RefreshCw className="h-4 w-4 mr-2" />
             Arreglar automáticamente
           </button>
           
           <button
             onClick={() => setValidationErrors(null)}
-            className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200 flex-1"
+            className="px-4 py-2 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200 flex-1 flex items-center justify-center"
           >
+            <FileText className="h-4 w-4 mr-2" />
             Editar manualmente
           </button>
         </div>
@@ -235,16 +242,15 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
         <div className="flex">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <AlertTriangle className="h-6 w-6 text-red-600 mr-2 flex-shrink-0" />
           <div>
             <h3 className="text-red-800 font-medium">Error al generar etiqueta</h3>
             <p className="text-red-700 text-sm mt-1">{error}</p>
             <button
               onClick={handleGenerateLabel}
-              className="mt-3 px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700"
+              className="mt-3 px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 flex items-center"
             >
+              <RefreshCw className="h-4 w-4 mr-2" />
               Reintentar
             </button>
           </div>
@@ -254,29 +260,53 @@ const ManuableLabelGenerator: React.FC<ManuableLabelGeneratorProps> = ({
   }
 
   return (
-    <div className="mb-4">
-      <p className="mb-3 text-sm text-gray-700">
-        Servicio seleccionado: <strong>{selectedService.carrier} - {selectedService.service}</strong>
-      </p>
+    <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6 mb-4 relative overflow-hidden">
+      {/* Decorative elements */}
+      <div className="absolute top-0 right-0 w-24 h-24 bg-green-100 rounded-full -mt-8 -mr-8 z-0 opacity-50"></div>
+      <div className="absolute bottom-0 left-0 w-16 h-16 bg-green-100 rounded-full -mb-4 -ml-4 z-0 opacity-50"></div>
       
-      {/* Show the content that will be sent */}
-      <p className="mb-3 text-sm text-gray-700">
-        Contenido a declarar: <strong>{content}</strong>
-      </p>
-      
-      <button
-        onClick={handleGenerateLabel}
-        className="w-full flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
-        Generar Etiqueta con Manuable
-      </button>
-      
-      <p className="mt-2 text-xs text-gray-500">
-        Al generar la etiqueta, se creará un envío con los datos proporcionados a través de Manuable.
-      </p>
+      <div className="relative z-10">
+        <div className="flex items-center mb-4">
+          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+            <Package className="h-5 w-5 text-green-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-green-900">Generar Etiqueta de Envío</h3>
+            <p className="text-sm text-green-700">
+              Servicio seleccionado: <span className="font-medium">{selectedService.carrier} - {selectedService.service}</span>
+            </p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+          <div className="bg-white rounded-lg p-3 shadow-sm border border-green-100">
+            <p className="text-xs text-gray-500 mb-1">Contenido a declarar:</p>
+            <p className="font-medium text-gray-800">{content || "GIFT"}</p>
+          </div>
+          
+          <div className="bg-white rounded-lg p-3 shadow-sm border border-green-100">
+            <p className="text-xs text-gray-500 mb-1">Precio:</p>
+            <p className="font-medium text-gray-800">${selectedService.total_amount} {selectedService.currency}</p>
+          </div>
+          
+          <div className="bg-white rounded-lg p-3 shadow-sm border border-green-100">
+            <p className="text-xs text-gray-500 mb-1">Carrier:</p>
+            <p className="font-medium text-gray-800">{selectedService.carrier}</p>
+          </div>
+        </div>
+        
+        <button
+          onClick={handleGenerateLabel}
+          className="w-full flex items-center justify-center px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 shadow-sm transition-colors"
+        >
+          <CheckCircle className="h-5 w-5 mr-2" />
+          Generar Etiqueta con Manuable
+        </button>
+        
+        <p className="mt-3 text-xs text-green-600 text-center">
+          Al generar la etiqueta, se creará un envío con los datos proporcionados a través de Manuable.
+        </p>
+      </div>
     </div>
   );
 };

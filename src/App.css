@@ -126,6 +126,12 @@
   }
 }
 
+.dashboard-manuable-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
 
 /* Layout container for your keyword chips */
 .keywords-cloud {

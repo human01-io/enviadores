@@ -2,11 +2,10 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { apiService } from '../../services/apiService';
 import { Cliente, Destino, ServicioCotizado } from '../../types';
-import { ManuableRate, ManuableLabelResponse } from '../../services/manuableService';
 import EnvioDataDisplay from './EnvioDataDisplay';
 import EnvioConfirmation from './EnvioConfirmation';
-import ShippingOptions from './ShippingOptions';
-import { Check, ArrowLeft, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import ShippingOptionsModal from './ShippingOptionsModal';
+import { Check, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Alert, AlertDescription } from '../ui/Alert';
 import {
@@ -53,7 +52,7 @@ export default function DatosEnvio({
 }: DatosEnvioProps) {
   // Main UI state
   const [step, setStep] = useState<'form' | 'confirmation'>('form');
-  const [selectedOption, setSelectedOption] = useState<'none' | 'external' | 'manuable'>('none');
+  const [showShippingModal, setShowShippingModal] = useState(false);
 
   // Content state
   const [contenido, setContenido] = useState<string>('');
@@ -68,24 +67,8 @@ export default function DatosEnvio({
     destValid: true
   });
 
-  // External shipping option state
-  const [externalLabelData, setExternalLabelData] = useState<{
-    carrier: string;
-    trackingNumber: string;
-    labelFile: File | null;
-  }>({
-    carrier: '',
-    trackingNumber: '',
-    labelFile: null
-  });
-  const [externalCost, setExternalCost] = useState<number | null>(null);
-
-  // Manuable shipping option state
-  const [manuableServices, setManuableServices] = useState<ManuableRate[]>([]);
-  const [selectedManuableService, setSelectedManuableService] = useState<ManuableRate | null>(null);
-
-  // Package details for Manuable API - with safe type handling
-  const [packageDetails, setPackageDetails] = useState({
+  // Package details for Manuable API
+  const [packageDetails] = useState({
     peso: selectedService.peso || 1,
     alto: selectedService.alto || 10,
     largo: selectedService.largo || 30,
@@ -95,15 +78,13 @@ export default function DatosEnvio({
     tipo_paquete: selectedService.tipoPaquete || 'paquete'
   });
 
-  const [labelData, setLabelData] = useState<ManuableLabelResponse | null>(null);
-
   // Loading states
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleRemoveCliente = () => {
     setCliente(null);
-    setDestino(null); // Remove destino as well since it depends on cliente
+    setDestino(null);
     setErrorMessage(null);
   };
 
@@ -113,20 +94,10 @@ export default function DatosEnvio({
   };
 
   // Effects
-  // Update package details when content changes
-  useEffect(() => {
-    setPackageDetails(prev => ({
-      ...prev,
-      content: contenido || "GIFT"
-    }));
-  }, [contenido]);
-
-  // Load existing client and destination data if IDs are provided
   useEffect(() => {
     loadExistingData();
   }, [clienteId, destinoId]);
 
-  // Validate ZIP codes when they change
   useEffect(() => {
     if (cliente?.codigo_postal || destino?.codigo_postal) {
       validateZipCodes();
@@ -165,7 +136,6 @@ export default function DatosEnvio({
   }
 
   function validateZipCodes() {
-    // Validate ZIP codes against the original quote
     if (cliente && destino) {
       setZipValidation({
         originValid: cliente.codigo_postal === originZip,
@@ -216,44 +186,12 @@ export default function DatosEnvio({
     return zipValidation.originValid && zipValidation.destValid;
   };
 
-  const handleSubmit = async () => {
-    // Basic validation
+  const handleShippingModalSubmit = async (shippingData: any) => {
     if (!isFormValid()) {
       setErrorMessage('Por favor complete todos los campos requeridos');
       return;
     }
 
-    if (selectedOption === 'none') {
-      setErrorMessage('Por favor seleccione una opción de envío');
-      return;
-    }
-
-    // Shipping option specific validation
-    if (selectedOption === 'external') {
-      if (!externalLabelData.carrier) {
-        setErrorMessage('Por favor seleccione una paquetería');
-        return;
-      }
-      if (!externalLabelData.trackingNumber) {
-        setErrorMessage('Por favor ingrese el número de guía');
-        return;
-      }
-      if (!externalLabelData.labelFile) {
-        setErrorMessage('Por favor seleccione un archivo de etiqueta');
-        return;
-      }
-      if (externalCost === null) {
-        setErrorMessage('Por favor ingrese el costo neto');
-        return;
-      }
-    }
-
-    if (selectedOption === 'manuable' && !selectedManuableService) {
-      setErrorMessage('Por favor seleccione un servicio de Manuable');
-      return;
-    }
-
-    // ZIP code validation
     if (!isZipValidationPassing()) {
       setErrorMessage("Los códigos postales no coinciden con la cotización original. Por favor genere una nueva cotización.");
       return;
@@ -264,7 +202,10 @@ export default function DatosEnvio({
 
     try {
       // Process the shipment
-      const { clienteId, destinoId, shipmentId } = await processShipment();
+      const { clienteId, destinoId, shipmentId } = await processShipment(shippingData);
+
+      // Close modal
+      setShowShippingModal(false);
 
       // Call onSubmit with all data
       onSubmit({
@@ -281,7 +222,7 @@ export default function DatosEnvio({
     }
   };
 
-  async function processShipment() {
+  async function processShipment(shippingData: any) {
     if (!cliente || !destino) {
       throw new Error('Missing cliente or destino data');
     }
@@ -311,73 +252,97 @@ export default function DatosEnvio({
         throw new Error('Failed to create destination. Please try again.');
       }
     } else {
-      // Use utility function for retrying on rate limiting
       await updateDestinationWithRetry(destId, destinoPayload);
     }
 
-    // Get the temporary ID from localStorage that was created during quotation
+    // Get the temporary ID from localStorage
     const tempCotizacionId = localStorage.getItem('current_cotizacion_id');
 
     // Update quotation status if needed
     if (tempCotizacionId) {
-      await updateQuotationStatus(tempCotizacionId);
+      await updateQuotationStatus(tempCotizacionId, shippingData);
     }
 
-    // Extract Manuable label data if available
-    const manuableLabelData = labelData ? {
-      tracking_number: labelData.tracking_number,
-      label_url: labelData.label_url,
-      price: labelData.price
-    } : undefined;
+    // Extract data based on shipping option
+    let externalLabelData = undefined;
+    let externalCost = undefined;
+    let selectedManuableService = undefined;
+    let manuableLabelData = undefined;
 
-    // Create shipment data using utility function
+    if (shippingData.selectedOption === 'external') {
+      externalLabelData = shippingData.externalLabelData;
+      externalCost = shippingData.externalCost;
+    } else if (shippingData.selectedOption === 'manuable') {
+      selectedManuableService = shippingData.selectedManuableService;
+      if (shippingData.labelData) {
+        manuableLabelData = {
+          tracking_number: shippingData.labelData.tracking_number,
+          label_url: shippingData.labelData.label_url,
+          price: shippingData.labelData.price
+        };
+      }
+    }
+
+    // Create shipment data
     const shipmentData = createShipmentData(
       clientId,
       destId,
       selectedService,
       contenido,
-      selectedOption,
+      shippingData.selectedOption,
       externalLabelData,
       externalCost,
       selectedManuableService,
-      tempCotizacionId || '', // Provide empty string as fallback
+      tempCotizacionId || '',
       manuableLabelData
     );
 
     // Create the shipment with options
     const shipmentOptions: { labelFile?: File } = {};
-    if (selectedOption === 'external' && externalLabelData.labelFile) {
+    if (shippingData.selectedOption === 'external' && externalLabelData?.labelFile) {
       shipmentOptions.labelFile = externalLabelData.labelFile;
     }
 
     // Create the shipment
     const { id: shipmentId } = await apiService.createShipment(shipmentData, shipmentOptions);
 
-    // Clear the temporary quotation ID from localStorage
+    // Clear the temporary quotation ID
     localStorage.removeItem('current_cotizacion_id');
 
     return { clienteId: clientId, destinoId: destId, shipmentId };
   }
 
-  async function updateQuotationStatus(tempCotizacionId: string) {
-    if (selectedOption === 'external') {
+  async function updateQuotationStatus(tempCotizacionId: string, shippingData: any) {
+    if (shippingData.selectedOption === 'external') {
       try {
         await apiService.updateQuotationStatus({
           temp_id: tempCotizacionId,
           status_update: 'external_selected',
-          carrier: externalLabelData.carrier,
-          tracking_number: externalLabelData.trackingNumber,
+          carrier: shippingData.externalLabelData.carrier,
+          tracking_number: shippingData.externalLabelData.trackingNumber,
           service_id: selectedService.sku,
-          price: externalCost ?? undefined
+          price: shippingData.externalCost ?? undefined
         });
-        console.log("Updated quotation with external shipping details");
       } catch (updateError) {
         console.error("Error updating quotation status:", updateError);
-        // Continue even if update fails
+      }
+    } else if (shippingData.selectedOption === 'manuable' && shippingData.labelData) {
+      try {
+        await apiService.updateQuotationStatus({
+          temp_id: tempCotizacionId,
+          status_update: 'manuable_label_generated',
+          service_id: shippingData.selectedManuableService.uuid,
+          carrier: shippingData.selectedManuableService.carrier,
+          service_name: shippingData.selectedManuableService.service,
+          tracking_number: shippingData.labelData.tracking_number,
+          label_url: shippingData.labelData.label_url,
+          price: parseFloat(shippingData.labelData.price)
+        });
+      } catch (updateError) {
+        console.error("Error updating quotation status:", updateError);
       }
     }
   }
-
 
   // Render component based on current step
   return (
@@ -388,25 +353,6 @@ export default function DatosEnvio({
           <div className="bg-white p-6 rounded-xl shadow-xl flex items-center space-x-4">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
             <span className="text-gray-700 font-medium">Procesando envío...</span>
-          </div>
-        </div>
-      )}
-
-      {/* Optional: Internal step indicator for the form/confirmation phases */}
-      {step === 'confirmation' && (
-        <div className="mb-6">
-          <div className="flex items-center justify-center">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <CheckCircle2 className="w-4 h-4 text-green-600" />
-                <span>Datos completados</span>
-              </div>
-              <div className="w-8 h-px bg-gray-300"></div>
-              <div className="flex items-center space-x-2 text-sm font-medium text-blue-700">
-                <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-                <span>Confirmar envío</span>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -500,54 +446,33 @@ export default function DatosEnvio({
             />
           </div>
 
-          {/* Shipping Options */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <ShippingOptions
-              selectedOption={selectedOption}
-              setSelectedOption={setSelectedOption}
-              externalLabelData={externalLabelData}
-              setExternalLabelData={setExternalLabelData}
-              externalCost={externalCost}
-              setExternalCost={setExternalCost}
-              manuableServices={manuableServices}
-              setManuableServices={setManuableServices}
-              selectedManuableService={selectedManuableService}
-              setSelectedManuableService={setSelectedManuableService}
-              originZip={originZip}
-              destZip={destZip}
-              packageDetails={{
-                ...packageDetails,
-                content: contenido
-              }}
-              cliente={cliente!}
-              destino={destino!}
-              labelData={labelData}
-              setLabelData={setLabelData}
-            />
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex justify-between items-center pt-4 border-t">
+          {/* Single Action Button */}
+          <div className="flex justify-center pt-4">
             <Button
-              variant="outline"
-              onClick={handleBackToForm}
-              className="flex items-center"
+              onClick={() => setShowShippingModal(true)}
+              className="px-8 py-3 text-lg"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Modificar datos
-            </Button>
-
-            <Button
-              onClick={handleSubmit}
-              disabled={selectedOption === 'none' || isLoading}
-              className="flex items-center"
-            >
-              Finalizar y crear envío
-              <Check className="h-4 w-4 ml-2" />
+              Finalizar y Confirmar Envío
+              <CheckCircle2 className="h-5 w-5 ml-2" />
             </Button>
           </div>
         </div>
       )}
+
+      {/* Shipping Options Modal */}
+      <ShippingOptionsModal
+        isOpen={showShippingModal}
+        onClose={() => setShowShippingModal(false)}
+        onSubmit={handleShippingModalSubmit}
+        originZip={originZip}
+        destZip={destZip}
+        packageDetails={{
+          ...packageDetails,
+          content: contenido
+        }}
+        cliente={cliente!}
+        destino={destino!}
+      />
     </div>
   );
 }

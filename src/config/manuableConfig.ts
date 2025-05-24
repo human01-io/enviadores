@@ -20,12 +20,12 @@ export const manuableConfig = {
   },
   // API endpoints (adjusted for the worker)
   endpoints: {
-    session: '?endpoint=session',
-    rates: '?endpoint=rates',
-    labels: '?endpoint=labels',
-    balance: '?endpoint=accounts/balance',
-    getLabels: '?endpoint=labels',
-    surcharges: '?endpoint=surcharges'
+    session: `?endpoint=session&env=${import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production'}`,
+    rates: `?endpoint=rates&env=${import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production'}`,
+    labels: `?endpoint=labels&env=${import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production'}`,
+    balance: `?endpoint=accounts/balance&env=${import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production'}`,
+    getLabels: `?endpoint=labels&env=${import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production'}`,
+    surcharges: `?endpoint=surcharges&env=${import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production'}`
   },
   
   // Default values for API requests
@@ -62,4 +62,15 @@ export const updateManuableServiceConfig = () => {
   if (import.meta.env.VITE_MANUABLE_PROXY_URL) {
     manuableConfig.baseURL = import.meta.env.VITE_MANUABLE_PROXY_URL;
   }
+
+  // Update endpoints with the current environment
+  const env = import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production';
+  manuableConfig.endpoints = {
+    session: `?endpoint=session&env=${env}`,
+    rates: `?endpoint=rates&env=${env}`,
+    labels: `?endpoint=labels&env=${env}`,
+    balance: `?endpoint=accounts/balance&env=${env}`,
+    getLabels: `?endpoint=labels&env=${env}`,
+    surcharges: `?endpoint=surcharges&env=${env}`
+  };
 };

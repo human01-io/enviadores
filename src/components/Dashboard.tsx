@@ -30,6 +30,9 @@ import { Separator } from './ui/SeparatorComponent';
 import { ToastContainer, toast } from './ui/Toast';
 import { Cliente, Destino } from '../types';
 import logo from '../assets/logo.svg';
+import manuableLogo from '../assets/manuable-logo.svg'
+
+const ManuableIcon = () => <img src={manuableLogo} alt="Manuable" className='dashboard-manuable-icon'/>;
 
 // Lazy load modals for better performance
 const UserCreationModal = lazy(() => 
@@ -547,7 +550,7 @@ export default function ImprovedDashboard() {
             <CardContent className="space-y-1">
               <div ref={manuableDropdownRef} className="relative">
                 <DashboardItem 
-                  icon={Zap} 
+                  icon={ManuableIcon} 
                   label="Manuable" 
                   onClick={handleProviderItemClick}
                   variant="featured"
@@ -781,7 +784,7 @@ const DashboardItem = React.memo(function DashboardItem({
   const variantClasses = {
     default: "hover:bg-gray-50 text-gray-700 hover:text-gray-900 focus:ring-2 focus:ring-gray-200",
     primary: "hover:bg-blue-50 text-blue-700 hover:text-blue-800 border border-blue-100 focus:ring-2 focus:ring-blue-200",
-    featured: "bg-yellow-50 hover:bg-yellow-100 text-yellow-800 border border-yellow-200 focus:ring-2 focus:ring-yellow-200"
+    featured: "bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 focus:ring-2 focus:ring-purple-200"
   };
 
   return (
