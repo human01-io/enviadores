@@ -5,7 +5,7 @@ import { Cliente, Destino, ServicioCotizado } from '../../types';
 import EnvioDataDisplay from './EnvioDataDisplay';
 import EnvioConfirmation from './EnvioConfirmation';
 import ShippingOptionsModal from './ShippingOptionsModal';
-import { Check, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Check, AlertTriangle, CheckCircle2, RefreshCw, ArrowLeft } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Alert, AlertDescription } from '../ui/Alert';
 import {
@@ -67,6 +67,10 @@ export default function DatosEnvio({
     destValid: true
   });
 
+  // New state for tracking if we need a new quote
+  const [needsNewQuote, setNeedsNewQuote] = useState(false);
+  const [isGeneratingNewQuote, setIsGeneratingNewQuote] = useState(false);
+
   // Package details for Manuable API
   const [packageDetails] = useState({
     peso: selectedService.peso || 1,
@@ -86,11 +90,18 @@ export default function DatosEnvio({
     setCliente(null);
     setDestino(null);
     setErrorMessage(null);
+    setNeedsNewQuote(false);
   };
 
   const handleRemoveDestino = () => {
     setDestino(null);
     setErrorMessage(null);
+    // Check if we still need a new quote based on client ZIP
+    if (cliente && cliente.codigo_postal !== originZip) {
+      setNeedsNewQuote(true);
+    } else {
+      setNeedsNewQuote(false);
+    }
   };
 
   // Effects
@@ -137,12 +148,74 @@ export default function DatosEnvio({
 
   function validateZipCodes() {
     if (cliente && destino) {
+      const originValid = cliente.codigo_postal === originZip;
+      const destValid = destino.codigo_postal === destZip;
+      
       setZipValidation({
-        originValid: cliente.codigo_postal === originZip,
-        destValid: destino.codigo_postal === destZip
+        originValid,
+        destValid
       });
+
+      // Set needsNewQuote if any ZIP doesn't match
+      setNeedsNewQuote(!originValid || !destValid);
+    } else if (cliente) {
+      const originValid = cliente.codigo_postal === originZip;
+      setZipValidation({
+        originValid,
+        destValid: true // No destination yet
+      });
+      setNeedsNewQuote(!originValid);
     }
   }
+
+  // New function to handle generating a new quote
+  const handleGenerateNewQuote = async () => {
+    if (!cliente || !destino) {
+      setErrorMessage('Por favor complete los datos del remitente y destinatario');
+      return;
+    }
+
+    setIsGeneratingNewQuote(true);
+    setErrorMessage(null);
+
+    try {
+      // Save the current quotation ID for reference
+      const currentQuotationId = localStorage.getItem('current_cotizacion_id');
+      
+      // Create a new quotation URL with updated ZIP codes
+      const quotationParams = new URLSearchParams({
+        originZip: cliente.codigo_postal,
+        destZip: destino.codigo_postal,
+        // Preserve package details from current service
+        packageType: selectedService.tipoPaquete || 'Paquete',
+        weight: selectedService.peso?.toString() || '1',
+        // Include dimensions if it's a package
+        ...(selectedService.tipoPaquete === 'Paquete' && {
+          length: selectedService.largo?.toString() || '30',
+          width: selectedService.ancho?.toString() || '25',
+          height: selectedService.alto?.toString() || '10',
+        }),
+        // Include other quotation details
+        insurance: selectedService.valorSeguro > 0 ? 'true' : 'false',
+        insuranceValue: selectedService.valorSeguro?.toString() || '0',
+        // Preserve client and destination IDs
+        clienteId: cliente.id || '',
+        destinoId: destino.id || '',
+        // Mark this as a re-quote
+        requote: 'true',
+        previousQuotationId: currentQuotationId || ''
+      });
+
+      // Navigate back to cotizador with the new parameters
+      // This will trigger a new quotation with the updated ZIP codes
+      window.location.href = `/cotizador?${quotationParams.toString()}`;
+      
+    } catch (error) {
+      console.error('Error generating new quote:', error);
+      setErrorMessage('Error al generar nueva cotización. Por favor intente nuevamente.');
+      setIsGeneratingNewQuote(false);
+    }
+  };
 
   // Event handlers
   const handleUpdateCliente = (updatedCliente: Cliente) => {
@@ -168,6 +241,11 @@ export default function DatosEnvio({
       } else if (!contenido.trim()) {
         setErrorMessage('Por favor describa el contenido del envío');
       }
+      return;
+    }
+
+    if (needsNewQuote) {
+      setErrorMessage('Los códigos postales no coinciden con la cotización. Por favor genere una nueva cotización.');
       return;
     }
 
@@ -348,11 +426,13 @@ export default function DatosEnvio({
   return (
     <div className="w-full">
       {/* Loading Overlay */}
-      {isLoading && (
+      {(isLoading || isGeneratingNewQuote) && (
         <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-xl shadow-xl flex items-center space-x-4">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
-            <span className="text-gray-700 font-medium">Procesando envío...</span>
+            <span className="text-gray-700 font-medium">
+              {isGeneratingNewQuote ? 'Generando nueva cotización...' : 'Procesando envío...'}
+            </span>
           </div>
         </div>
       )}
@@ -373,6 +453,44 @@ export default function DatosEnvio({
             </motion.div>
           )}
 
+          {/* ZIP Validation Warning - Enhanced */}
+          {needsNewQuote && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4"
+            >
+              <div className="flex items-start">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 mr-3 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-800 mb-2">
+                    Códigos postales no coinciden con la cotización
+                  </h3>
+                  <div className="text-sm text-yellow-700 space-y-2">
+                    {!zipValidation.originValid && (
+                      <p>• Código postal de origen: {cliente?.codigo_postal} (cotización: {originZip})</p>
+                    )}
+                    {!zipValidation.destValid && (
+                      <p>• Código postal de destino: {destino?.codigo_postal} (cotización: {destZip})</p>
+                    )}
+                  </div>
+                  <p className="text-sm text-yellow-700 mt-3">
+                    Los precios de envío pueden variar según los códigos postales. 
+                    Es necesario generar una nueva cotización con los códigos postales actualizados.
+                  </p>
+                  <Button
+                    onClick={handleGenerateNewQuote}
+                    className="mt-4 bg-yellow-600 hover:bg-yellow-700 text-white"
+                    disabled={!cliente || !destino}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Generar Nueva Cotización
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* Main Data Display */}
           <EnvioDataDisplay
             cliente={cliente}
@@ -385,16 +503,34 @@ export default function DatosEnvio({
             contenido={contenido}
             onUpdateContenido={handleUpdateContenido}
             zipValidation={zipValidation}
+            originZip={originZip}
+            destZip={destZip}
           />
 
           {/* Form Actions */}
-          <div className="flex justify-end items-center pt-4 border-t">
+          <div className="flex justify-between items-center pt-4 border-t">
+            <Button
+              onClick={onBack}
+              variant="outline"
+              className="flex items-center"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Regresar a cotización
+            </Button>
+            
             <Button
               onClick={handleContinueToConfirmation}
-              disabled={!isFormValid()}
-              className={`flex items-center ${!isFormValid() ? 'opacity-50' : ''}`}
+              disabled={!isFormValid() || needsNewQuote}
+              className={`flex items-center ${
+                (!isFormValid() || needsNewQuote) ? 'opacity-50' : ''
+              }`}
             >
-              {isFormValid() ? (
+              {needsNewQuote ? (
+                <>
+                  Generar nueva cotización primero
+                  <AlertTriangle className="h-4 w-4 ml-2" />
+                </>
+              ) : isFormValid() ? (
                 <>
                   Continuar a confirmación
                   <Check className="h-4 w-4 ml-2" />
@@ -407,17 +543,6 @@ export default function DatosEnvio({
               )}
             </Button>
           </div>
-
-          {/* ZIP Validation Warning */}
-          {isFormValid() && !isZipValidationPassing() && (
-            <Alert className="border-yellow-200 bg-yellow-50">
-              <AlertTriangle className="h-4 w-4 mr-2 text-yellow-600" />
-              <AlertDescription className="text-yellow-800">
-                Los códigos postales seleccionados no coinciden con la cotización original.
-                Esto puede causar discrepancias en el precio y servicio.
-              </AlertDescription>
-            </Alert>
-          )}
         </div>
       ) : (
         <div className="space-y-6">

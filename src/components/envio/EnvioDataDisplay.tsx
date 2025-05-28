@@ -6,8 +6,7 @@ import ClienteFormModal from '../shared/ClienteFormModal';
 import DestinoFormModal from '../shared/DestinoFormModal';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/CardComponent';
-import { Badge } from '../ui/BadgeComponent';
-import { Separator } from '../ui/SeparatorComponent';
+import { ZipMismatchAlert } from './ZipMismatchAlert';
 
 interface EnvioDataDisplayProps {
   cliente: Cliente | null;
@@ -21,6 +20,8 @@ interface EnvioDataDisplayProps {
   contenido: string;
   onUpdateContenido: (contenido: string) => void;
   zipValidation: { originValid: boolean; destValid: boolean };
+  originZip?: string;
+  destZip?: string;
 }
 
 const EnvioDataDisplay: React.FC<EnvioDataDisplayProps> = ({
@@ -33,7 +34,9 @@ const EnvioDataDisplay: React.FC<EnvioDataDisplayProps> = ({
   clienteId,
   contenido,
   onUpdateContenido,
-  zipValidation
+  zipValidation,
+  originZip = '',
+  destZip = ''
 }) => {
   const [showClientModal, setShowClientModal] = useState(false);
   const [showDestinoModal, setShowDestinoModal] = useState(false);
@@ -193,16 +196,10 @@ const EnvioDataDisplay: React.FC<EnvioDataDisplayProps> = ({
             <CardContent className="p-3 lg:p-4 flex-1">
               {cliente ? (
                 <div className="space-y-2 lg:space-y-3">
-                  <div className="flex justify-between items-start">
+                  <div>
                     <h3 className="text-sm lg:text-base font-medium leading-tight">
                       {cliente.nombre} {cliente.apellido_paterno} {cliente.apellido_materno}
                     </h3>
-                    {!zipValidation.originValid && (
-                      <Badge variant="destructive" className="flex items-center text-xs">
-                        <AlertTriangle className="h-2 w-2 lg:h-3 lg:w-3 mr-1" />
-                        CP no coincide
-                      </Badge>
-                    )}
                   </div>
                   
                   {cliente.tipo === 'empresa' && cliente.razon_social && (
@@ -252,6 +249,14 @@ const EnvioDataDisplay: React.FC<EnvioDataDisplayProps> = ({
                         <div><span className="font-medium">Notas:</span> {cliente.notas}</div>
                       )}
                     </div>
+                  )}
+                  
+                  {!zipValidation.originValid && (
+                    <ZipMismatchAlert
+                      type="origin"
+                      currentZip={cliente.codigo_postal}
+                      expectedZip={originZip}
+                    />
                   )}
                 </div>
               ) : (
@@ -316,17 +321,11 @@ const EnvioDataDisplay: React.FC<EnvioDataDisplayProps> = ({
             <CardContent className="p-3 lg:p-4 flex-1">
               {destino ? (
                 <div className="space-y-2 lg:space-y-3">
-                  <div className="flex justify-between items-start">
+                  <div>
                     <h3 className="text-sm lg:text-base font-medium leading-tight">
                       {destino.nombre_destinatario}
                       {destino.alias && <span className="ml-2 text-xs lg:text-sm text-gray-500">({destino.alias})</span>}
                     </h3>
-                    {!zipValidation.destValid && (
-                      <Badge variant="destructive" className="flex items-center text-xs">
-                        <AlertTriangle className="h-2 w-2 lg:h-3 lg:w-3 mr-1" />
-                        CP no coincide
-                      </Badge>
-                    )}
                   </div>
                   
                   <div className="space-y-2 text-xs lg:text-sm">
@@ -364,6 +363,14 @@ const EnvioDataDisplay: React.FC<EnvioDataDisplayProps> = ({
                         <div><span className="font-medium">Instrucciones de entrega:</span> {destino.instrucciones_entrega}</div>
                       )}
                     </div>
+                  )}
+                  
+                  {!zipValidation.destValid && (
+                    <ZipMismatchAlert
+                      type="destination"
+                      currentZip={destino.codigo_postal}
+                      expectedZip={destZip}
+                    />
                   )}
                 </div>
               ) : (

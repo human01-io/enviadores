@@ -127,6 +127,73 @@ export default function Cotizador() {
           role: response.role
         });
 
+        // Check URL parameters for re-quote scenario
+        const urlParams = new URLSearchParams(window.location.search);
+        const isRequote = urlParams.get('requote') === 'true';
+
+        if (isRequote) {
+          // Handle re-quote from DatosEnvio
+          const originZip = urlParams.get('originZip');
+          const destZip = urlParams.get('destZip');
+          const packageType = urlParams.get('packageType');
+          const weight = urlParams.get('weight');
+          const length = urlParams.get('length');
+          const width = urlParams.get('width');
+          const height = urlParams.get('height');
+          const insurance = urlParams.get('insurance') === 'true';
+          const insuranceValue = urlParams.get('insuranceValue');
+          const clienteId = urlParams.get('clienteId');
+          const destinoId = urlParams.get('destinoId');
+          const previousQuotationId = urlParams.get('previousQuotationId');
+
+          // Set all the values
+          if (originZip) updateField('originZip', originZip);
+          if (destZip) updateField('destZip', destZip);
+          if (packageType) updateField('packageType', packageType);
+          if (weight) updateField('weight', weight);
+          if (length) updateField('length', length);
+          if (width) updateField('width', width);
+          if (height) updateField('height', height);
+          updateField('insurance', insurance);
+          if (insuranceValue) updateField('insuranceValue', insuranceValue);
+          if (clienteId) updateField('clienteId', clienteId);
+          if (destinoId) updateField('destinoId', destinoId);
+
+          // Clear the old quotation ID and set a new one
+          if (previousQuotationId) {
+            localStorage.removeItem('current_cotizacion_id');
+          }
+
+          // Validate the ZIP codes to populate location data
+          setTimeout(() => {
+            validateZipCodes();
+
+            // Show notification about re-quote
+            setNotification({
+              show: true,
+              message: 'Generando nueva cotización con códigos postales actualizados',
+              details: `Origen: ${originZip}, Destino: ${destZip}`
+            });
+
+            // If we have all required data, automatically go to package tab
+            if (packageType && weight) {
+              setCurrentTab('package');
+
+              // Auto-fetch quote if it's a simple re-quote
+              if ((packageType === 'Sobre') ||
+                (packageType === 'Paquete' && length && width && height)) {
+                setTimeout(() => {
+                  fetchQuoteAndShowResults();
+                }, 1000);
+              }
+            }
+          }, 100);
+
+          // Clear URL parameters to avoid re-triggering
+          window.history.replaceState({}, document.title, window.location.pathname);
+          return;
+        }
+
         // Check for abandoned quotations that can be restored
         await apiService.checkForAbandonedQuotations({
           onQuotationFound: (latestQuotation) => {
@@ -255,50 +322,107 @@ export default function Cotizador() {
     setCurrentTab('results');
   };
 
-  const calculateProgress = () => {
-    if (state.flowStage === 'customer-data') return 100;
-    if (selectedService) return 75;
-    if (servicios && servicios.length > 0) return 50;
-    if (state.isValidated) return 25;
-    return 5;
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Clean Header - Full width, minimal padding */}
       <header className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
-        <div className="px-4 sm:px-6 py-3">
-          {/* Main navigation row */}
-          <div className="flex items-center justify-between">
-            {/* Left section with logo and back button */}
-            <div className="flex items-center gap-3">
+        <div className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3">
+          {/* Single row containing all elements */}
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            {/* Left section - responsive sizing */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={redirectToDashboard}
                 aria-label="Go back"
-                className="hover:bg-gray-100"
+                className="h-8 w-8 sm:h-10 sm:w-10 hover:bg-gray-100"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
               </Button>
               <div className="flex items-center">
-                <div className="w-8 h-8 flex items-center justify-center mr-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center mr-2 sm:mr-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-6 sm:w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
                   </svg>
                 </div>
-                <div>
-                  <h1 className="text-lg font-semibold text-gray-900">Cotizador</h1>
-                  <p className="text-sm text-gray-500">Sistema de cotización de envíos</p>
+                <div className="hidden sm:block">
+                  <h1 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900">Cotizador</h1>
+                  <p className="text-xs sm:text-sm text-gray-500">Sistema de cotización de envíos</p>
+                </div>
+                <div className="sm:hidden">
+                  <h1 className="text-sm font-semibold text-gray-900">Cotizador</h1>
                 </div>
               </div>
             </div>
 
-            {/* Right section with user account */}
-            <div className="flex items-center gap-4">
-              <UserAccount 
+            {/* Center section - responsive flow buttons */}
+            <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-center min-w-0">
+              {/* Flow stage buttons - responsive sizing */}
+              <div className="flex bg-gray-100 rounded-lg p-0.5 sm:p-1">
+                <Button
+                  variant={state.flowStage === 'quote' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => updateField('flowStage', 'quote')}
+                  className="rounded-md px-2 py-1 sm:px-3 sm:py-2 text-xs sm:text-sm"
+                >
+                  <span className="flex items-center gap-1 sm:gap-2">
+                    <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-xs font-bold bg-white text-blue-600">
+                      1
+                    </span>
+                    <span className="hidden sm:inline">Cotización</span>
+                  </span>
+                </Button>
+                <Button
+                  variant={state.flowStage === 'customer-data' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => selectedService && updateField('flowStage', 'customer-data')}
+                  disabled={!selectedService}
+                  className="rounded-md px-2 py-1 sm:px-3 sm:py-2 text-xs sm:text-sm opacity-100 disabled:opacity-50"
+                >
+                  <span className="flex items-center gap-1 sm:gap-2">
+                    <span className="w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-xs font-bold bg-gray-300 text-gray-600">
+                      2
+                    </span>
+                    <span className="hidden sm:inline">Datos del Envío</span>
+                  </span>
+                </Button>
+              </div>
+
+              <Separator orientation="vertical" className="h-4 sm:h-6 mx-1 sm:mx-2 hidden md:block" />
+
+              {/* Zone display and Reset button - responsive */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                {getZoneDisplay() && (
+                  <Badge variant="secondary" className="bg-blue-50 text-blue-700 border border-blue-200 text-xs sm:text-sm px-2 py-1">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    <span className="block sm:hidden truncate max-w-[50px]">
+                      {getZoneDisplay()!.short}
+                    </span>
+                    <span className="hidden sm:block">
+                      {getZoneDisplay()!.full}
+                    </span>
+                  </Badge>
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResetCotizacion}
+                  className="text-orange-600 border-orange-200 hover:bg-orange-50 bg-white px-2 py-1 sm:px-3 sm:py-2 text-xs sm:text-sm"
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  <span className="sr-only sm:not-sr-only sm:inline">Reiniciar</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Right section - UserAccount already responsive */}
+            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+              <UserAccount
                 userData={userData}
                 onLogout={handleLogout}
                 variant="dropdown"
@@ -306,84 +430,13 @@ export default function Cotizador() {
               />
             </div>
           </div>
-
-          {/* Secondary row for flow stage buttons */}
-          <div className="mt-4 flex flex-wrap items-center gap-4">
-            {/* Flow stage buttons */}
-            <div className="flex bg-gray-100 rounded-lg p-1">
-              <Button
-                variant={state.flowStage === 'quote' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => updateField('flowStage', 'quote')}
-                className="rounded-md"
-              >
-                <span className="flex items-center gap-2">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
-                    state.flowStage === 'quote' ? 'bg-white text-blue-600' : 'bg-gray-300 text-gray-600'
-                  }`}>
-                    1
-                  </span>
-                  Cotización
-                </span>
-              </Button>
-              <Button
-                variant={state.flowStage === 'customer-data' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => selectedService && updateField('flowStage', 'customer-data')}
-                disabled={!selectedService}
-                className="rounded-md opacity-100 disabled:opacity-50"
-              >
-                <span className="flex items-center gap-2">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
-                    state.flowStage === 'customer-data' ? 'bg-white text-blue-600' : 'bg-gray-300 text-gray-600'
-                  }`}>
-                    2
-                  </span>
-                  Datos del Envío
-                </span>
-              </Button>
-            </div>
-
-            <Separator orientation="vertical" className="h-6 mx-2 hidden sm:block" />
-
-            {/* Zone display and Reset button */}
-            <div className="flex items-center gap-3">
-              {getZoneDisplay() && (
-                <Badge variant="secondary" className="bg-blue-50 text-blue-700 border border-blue-200">
-                  <MapPin className="h-3 w-3 mr-1" />
-                  <span className="block sm:hidden truncate max-w-[80px]">
-                    {getZoneDisplay()!.short}
-                  </span>
-                  <span className="hidden sm:block">
-                    {getZoneDisplay()!.full}
-                  </span>
-                </Badge>
-              )}
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleResetCotizacion}
-                className="text-orange-600 border-orange-200 hover:bg-orange-50 bg-white"
-              >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                <span className="sr-only sm:not-sr-only sm:inline text-xs">Reiniciar</span>
-              </Button>
-            </div>
-          </div>
         </div>
       </header>
 
-      <main className="flex-1 px-4 sm:px-6 py-6">
+
+      <main className="flex-1 px-2 sm:px-2 lg:px-2 py-2 sm:py-2">
         {state.flowStage === 'quote' ? (
           <div className="w-full">
-            {/* Clean progress bar */}
-            <div className="w-full h-2 bg-gray-200 mb-6 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                style={{ width: `${calculateProgress()}%` }}
-              />
-            </div>
 
             <Tabs
               value={currentTab}
@@ -392,12 +445,12 @@ export default function Cotizador() {
               }}
               className="w-full"
             >
-              <Card className='overflow-hidden bg-white border-gray-200 shadow-sm'>
-                <CardHeader className="pb-2 px-4 sm:px-6 bg-gray-50">
-                  <TabsList className="grid grid-cols-3 mb-2 w-full bg-white">
+              <Card className='relative bg-white border-gray-200'>
+                <CardHeader className="sticky top-0 py-1 px-1 sm:px-1 bg-gray-50 border-b border-gray-200 shadow-md z-10">
+                  <TabsList className="grid grid-cols-3 mb-auto w-full h-auto p-0 bg-white">
                     <TabsTrigger
                       value="address"
-                      className={`flex items-center justify-center relative transition-all duration-200
+                      className={`flex items-center justify-center relative transition-all duration-200 text-xs sm:text-sm px-2 py-2 h-auto min-h-[36px]
                         ${state.isValidated
                           ? 'data-[state=active]:bg-green-50 data-[state=active]:text-green-800 data-[state=active]:border-green-300 bg-green-50 text-green-700 border-green-200'
                           : 'data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-blue-300'
@@ -489,8 +542,8 @@ export default function Cotizador() {
                     </TabsTrigger>
                   </TabsList>
 
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-xl font-semibold text-gray-900">Cotización de envío</CardTitle>
+                  <div className="justify-between items-center hidden 2xl:flex">
+                    <CardTitle className="text-xl font-semibold text-gray-900 px-4">Cotización de envío</CardTitle>
                     <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200">
                       {state.flowStage === 'quote' ? (
                         selectedService
@@ -507,12 +560,12 @@ export default function Cotizador() {
                   </div>
                 </CardHeader>
 
-                <CardContent className="p-0">
+                <CardContent className="p-0 flex-1 overflow-hidden">
                   <TabsContent value="address" className="mt-0">
-                    <ScrollArea className="h-[calc(100vh-300px)] pr-4">
-                      <div className="p-6">
-                        <div className="flex flex-col md:flex-row gap-6">
-                          <div className="w-full md:w-2/4">
+                    <ScrollArea className="h-[calc(100vh-150px)] pr-4">
+                      <div className="p-3 sm:p-2">
+                        <div className="flex flex-col lg:flex-row gap-3">
+                          <div className="w-full lg:w-5/8">
                             <AddressSection
                               state={state}
                               updateField={updateField}
@@ -565,35 +618,31 @@ export default function Cotizador() {
 
                           {/* Right column - Zone info and DeliveryInfoDisplay */}
                           {state.isValidated && !state.isInternational && (
-                            <div className="w-full md:w-2/4 flex flex-col gap-4">
-                              {/* Zone information */}
+                            <div className="w-full lg:w-4/8 flex flex-col gap-2">
+                              {/* Compact zone info */}
                               {state.zone !== null && (
-                                <div className="bg-blue-50 text-blue-800 rounded-lg border border-blue-200 p-4">
+                                <div className="bg-blue-50 text-blue-800 rounded p-2 border border-blue-200 text-sm">
                                   <div className="flex items-center">
-                                    <MapPin className="h-5 w-5 mr-2" />
-                                    <p className="font-medium">Zona: {state.zone}</p>
+                                    <MapPin className="h-4 w-4 mr-1" />
+                                    <p className="font-medium text-sm">Zona: {state.zone}</p>
                                   </div>
                                 </div>
                               )}
-                              
-                              {/* Same ZIP Warning */}
+
+                              {/* Compact same ZIP warning */}
                               {sameZipWarning && !originZipError && !destZipError && (
-                                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                                <div className="bg-yellow-50 p-2 rounded border border-yellow-200 text-sm">
                                   <div className="flex items-start">
-                                    <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2 mt-0.5" />
+                                    <AlertTriangle className="h-4 w-4 text-yellow-600 mr-1 mt-0.5 flex-shrink-0" />
                                     <div>
-                                      <h4 className="text-sm font-medium text-yellow-700">
-                                        Advertencia: Códigos postales idénticos
-                                      </h4>
-                                      <p className="text-xs text-yellow-600 mt-1">
-                                        {sameZipWarning}
-                                      </p>
+                                      <h4 className="text-xs font-medium text-yellow-700">Códigos postales idénticos</h4>
+                                      <p className="text-xs text-yellow-600 mt-0.5">{sameZipWarning}</p>
                                     </div>
                                   </div>
                                 </div>
                               )}
 
-                              {/* DeliveryInfoDisplay */}
+                              {/* Compact DeliveryInfoDisplay */}
                               <DeliveryInfoDisplay
                                 estafetaResult={estafetaResult}
                                 loadingEstafeta={loadingEstafeta}
@@ -637,8 +686,8 @@ export default function Cotizador() {
                   </TabsContent>
 
                   <TabsContent value="package" className="mt-0">
-                    <ScrollArea className="h-[calc(100vh-300px)] pr-4">
-                      <div className="p-6">
+                    <ScrollArea className="h-[calc(100vh-160px)] pr-4">
+                      <div className="p-4">
                         <PackageDetailsSection
                           state={state}
                           updateField={updateField}
@@ -652,7 +701,7 @@ export default function Cotizador() {
                   </TabsContent>
 
                   <TabsContent value="results" className="mt-0">
-                    <ScrollArea className="h-[calc(100vh-300px)] pr-4">
+                    <ScrollArea className="h-[calc(100vh-160px)] pr-4">
                       <div className="p-6">
                         {servicios && servicios.length > 0 && detallesCotizacion && (
                           <QuoteResultsSection
@@ -685,7 +734,7 @@ export default function Cotizador() {
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     <span className="hidden sm:inline">Volver</span>
                   </Button>
-                  
+
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-blue-50 rounded-full flex items-center justify-center">
                       <Package className="w-4 h-4 text-blue-600" />

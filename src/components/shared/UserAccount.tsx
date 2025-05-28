@@ -104,7 +104,8 @@ export function UserAccount({
         <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
           {userData.name.charAt(0).toUpperCase()}
         </div>
-        <div className="flex flex-col items-start text-left">
+        {/* Hide text content on mobile (sm and below), show on tablet and up */}
+        <div className="hidden sm:flex flex-col items-start text-left">
           <span className="text-sm font-medium text-gray-900">
             {userData.name}
           </span>
@@ -112,7 +113,8 @@ export function UserAccount({
             {getRoleDisplay(userData.role)}
           </Badge>
         </div>
-        <ChevronDown className="h-4 w-4 text-gray-500" />
+        {/* Hide chevron on mobile, show on tablet and up */}
+        <ChevronDown className="hidden sm:block h-4 w-4 text-gray-500" />
       </button>
 
       {/* Dropdown Menu */}
