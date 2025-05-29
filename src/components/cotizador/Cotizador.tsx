@@ -1,9 +1,9 @@
-// src/components/cotizador/Cotizador.tsx - Complete Fixed Version
+// Streamlined Cotizador with 2 steps
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RefreshCw, MapPin, Package, Check, CheckCircle, AlertTriangle, ArrowRight, ArrowLeft, Clock } from 'lucide-react';
+import { RefreshCw, MapPin, Package, Check, CheckCircle, AlertTriangle, ArrowRight, ArrowLeft, Clock, DollarSign, Info, X } from 'lucide-react';
 import { AddressSection } from './AddressSection';
 import { DeliveryInfoDisplay } from './DeliveryInfoDisplay';
 import { PackageDetailsSection } from './PackageDetailsSection';
@@ -20,6 +20,7 @@ import { Separator } from '../ui/SeparatorComponent';
 import { ScrollArea } from '../ui/ScrollAreaComponent';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '../../services/apiService';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/Dialog';
 
 interface UserData {
   name: string;
@@ -99,22 +100,81 @@ export default function Cotizador() {
     role: 'customer_user'
   });
 
-  const [currentTab, setCurrentTab] = useState<'address' | 'package' | 'results'>('address');
-  const [allowTabNavigation, setAllowTabNavigation] = useState(true);
+  const [currentTab, setCurrentTab] = useState<'details' | 'results'>('details');
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [isValidatingAndQuoting, setIsValidatingAndQuoting] = useState(false);
+  const [additionalChargesChanged, setAdditionalChargesChanged] = useState(false);
 
-  const fetchQuoteAndShowResults = async () => {
-    setAllowTabNavigation(false);
+  // Track changes to additional services
+  useEffect(() => {
+    if (servicios && servicios.length > 0) {
+      setAdditionalChargesChanged(true);
+    }
+  }, [state.packagingOption, state.customPackagingPrice, state.collectionRequired, state.collectionPrice, state.insurance, state.insuranceValue]);
+
+  // Function to re-quote with additional charges
+  const handleReQuote = async () => {
+    setAdditionalChargesChanged(false);
     await fetchQuote();
   };
 
+  // Auto-validate zip codes when both are 5 digits
   useEffect(() => {
-    if (servicios && servicios.length > 0 && currentTab === 'package' && !allowTabNavigation) {
-      setCurrentTab('results');
-      setAllowTabNavigation(true);
+    if (state.originZip.length === 5 && state.destZip.length === 5 && !state.isValidated) {
+      validateZipCodes();
     }
-  }, [servicios, currentTab, allowTabNavigation]);
+  }, [state.originZip, state.destZip]);
 
-  // Check for abandoned quotations when component mounts
+  // Check if ready to quote
+  const canQuote = (state.isInternational ? state.selectedZone : state.isValidated) && 
+    state.packageType &&
+    ((state.packageType === "Paquete" && 
+      state.length && state.width && state.height && state.weight && 
+      !isNaN(parseFloat(state.length)) && !isNaN(parseFloat(state.width)) && 
+      !isNaN(parseFloat(state.height)) && !isNaN(parseFloat(state.weight))) ||
+    (state.packageType === "Sobre" && state.weight && !isNaN(parseFloat(state.weight)))) &&
+    !originZipError && !destZipError;
+
+  // Handle the combined validation and quote process
+  const handleCotizar = async () => {
+    setIsValidatingAndQuoting(true);
+    
+    try {
+      // If not validated yet, validate first
+      if (!state.isValidated && !state.isInternational) {
+        await validateZipCodes();
+        // Wait a bit for validation to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      // Show delivery info modal if national shipping
+      if (!state.isInternational && estafetaResult) {
+        setShowDeliveryModal(true);
+        // Wait for user to close modal before continuing
+        return;
+      }
+
+      // If international or no delivery info needed, proceed directly
+      await proceedWithQuote();
+    } catch (error) {
+      console.error("Error during quotation:", error);
+      setNotification({
+        show: true,
+        message: 'Error al cotizar',
+        details: 'Por favor intente nuevamente'
+      });
+    } finally {
+      setIsValidatingAndQuoting(false);
+    }
+  };
+
+  const proceedWithQuote = async () => {
+    setShowDeliveryModal(false);
+    await fetchQuote();
+    setCurrentTab('results');
+  };
+
+  // Initialize component
   useEffect(() => {
     const initializeComponent = async () => {
       try {
@@ -144,7 +204,6 @@ export default function Cotizador() {
           const insuranceValue = urlParams.get('insuranceValue');
           const clienteId = urlParams.get('clienteId');
           const destinoId = urlParams.get('destinoId');
-          const previousQuotationId = urlParams.get('previousQuotationId');
 
           // Set all the values
           if (originZip) updateField('originZip', originZip);
@@ -159,101 +218,9 @@ export default function Cotizador() {
           if (clienteId) updateField('clienteId', clienteId);
           if (destinoId) updateField('destinoId', destinoId);
 
-          // Clear the old quotation ID and set a new one
-          if (previousQuotationId) {
-            localStorage.removeItem('current_cotizacion_id');
-          }
-
-          // Validate the ZIP codes to populate location data
-          setTimeout(() => {
-            validateZipCodes();
-
-            // Show notification about re-quote
-            setNotification({
-              show: true,
-              message: 'Generando nueva cotización con códigos postales actualizados',
-              details: `Origen: ${originZip}, Destino: ${destZip}`
-            });
-
-            // If we have all required data, automatically go to package tab
-            if (packageType && weight) {
-              setCurrentTab('package');
-
-              // Auto-fetch quote if it's a simple re-quote
-              if ((packageType === 'Sobre') ||
-                (packageType === 'Paquete' && length && width && height)) {
-                setTimeout(() => {
-                  fetchQuoteAndShowResults();
-                }, 1000);
-              }
-            }
-          }, 100);
-
-          // Clear URL parameters to avoid re-triggering
+          // Clear URL parameters
           window.history.replaceState({}, document.title, window.location.pathname);
-          return;
         }
-
-        // Check for abandoned quotations that can be restored
-        await apiService.checkForAbandonedQuotations({
-          onQuotationFound: (latestQuotation) => {
-            const quotationDate = new Date(latestQuotation.created_at);
-            const formattedDate = quotationDate.toLocaleString();
-
-            const shouldRestore = confirm(
-              `¿Desea continuar con su cotización anterior?\n\nCreada: ${formattedDate}\nOrigen: ${latestQuotation.origen_cp}, Destino: ${latestQuotation.destino_cp}\nTipo: ${latestQuotation.tipo_paquete}`
-            );
-
-            if (shouldRestore) {
-              updateField('originZip', latestQuotation.origen_cp);
-              updateField('destZip', latestQuotation.destino_cp);
-              updateField('packageType', latestQuotation.tipo_paquete);
-
-              if (latestQuotation.largo) updateField('length', latestQuotation.largo.toString());
-              if (latestQuotation.ancho) updateField('width', latestQuotation.ancho.toString());
-              if (latestQuotation.alto) updateField('height', latestQuotation.alto.toString());
-              if (latestQuotation.peso_real) updateField('weight', latestQuotation.peso_real.toString());
-
-              updateField('volumetricWeight', latestQuotation.peso_volumetrico || 0);
-              updateField('packagingOption', latestQuotation.opcion_empaque || "EMP00");
-              updateField('collectionRequired', !!latestQuotation.requiere_recoleccion);
-              updateField('clienteId', latestQuotation.cliente_id || null);
-              updateField('destinoId', latestQuotation.destino_id || null);
-              updateField('isValidated', true);
-
-              localStorage.setItem('current_cotizacion_id', latestQuotation.temp_id);
-              validateZipCodes();
-
-              if (latestQuotation.servicios_json) {
-                try {
-                  const serviciosData = JSON.parse(latestQuotation.servicios_json);
-                  setServicios(serviciosData);
-
-                  if (latestQuotation.detalles_json) {
-                    const cotizacionDetails = JSON.parse(latestQuotation.detalles_json);
-                    setDetallesCotizacion(cotizacionDetails);
-                  }
-                } catch (parseError) {
-                  console.error("Error parsing saved services:", parseError);
-                }
-              }
-
-              setNotification({
-                show: true,
-                message: 'Cotización restaurada correctamente',
-                details: null
-              });
-
-              return true;
-            } else {
-              const skipFuture = confirm("¿Desea que no se le vuelvan a mostrar cotizaciones abandonadas?");
-              if (skipFuture) {
-                localStorage.setItem('skip_quotation_restore', 'true');
-              }
-              return false;
-            }
-          }
-        });
       } catch (error) {
         console.error("Error initializing component:", error);
       }
@@ -276,7 +243,7 @@ export default function Cotizador() {
     if (confirm("¿Está seguro que desea reiniciar la cotización? Se perderán todos los datos ingresados.")) {
       localStorage.removeItem('current_cotizacion_id');
       resetForm();
-      setCurrentTab('address');
+      setCurrentTab('details');
       setNotification({
         show: true,
         message: 'Cotización reiniciada correctamente',
@@ -291,10 +258,6 @@ export default function Cotizador() {
     } else {
       router('/dashboard');
     }
-  };
-
-  const validateZipCodesWithEstafeta = () => {
-    validateZipCodes();
   };
 
   const getZoneDisplay = () => {
@@ -312,25 +275,13 @@ export default function Cotizador() {
     return null;
   };
 
-  const handleContinueToPackage = () => {
-    setAllowTabNavigation(true);
-    setCurrentTab('package');
-  };
-
-  const handleContinueToResults = () => {
-    setAllowTabNavigation(true);
-    setCurrentTab('results');
-  };
-
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Clean Header - Full width, minimal padding */}
+      {/* Clean Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
         <div className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3">
-          {/* Single row containing all elements */}
           <div className="flex items-center justify-between gap-2 sm:gap-4">
-            {/* Left section - responsive sizing */}
+            {/* Left section */}
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <Button
                 variant="ghost"
@@ -359,9 +310,8 @@ export default function Cotizador() {
               </div>
             </div>
 
-            {/* Center section - responsive flow buttons */}
+            {/* Center section */}
             <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-center min-w-0">
-              {/* Flow stage buttons - responsive sizing */}
               <div className="flex bg-gray-100 rounded-lg p-0.5 sm:p-1">
                 <Button
                   variant={state.flowStage === 'quote' ? 'default' : 'ghost'}
@@ -394,7 +344,7 @@ export default function Cotizador() {
 
               <Separator orientation="vertical" className="h-4 sm:h-6 mx-1 sm:mx-2 hidden md:block" />
 
-              {/* Zone display and Reset button - responsive */}
+              {/* Zone display and Reset button */}
               <div className="flex items-center gap-2 sm:gap-3">
                 {getZoneDisplay() && (
                   <Badge variant="secondary" className="bg-blue-50 text-blue-700 border border-blue-200 text-xs sm:text-sm px-2 py-1">
@@ -420,7 +370,7 @@ export default function Cotizador() {
               </div>
             </div>
 
-            {/* Right section - UserAccount already responsive */}
+            {/* Right section */}
             <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
               <UserAccount
                 userData={userData}
@@ -433,25 +383,23 @@ export default function Cotizador() {
         </div>
       </header>
 
-
       <main className="flex-1 px-2 sm:px-2 lg:px-2 py-2 sm:py-2">
         {state.flowStage === 'quote' ? (
           <div className="w-full">
-
             <Tabs
               value={currentTab}
               onValueChange={(value) => {
-                setCurrentTab(value as 'address' | 'package' | 'results');
+                setCurrentTab(value as 'details' | 'results');
               }}
               className="w-full"
             >
               <Card className='relative bg-white border-gray-200'>
                 <CardHeader className="sticky top-0 py-1 px-1 sm:px-1 bg-gray-50 border-b border-gray-200 shadow-md z-10">
-                  <TabsList className="grid grid-cols-3 mb-auto w-full h-auto p-0 bg-white">
+                  <TabsList className="grid grid-cols-2 mb-auto w-full h-auto p-0 bg-white">
                     <TabsTrigger
-                      value="address"
+                      value="details"
                       className={`flex items-center justify-center relative transition-all duration-200 text-xs sm:text-sm px-2 py-2 h-auto min-h-[36px]
-                        ${state.isValidated
+                        ${servicios && servicios.length > 0
                           ? 'data-[state=active]:bg-green-50 data-[state=active]:text-green-800 data-[state=active]:border-green-300 bg-green-50 text-green-700 border-green-200'
                           : 'data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-blue-300'
                         }
@@ -459,53 +407,21 @@ export default function Cotizador() {
                     >
                       <div className="flex items-center">
                         <span className={`flex items-center justify-center w-5 h-5 mr-2 rounded-full text-xs font-bold
-                          ${state.isValidated
+                          ${servicios && servicios.length > 0
                             ? 'bg-green-500 text-white'
-                            : currentTab === 'address'
+                            : currentTab === 'details'
                               ? 'bg-blue-600 text-white'
                               : 'bg-gray-300 text-gray-600'
                           }
                         `}>
                           1
                         </span>
-                        {state.isValidated ? (
-                          <Check className="h-4 w-4 mr-1 text-green-600" />
-                        ) : (
-                          <MapPin className="h-4 w-4 mr-1" />
-                        )}
-                        <span>Código Postal</span>
-                      </div>
-                    </TabsTrigger>
-
-                    <TabsTrigger
-                      value="package"
-                      disabled={!state.isValidated && !state.isInternational}
-                      className={`flex items-center justify-center relative transition-all duration-200
-                        ${servicios && servicios.length > 0
-                          ? 'data-[state=active]:bg-green-50 data-[state=active]:text-green-800 data-[state=active]:border-green-300 bg-green-50 text-green-700 border-green-200'
-                          : (state.isValidated || state.isInternational)
-                            ? 'data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-blue-300'
-                            : 'opacity-50 cursor-not-allowed'
-                        }
-                      `}
-                    >
-                      <div className="flex items-center">
-                        <span className={`flex items-center justify-center w-5 h-5 mr-2 rounded-full text-xs font-bold
-                          ${servicios && servicios.length > 0
-                            ? 'bg-green-500 text-white'
-                            : currentTab === 'package' && (state.isValidated || state.isInternational)
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-300 text-gray-600'
-                          }
-                        `}>
-                          2
-                        </span>
                         {servicios && servicios.length > 0 ? (
                           <Check className="h-4 w-4 mr-1 text-green-600" />
                         ) : (
                           <Package className="h-4 w-4 mr-1" />
                         )}
-                        <span>Paquete</span>
+                        <span>Detalles del Envío</span>
                       </div>
                     </TabsTrigger>
 
@@ -530,7 +446,7 @@ export default function Cotizador() {
                               : 'bg-gray-300 text-gray-600'
                           }
                         `}>
-                          3
+                          2
                         </span>
                         {selectedService ? (
                           <Check className="h-4 w-4 mr-1 text-green-600" />
@@ -545,27 +461,22 @@ export default function Cotizador() {
                   <div className="justify-between items-center hidden 2xl:flex">
                     <CardTitle className="text-xl font-semibold text-gray-900 px-4">Cotización de envío</CardTitle>
                     <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200">
-                      {state.flowStage === 'quote' ? (
-                        selectedService
-                          ? "Resultados de cotización"
-                          : servicios && servicios.length > 0
-                            ? "Seleccione un servicio"
-                            : state.isValidated
-                              ? "Ingrese detalles del paquete"
-                              : "Ingrese códigos postales"
-                      ) : (
-                        "Ingresando datos del cliente"
-                      )}
+                      {selectedService
+                        ? "Resultados de cotización"
+                        : servicios && servicios.length > 0
+                          ? "Seleccione un servicio"
+                          : "Ingrese detalles del envío"}
                     </span>
                   </div>
                 </CardHeader>
 
                 <CardContent className="p-0 flex-1 overflow-hidden">
-                  <TabsContent value="address" className="mt-0">
+                  <TabsContent value="details" className="mt-0">
                     <ScrollArea className="h-[calc(100vh-150px)] pr-4">
-                      <div className="p-3 sm:p-2">
-                        <div className="flex flex-col lg:flex-row gap-3">
-                          <div className="w-full lg:w-5/8">
+                      <div className="p-3 sm:p-4">
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                          {/* Left Column - Address Section */}
+                          <div className="xl:col-span-2">
                             <AddressSection
                               state={state}
                               updateField={updateField}
@@ -581,12 +492,12 @@ export default function Cotizador() {
                               destColonias={destColonias}
                               selectedDestColonia={selectedDestColonia}
                               setSelectedDestColonia={setSelectedDestColonia}
-                              validateZipCodes={validateZipCodesWithEstafeta}
+                              validateZipCodes={validateZipCodes}
                               zone={state.zone}
                               isInternational={state.isInternational}
                               selectedZone={state.selectedZone}
                               isValidated={state.isValidated}
-                              onContinueToPackage={handleContinueToPackage}
+                              onContinueToPackage={() => {}}
                               useExistingClient={useExistingClient}
                               setUseExistingClient={setUseExistingClient}
                               clientSearchQuery={clientSearchQuery}
@@ -616,86 +527,49 @@ export default function Cotizador() {
                             />
                           </div>
 
-                          {/* Right column - Zone info and DeliveryInfoDisplay */}
-                          {state.isValidated && !state.isInternational && (
-                            <div className="w-full lg:w-4/8 flex flex-col gap-2">
-                              {/* Compact zone info */}
-                              {state.zone !== null && (
-                                <div className="bg-blue-50 text-blue-800 rounded p-2 border border-blue-200 text-sm">
-                                  <div className="flex items-center">
-                                    <MapPin className="h-4 w-4 mr-1" />
-                                    <p className="font-medium text-sm">Zona: {state.zone}</p>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Compact same ZIP warning */}
-                              {sameZipWarning && !originZipError && !destZipError && (
-                                <div className="bg-yellow-50 p-2 rounded border border-yellow-200 text-sm">
-                                  <div className="flex items-start">
-                                    <AlertTriangle className="h-4 w-4 text-yellow-600 mr-1 mt-0.5 flex-shrink-0" />
-                                    <div>
-                                      <h4 className="text-xs font-medium text-yellow-700">Códigos postales idénticos</h4>
-                                      <p className="text-xs text-yellow-600 mt-0.5">{sameZipWarning}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Compact DeliveryInfoDisplay */}
-                              <DeliveryInfoDisplay
-                                estafetaResult={estafetaResult}
-                                loadingEstafeta={loadingEstafeta}
-                                validateThreeTimes={validateThreeTimes}
-                                handleReport={handleReport}
-                                reportSubmitted={reportSubmitted}
-                              />
-                            </div>
-                          )}
+                          {/* Right Column - Package Details */}
+                          <div className="xl:col-span-1">
+                            <PackageDetailsSection
+                              state={state}
+                              updateField={updateField}
+                              servicios={servicios}
+                              validated={state.isValidated}
+                              fetchQuote={() => {}}
+                              onContinueToResults={() => {}}
+                              hideAdditionalServices={true}
+                            />
+                          </div>
                         </div>
 
-                        {/* Continue button */}
-                        {state.isValidated && (
-                          <div className="flex justify-end mt-6">
-                            <Button
-                              onClick={handleContinueToPackage}
-                              size="lg"
-                              disabled={!!originZipError || !!destZipError}
-                              className="fixed bottom-6 right-6 flex items-center bg-blue-600 hover:bg-blue-700 text-white z-50 shadow-lg rounded-full px-6 py-3"
-                            >
-                              {originZipError || destZipError ? (
-                                <span className="flex items-center">
-                                  <AlertTriangle className="h-4 w-4 mr-2" />
-                                  {originZipError && destZipError
-                                    ? 'Verifique ambos códigos postales'
-                                    : originZipError
-                                      ? 'Verifique código postal de origen'
-                                      : 'Verifique código postal de destino'}
-                                </span>
-                              ) : (
-                                <>
-                                  Continuar a Paquete
-                                  <ArrowRight className="h-4 w-4 ml-2" />
-                                </>
-                              )}
-                            </Button>
+                        {/* Cotizar Button */}
+                        {canQuote ? (
+                          <Button
+                            onClick={handleCotizar}
+                            disabled={isValidatingAndQuoting}
+                            className="fixed bottom-6 right-6 flex items-center bg-red-600 hover:bg-red-700 text-white z-50 shadow-lg rounded-full px-6 py-3"
+                          >
+                            {isValidatingAndQuoting ? (
+                              <>
+                                <div className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full" />
+                                Cotizando...
+                              </>
+                            ) : (
+                              <>
+                                <DollarSign className="h-4 w-4 mr-2" />
+                                Cotizar Envío
+                              </>
+                            )}
+                          </Button>
+                        ) : (
+                          <div className="fixed bottom-6 right-6 flex items-center px-6 py-3 rounded-full bg-gray-200 text-gray-700 border border-gray-300 cursor-not-allowed shadow-lg">
+                            <AlertTriangle className="h-4 w-4 mr-2 text-gray-600" />
+                            {!state.originZip || !state.destZip || state.originZip.length !== 5 || state.destZip.length !== 5
+                              ? 'Ingrese códigos postales'
+                              : !state.packageType
+                                ? 'Seleccione tipo de envío'
+                                : 'Complete los detalles del paquete'}
                           </div>
                         )}
-                      </div>
-                    </ScrollArea>
-                  </TabsContent>
-
-                  <TabsContent value="package" className="mt-0">
-                    <ScrollArea className="h-[calc(100vh-160px)] pr-4">
-                      <div className="p-4">
-                        <PackageDetailsSection
-                          state={state}
-                          updateField={updateField}
-                          servicios={servicios}
-                          validated={state.isValidated}
-                          fetchQuote={fetchQuoteAndShowResults}
-                          onContinueToResults={handleContinueToResults}
-                        />
                       </div>
                     </ScrollArea>
                   </TabsContent>
@@ -711,6 +585,10 @@ export default function Cotizador() {
                             setSelectedService={setSelectedService}
                             proceedToCustomerData={proceedToCustomerData}
                             originalWeight={state.weight}
+                            state={state}
+                            updateField={updateField}
+                            additionalChargesChanged={additionalChargesChanged}
+                            onReQuote={handleReQuote}
                           />
                         )}
                       </div>
@@ -814,6 +692,53 @@ export default function Cotizador() {
           </Card>
         )}
       </main>
+
+      {/* Delivery Info Modal */}
+      <Dialog open={showDeliveryModal} onOpenChange={setShowDeliveryModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Info className="h-5 w-5 mr-2 text-blue-600" />
+              Información de Entrega
+            </DialogTitle>
+          </DialogHeader>
+          
+          {/* Zone Information */}
+          {state.zone !== null && (
+            <div className="bg-blue-50 text-blue-800 rounded-lg p-3 border border-blue-200 mb-4">
+              <div className="flex items-center">
+                <MapPin className="h-4 w-4 mr-2" />
+                <p className="font-medium text-sm">Zona Nacional: {state.zone}</p>
+              </div>
+            </div>
+          )}
+          
+          <div className="mt-4">
+            <DeliveryInfoDisplay
+              estafetaResult={estafetaResult}
+              loadingEstafeta={loadingEstafeta}
+              validateThreeTimes={validateThreeTimes}
+              handleReport={handleReport}
+              reportSubmitted={reportSubmitted}
+            />
+          </div>
+          <div className="flex justify-end gap-3 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeliveryModal(false)}
+              className="px-4 py-2"
+            >
+              Cerrar
+            </Button>
+            <Button
+              onClick={proceedWithQuote}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Continuar con Cotización
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Notification Popup */}
       <AnimatePresence>
