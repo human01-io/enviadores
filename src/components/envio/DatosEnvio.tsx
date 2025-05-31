@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { apiService } from '../../services/apiService';
-import { Cliente, Destino, ServicioCotizado } from '../../types';
+import { Cliente, Destino, ServicioCotizado} from '../../types';
 import EnvioDataDisplay from './EnvioDataDisplay';
 import EnvioConfirmation from './EnvioConfirmation';
 import ShippingOptionsModal from './ShippingOptionsModal';
@@ -12,6 +12,7 @@ import {
   updateDestinationWithRetry,
   createShipmentData
 } from './utils/envioUtils';
+import { calculateZone } from '../postalUtils';
 
 interface DatosEnvioProps {
   selectedService: ServicioCotizado;
@@ -37,6 +38,22 @@ interface DatosEnvioProps {
   destZip: string;
   clienteId?: string | null;
   destinoId?: string | null;
+  // Add these new props for quote regeneration
+  onUpdateSelectedService?: (service: ServicioCotizado) => void;
+  originalCotizadorState?: {
+    packageType: string;
+    weight: string;
+    length?: string;
+    width?: string;
+    height?: string;
+    volumetricWeight: number;
+    insurance: boolean;
+    insuranceValue: string;
+    packagingOption: string;
+    customPackagingPrice?: number | null;
+    collectionRequired: boolean;
+    collectionPrice?: number | null;
+  };
 }
 
 export default function DatosEnvio({
@@ -48,7 +65,9 @@ export default function DatosEnvio({
   originZip,
   destZip,
   clienteId,
-  destinoId
+  destinoId,
+  onUpdateSelectedService,
+  originalCotizadorState
 }: DatosEnvioProps) {
   // Main UI state
   const [step, setStep] = useState<'form' | 'confirmation'>('form');
@@ -169,53 +188,230 @@ export default function DatosEnvio({
   }
 
   // New function to handle generating a new quote
-  const handleGenerateNewQuote = async () => {
-    if (!cliente || !destino) {
-      setErrorMessage('Por favor complete los datos del remitente y destinatario');
+  // In DatosEnvio.tsx - Replace the existing handleGenerateNewQuote function
+
+const handleGenerateNewQuote = async () => {
+  if (!cliente || !destino) {
+    setErrorMessage('Por favor complete los datos del remitente y destinatario');
+    return;
+  }
+
+  if (!originalCotizadorState) {
+    setErrorMessage('No se encontró información de la cotización original');
+    return;
+  }
+
+  if (!onUpdateSelectedService) {
+    setErrorMessage('No se puede actualizar el servicio seleccionado');
+    return;
+  }
+
+  setIsGeneratingNewQuote(true);
+  setErrorMessage(null);
+
+  try {
+    // First, validate the new ZIP codes and calculate zone
+    const originPostal = parseInt(cliente.codigo_postal);
+    const destPostal = parseInt(destino.codigo_postal);
+
+    if (isNaN(originPostal) || isNaN(destPostal)) {
+      setErrorMessage('Códigos postales inválidos');
+      setIsGeneratingNewQuote(false);
       return;
     }
 
-    setIsGeneratingNewQuote(true);
-    setErrorMessage(null);
+    // Calculate zone using the same function as cotizador
+    const calculatedZone = calculateZone(originPostal, destPostal);
 
+    // Check if we need reexpedition cost
+    let requiereReexpedicion = false;
     try {
-      // Save the current quotation ID for reference
-      const currentQuotationId = localStorage.getItem('current_cotizacion_id');
-      
-      // Create a new quotation URL with updated ZIP codes
-      const quotationParams = new URLSearchParams({
-        originZip: cliente.codigo_postal,
-        destZip: destino.codigo_postal,
-        // Preserve package details from current service
-        packageType: selectedService.tipoPaquete || 'Paquete',
-        weight: selectedService.peso?.toString() || '1',
-        // Include dimensions if it's a package
-        ...(selectedService.tipoPaquete === 'Paquete' && {
-          length: selectedService.largo?.toString() || '30',
-          width: selectedService.ancho?.toString() || '25',
-          height: selectedService.alto?.toString() || '10',
-        }),
-        // Include other quotation details
-        insurance: selectedService.valorSeguro > 0 ? 'true' : 'false',
-        insuranceValue: selectedService.valorSeguro?.toString() || '0',
-        // Preserve client and destination IDs
-        clienteId: cliente.id || '',
-        destinoId: destino.id || '',
-        // Mark this as a re-quote
-        requote: 'true',
-        previousQuotationId: currentQuotationId || ''
+      const formData = new FormData();
+      formData.append('originZipCode', cliente.codigo_postal);
+      formData.append('destinationZipCode', destino.codigo_postal);
+      formData.append('country', 'MEX');
+      formData.append('language', '0');
+
+      const estafetaResponse = await fetch('https://eproxy.alejandro-sarmiento-pa.workers.dev/', {
+        method: 'POST',
+        body: new URLSearchParams(formData as any),
       });
 
-      // Navigate back to cotizador with the new parameters
-      // This will trigger a new quotation with the updated ZIP codes
-      window.location.href = `/cotizador?${quotationParams.toString()}`;
+      const estafetaData = await estafetaResponse.json();
       
+      const parseReexpeditionCost = (value: string | undefined): boolean => {
+        if (!value) return false;
+        const normalizedValue = value.trim().toLowerCase();
+        if (normalizedValue === "no") return false;
+        const numericValue = parseFloat(normalizedValue.replace(/[^0-9.]/g, ''));
+        return !isNaN(numericValue) && numericValue > 0;
+      };
+
+      requiereReexpedicion = estafetaData?.reexpe ? parseReexpeditionCost(estafetaData.reexpe) : false;
     } catch (error) {
-      console.error('Error generating new quote:', error);
-      setErrorMessage('Error al generar nueva cotización. Por favor intente nuevamente.');
-      setIsGeneratingNewQuote(false);
+      console.warn('Could not fetch Estafeta data, proceeding without reexpedition check');
     }
-  };
+
+    // Create the payload using the original cotizador state
+    const payload = {
+      zona: calculatedZone,
+      tipoPaquete: originalCotizadorState.packageType,
+      peso: parseFloat(originalCotizadorState.weight),
+      pesoVolumetrico: originalCotizadorState.volumetricWeight,
+      esInternacional: false,
+      valorSeguro: originalCotizadorState.insurance ? parseFloat(originalCotizadorState.insuranceValue) || 0 : 0,
+      opcionEmpaque: originalCotizadorState.packagingOption,
+      precioEmpaquePersonalizado: originalCotizadorState.packagingOption === 'EMP05' ? originalCotizadorState.customPackagingPrice : null,
+      requiereRecoleccion: originalCotizadorState.collectionRequired,
+      precioRecoleccion: originalCotizadorState.collectionRequired ? originalCotizadorState.collectionPrice : null,
+      requiereReexpedicion: requiereReexpedicion
+    };
+
+    console.log('Generating new quote with payload:', payload);
+
+    const response = await fetch('https://enviadores.com.mx/api/get-prices.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (data.exito && data.servicios?.length > 0) {
+      console.log('New quote data received:', data);
+      
+      // Smart service matching strategy
+      let matchingService = null;
+
+      // 1. Try exact SKU match first
+      matchingService = data.servicios.find((s: any) => s.sku === selectedService.sku);
+
+      if (!matchingService) {
+        console.log(`Exact service ${selectedService.sku} not found, looking for similar service...`);
+        
+        // 2. Try to match by service type (first part of name)
+        const originalServiceType = selectedService.nombre.split(' ')[0]; // e.g., "DIA" from "DIA SIGUIENTE 01"
+        
+        matchingService = data.servicios.find((s: any) => 
+          s.nombre.startsWith(originalServiceType)
+        );
+        
+        if (matchingService) {
+          console.log(`Found similar service: ${matchingService.nombre} (${matchingService.sku}) for original ${selectedService.nombre} (${selectedService.sku})`);
+        }
+      }
+
+      if (!matchingService) {
+        console.log('No similar service found, looking for fastest delivery...');
+        
+        // 3. Fallback: find service with fastest delivery (lowest diasEstimados)
+        matchingService = data.servicios.reduce((fastest: any, current: any) => 
+          (current.diasEstimados || 999) < (fastest.diasEstimados || 999) ? current : fastest
+        );
+        
+        if (matchingService) {
+          console.log(`Selected fastest service as fallback: ${matchingService.nombre} (${matchingService.sku})`);
+        }
+      }
+
+      if (!matchingService) {
+        // 4. Last resort: pick the first service
+        matchingService = data.servicios[0];
+        console.log(`Using first available service as last resort: ${matchingService.nombre} (${matchingService.sku})`);
+      }
+
+      if (matchingService) {
+        // Calculate IVA and totals properly
+        const ivaRate = data.iva || 0.16;
+        const additionalChargesTotal = 
+          data.cargosAdicionales.empaque + 
+          data.cargosAdicionales.seguro + 
+          data.cargosAdicionales.recoleccion + 
+          (data.cargosAdicionales.reexpedicion || 0);
+        
+        const precioCompleto = matchingService.precioFinal + additionalChargesTotal;
+        const iva = precioCompleto * ivaRate;
+
+        // Convert string values to numbers and calculate pricing properly
+        const precioBase = typeof matchingService.precioBase === 'string' 
+          ? parseFloat(matchingService.precioBase) 
+          : matchingService.precioBase || 0;
+          
+        const precioConIvaCalculated = precioCompleto + iva;
+
+        console.log('Price calculations:', {
+          originalService: `${selectedService.nombre} (${selectedService.sku})`,
+          newService: `${matchingService.nombre} (${matchingService.sku})`,
+          precioBase,
+          cargoSobrepeso: matchingService.cargoSobrepeso,
+          precioFinal: matchingService.precioFinal,
+          additionalChargesTotal,
+          precioCompleto,
+          iva,
+          precioConIvaCalculated
+        });
+
+        // Update the selected service with new pricing and service details
+        const updatedService: ServicioCotizado = {
+          ...selectedService,
+          // Update service identification - THIS IS THE KEY CHANGE!
+          sku: matchingService.sku,
+          nombre: matchingService.nombre,
+          // Update pricing
+          precioBase: precioBase,
+          cargoSobrepeso: matchingService.cargoSobrepeso || 0,
+          precioFinal: matchingService.precioFinal || 0,
+          precioTotal: precioCompleto,
+          precioConIva: precioConIvaCalculated,
+          iva: iva,
+          diasEstimados: matchingService.diasEstimados || 1,
+          pesoFacturable: data.pesoFacturable || selectedService.pesoFacturable,
+          // Keep original package details
+          peso: parseFloat(originalCotizadorState.weight),
+          pesoVolumetrico: originalCotizadorState.volumetricWeight,
+          alto: originalCotizadorState.packageType === "Paquete" ? parseFloat(originalCotizadorState.height || '0') : 1,
+          largo: originalCotizadorState.packageType === "Paquete" ? parseFloat(originalCotizadorState.length || '0') : 30,
+          ancho: originalCotizadorState.packageType === "Paquete" ? parseFloat(originalCotizadorState.width || '0') : 25,
+          valorSeguro: originalCotizadorState.insurance ? parseFloat(originalCotizadorState.insuranceValue || '0') : 1,
+        };
+
+        // Update the parent component's selectedService
+        onUpdateSelectedService(updatedService);
+
+        // Update local ZIP validation
+        setZipValidation({
+          originValid: true,
+          destValid: true
+        });
+        setNeedsNewQuote(false);
+
+        // Show success message with service change notification if applicable
+        if (matchingService.sku !== selectedService.sku) {
+          setErrorMessage(null);
+          console.log(`Service updated from ${selectedService.nombre} to ${matchingService.nombre} due to zone change`);
+        } else {
+          setErrorMessage(null);
+          console.log('Quote updated successfully with same service');
+        }
+
+      } else {
+        setErrorMessage('No se encontraron servicios disponibles para estos códigos postales');
+      }
+
+    } else {
+      setErrorMessage(data.error || 'No se encontraron servicios disponibles para estos códigos postales');
+      console.log('API Error or no services:', data);
+    }
+
+  } catch (error) {
+    console.error('Error generating new quote:', error);
+    setErrorMessage('Error al generar nueva cotización. Por favor intente nuevamente.');
+  } finally {
+    setIsGeneratingNewQuote(false);
+  }
+};
 
   // Event handlers
   const handleUpdateCliente = (updatedCliente: Cliente) => {

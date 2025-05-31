@@ -37,6 +37,9 @@ export interface ServicioCotizado {
   ancho?: number;                // Width in cm
   contenido?: string;            // Package content description
   peso?:number;
+
+  precioTotal: number;
+  pesoVolumetrico: number;
 }
   
   /**

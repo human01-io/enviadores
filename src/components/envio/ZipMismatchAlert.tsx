@@ -1,6 +1,4 @@
 // src/components/envio/ZipMismatchAlert.tsx
-
-import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 

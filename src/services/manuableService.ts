@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { manuableConfig, updateManuableServiceConfig } from '../config/manuableConfig';
+import { RectangleHorizontal } from 'lucide-react';
 
 // Initialize configuration 
 updateManuableServiceConfig();
@@ -524,6 +525,7 @@ class ManuableService {
     email: string;
     pais?: string;
     referencia?: string;
+    razon_social?: string;
   }): ManuableAddress {
 
     const fullName = [
@@ -551,7 +553,7 @@ class ManuableService {
       country_code: 'MX', // Default to Mexico
       reference: data.referencia || '',
       zip_code: data.codigo_postal,
-      company: 'Enviadores'
+      company: data.razon_social || 'enviadores.com.mx'
     };
   }
 

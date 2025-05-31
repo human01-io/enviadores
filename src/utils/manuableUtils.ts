@@ -23,7 +23,7 @@ export const mapClienteToManuableAddress = (cliente: Cliente): ManuableAddress =
     country_code: 'MX', // Default to Mexico
     reference: cliente.referencia || '',
     zip_code: cliente.codigo_postal,
-    company: 'Enviadores',
+    company: cliente.razon_social || 'enviadores.com.mx',
   };
 };
 
@@ -44,6 +44,7 @@ export const mapDestinoToManuableAddress = (destino: Destino): ManuableAddress =
     country_code: 'MX', // Default to Mexico
     reference: destino.referencia || '',
     zip_code: destino.codigo_postal,
+    company: destino.alias || '',
   };
 };
 
@@ -85,7 +86,7 @@ export const mapToManuableParcel = (
     product_id: manuableConfig.defaults.product_id,
     product_value: servicio.valorSeguro || 100,
     quantity_products: 1,
-    content: manuableConfig.defaults.content
+    content: servicio.contenido || manuableConfig.defaults.content,
   };
 };
 

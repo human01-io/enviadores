@@ -21,6 +21,7 @@ import { ScrollArea } from '../ui/ScrollAreaComponent';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '../../services/apiService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/Dialog';
+import { ServicioCotizado as CotizadorServicioCotizado } from './utils/cotizadorTypes';
 
 interface UserData {
   name: string;
@@ -274,6 +275,30 @@ export default function Cotizador() {
     }
     return null;
   };
+
+  const handleUpdateSelectedService = (updatedService: any) => {
+  console.log('Updating service with:', updatedService);
+  
+  // Convert the service to the cotizador type with safe defaults
+  const cotizadorService: CotizadorServicioCotizado = {
+    sku: updatedService.sku || '',
+    nombre: updatedService.nombre || '',
+    precioBase: typeof updatedService.precioBase === 'number' ? updatedService.precioBase : 0,
+    precioFinal: typeof updatedService.precioFinal === 'number' ? updatedService.precioFinal : 0,
+    cargoSobrepeso: typeof updatedService.cargoSobrepeso === 'number' ? updatedService.cargoSobrepeso : 0,
+    diasEstimados: typeof updatedService.diasEstimados === 'number' ? updatedService.diasEstimados : 1,
+    precioTotal: typeof updatedService.precioTotal === 'number' ? updatedService.precioTotal : 0,
+    precioConIva: typeof updatedService.precioConIva === 'number' ? updatedService.precioConIva : 0,
+    iva: typeof updatedService.iva === 'number' ? updatedService.iva : 0,
+    pesoFacturable: updatedService.pesoFacturable,
+    esInternacional: updatedService.esInternacional || false,
+    peso: typeof updatedService.peso === 'number' ? updatedService.peso : 1,
+    pesoVolumetrico: typeof updatedService.pesoVolumetrico === 'number' ? updatedService.pesoVolumetrico : 0
+  };
+  
+  console.log('Converted service:', cotizadorService);
+  setSelectedService(cotizadorService);
+};
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -623,7 +648,7 @@ export default function Cotizador() {
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
                           <span>{selectedService.nombre}</span>
                           <span>•</span>
-                          <span className="font-medium">${selectedService.precioConIva.toFixed(2)}</span>
+                          <span className="font-medium">${selectedService?.precioConIva?.toFixed(2) || '0.00'}</span>
                           <span>•</span>
                           <span className="flex items-center space-x-1">
                             <Clock className="w-3 h-3" />
@@ -685,6 +710,21 @@ export default function Cotizador() {
                     destZip={state.destZip}
                     clienteId={state.clienteId || null}
                     destinoId={state.destinoId || null}
+                   onUpdateSelectedService={handleUpdateSelectedService}
+    originalCotizadorState={{
+      packageType: state.packageType,
+      weight: state.weight,
+      length: state.length,
+      width: state.width,
+      height: state.height,
+      volumetricWeight: state.volumetricWeight,
+      insurance: state.insurance,
+      insuranceValue: state.insuranceValue,
+      packagingOption: state.packagingOption,
+      customPackagingPrice: state.customPackagingPrice,
+      collectionRequired: state.collectionRequired,
+      collectionPrice: state.collectionPrice
+    }}
                   />
                 )}
               </div>

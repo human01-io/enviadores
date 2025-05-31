@@ -655,7 +655,7 @@ const fetchDestinosForCliente = useCallback(
                       value={destino.alias || ''}
                       onChange={handleDestinoChange}
                       className={inputClassName(getFieldError('alias'))}
-                      placeholder="Casa, Oficina, Sucursal..."
+                      placeholder="Empresa, Organizacion, Otro Identificador..."
                     />
                   </FormField>
 
