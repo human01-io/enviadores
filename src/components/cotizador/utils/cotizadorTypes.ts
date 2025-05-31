@@ -1,3 +1,6 @@
+// Export the main ServicioCotizado from the main types file
+export type { ServicioCotizado } from '../../../types';
+
 export interface DeliveryFrequency {
     lunes: boolean;
     martes: boolean;
@@ -22,22 +25,6 @@ export interface DeliveryFrequency {
       [key: string]: boolean;
     };
     htmlSnippet?: string;
-  }
-  
-  export interface ServicioCotizado {
-    sku: string;
-    nombre: string;
-    precioBase: number;
-    precioFinal: number;
-    cargoSobrepeso: number;
-    diasEstimados: number;
-    precioTotal: number;
-    precioConIva: number;
-    iva: number;
-    pesoFacturable?: number;
-    esInternacional: boolean;
-    peso: number;
-    pesoVolumetrico: number;
   }
   
   export interface DetallesCotizacion {
@@ -92,7 +79,7 @@ export interface DeliveryFrequency {
     // Add these new fields to store client and destination IDs
     clienteId?: string | null;
     destinoId?: string | null;
-    servicios?: ServicioCotizado[];
+    servicios?: import('../../../types').ServicioCotizado[];
     detallesCotizacion?: DetallesCotizacion;
   }
   

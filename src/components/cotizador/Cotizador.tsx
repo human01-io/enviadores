@@ -21,7 +21,9 @@ import { ScrollArea } from '../ui/ScrollAreaComponent';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '../../services/apiService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/Dialog';
-import { ServicioCotizado as CotizadorServicioCotizado } from './utils/cotizadorTypes';
+import { ServicioCotizado } from '../../types';
+import type { ServicioCotizado as CotizadorServicioCotizado, DetallesCotizacion } from './utils/cotizadorTypes';
+
 
 interface UserData {
   name: string;
@@ -90,7 +92,8 @@ export default function Cotizador() {
     originZipError,
     setOriginZipError,
     sameZipWarning,
-    setSameZipWarning
+    setSameZipWarning,
+    handleZipCodeUpdate 
   } = useCotizador();
 
   // User data state
@@ -276,30 +279,66 @@ export default function Cotizador() {
     return null;
   };
 
-  const handleUpdateSelectedService = (updatedService: any) => {
+
+// Update the handleUpdateSelectedService function to call this when ZIP codes change:
+const handleUpdateSelectedService = (updatedService: ServicioCotizado, newQuoteData?: {
+  servicios: CotizadorServicioCotizado[];
+  detallesCotizacion: DetallesCotizacion;
+  newOriginZip?: string;
+  newDestZip?: string;
+  newZone?: number;
+}) => {
   console.log('Updating service with:', updatedService);
+  console.log('New quote data:', newQuoteData);
   
-  // Convert the service to the cotizador type with safe defaults
+  // Convert the main ServicioCotizado to the internal cotizador type
   const cotizadorService: CotizadorServicioCotizado = {
     sku: updatedService.sku || '',
     nombre: updatedService.nombre || '',
     precioBase: typeof updatedService.precioBase === 'number' ? updatedService.precioBase : 0,
     precioFinal: typeof updatedService.precioFinal === 'number' ? updatedService.precioFinal : 0,
-    cargoSobrepeso: typeof updatedService.cargoSobrepeso === 'number' ? updatedService.cargoSobrepeso : 0,
-    diasEstimados: typeof updatedService.diasEstimados === 'number' ? updatedService.diasEstimados : 1,
     precioTotal: typeof updatedService.precioTotal === 'number' ? updatedService.precioTotal : 0,
     precioConIva: typeof updatedService.precioConIva === 'number' ? updatedService.precioConIva : 0,
     iva: typeof updatedService.iva === 'number' ? updatedService.iva : 0,
-    pesoFacturable: updatedService.pesoFacturable,
-    esInternacional: updatedService.esInternacional || false,
+    cargoSobrepeso: typeof updatedService.cargoSobrepeso === 'number' ? updatedService.cargoSobrepeso : 0,
+    diasEstimados: typeof updatedService.diasEstimados === 'number' ? updatedService.diasEstimados : 1,
     peso: typeof updatedService.peso === 'number' ? updatedService.peso : 1,
-    pesoVolumetrico: typeof updatedService.pesoVolumetrico === 'number' ? updatedService.pesoVolumetrico : 0
+    pesoVolumetrico: typeof updatedService.pesoVolumetrico === 'number' ? updatedService.pesoVolumetrico : 0,
+    esInternacional: updatedService.esInternacional || false,
+    // Copy optional fields if they exist
+    pesoFacturable: updatedService.pesoFacturable
   };
   
-  console.log('Converted service:', cotizadorService);
+  console.log('Converted cotizador service:', cotizadorService);
   setSelectedService(cotizadorService);
-};
 
+  // If new quote data is provided, update the full quote state AND the core state
+  if (newQuoteData) {
+    console.log('Updating full quote data');
+    setServicios(newQuoteData.servicios);
+    setDetallesCotizacion(newQuoteData.detallesCotizacion);
+    
+    // Update the core ZIP codes and zone if provided
+    if (newQuoteData.newOriginZip && newQuoteData.newDestZip) {
+      updateField('originZip', newQuoteData.newOriginZip);
+      updateField('destZip', newQuoteData.newDestZip);
+      updateField('isValidated', true); // Mark as validated since we just generated a successful quote
+      
+      // Update location data asynchronously using the hook function
+      handleZipCodeUpdate(newQuoteData.newOriginZip, newQuoteData.newDestZip);
+    }
+    
+    if (newQuoteData.newZone !== undefined) {
+      updateField('zone', newQuoteData.newZone);
+    }
+    
+    console.log('Updated core state with new ZIP codes:', {
+      originZip: newQuoteData.newOriginZip,
+      destZip: newQuoteData.newDestZip,
+      zone: newQuoteData.newZone
+    });
+  }
+};
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Clean Header */}

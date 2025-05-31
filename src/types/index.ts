@@ -14,32 +14,36 @@ export interface ApiResponse<T = any> {
   config: any;
   request?: any;
 }
+/**
+ * Service quote interface used for displaying shipping service options
+ */
 export interface ServicioCotizado {
   sku: string;                   // Service identifier
   nombre: string;                // Service name
   precioBase: number;            // Base price
   precioFinal: number;           // Final price before tax
+  precioTotal: number;           // Total price (with additional charges)
   precioConIva: number;          // Final price with tax
   iva: number;                   // IVA amount
   cargoSobrepeso: number;        // Overweight charge
   diasEstimados: number;         // Estimated delivery days
+  peso: number;                  // Package weight (required)
+  pesoVolumetrico: number;       // Volumetric weight
   pesoFacturable?: number;       // Billable weight
+  esInternacional: boolean;      // Is international
+  
+  // Optional fields for package details
+  alto?: number;                 // Height in cm
+  largo?: number;                // Length in cm 
+  ancho?: number;                // Width in cm
+  
+  // Optional fields for additional services
   valorSeguro?: number;          // Declared value for insurance
   costoSeguro?: number;          // Insurance cost
   tipoPaquete?: string;          // Package type ('sobre' or 'paquete')
   opcionEmpaque?: string | null; // Packaging option
   requiereRecoleccion?: boolean; // Requires pickup
-  esInternacional: boolean;      // Is international
-  
-  // New fields to add:
-  alto?: number;                 // Height in cm
-  largo?: number;                // Length in cm 
-  ancho?: number;                // Width in cm
   contenido?: string;            // Package content description
-  peso?:number;
-
-  precioTotal: number;
-  pesoVolumetrico: number;
 }
   
   /**

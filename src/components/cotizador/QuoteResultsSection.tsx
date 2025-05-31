@@ -19,9 +19,7 @@ import {
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/CardComponent';
 import { Badge } from '../ui/BadgeComponent';
-import { Separator } from '../ui/SeparatorComponent';
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '../ui/Table';
-import { ScrollArea } from '../ui/ScrollAreaComponent';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/Table';
 import { Checkbox } from '../ui/Checkbox';
 import { Label } from '../ui/Label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/SelectComponent';

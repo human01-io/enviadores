@@ -438,31 +438,30 @@ const checkSameZipCodes = () => {
       if (data.exito) {
         const ivaRate = data.iva || 0.16; // Default to 16% if not provided
 
-        const serviciosConTotales = data.servicios.map((servicio: any) => {
-  // Calculate the total of additional charges
+        const serviciosConTotales = data.servicios.map((servicio: any): ServicioCotizado => {
   const additionalChargesTotal = 
     data.cargosAdicionales.empaque + 
     data.cargosAdicionales.seguro + 
     data.cargosAdicionales.recoleccion + 
     (data.cargosAdicionales.reexpedicion || 0);
   
-  // Calculate complete price including base price, overweight, and additional charges
   const precioCompleto = servicio.precioFinal + additionalChargesTotal;
-  
-  // Calculate IVA on the complete price
   const iva = precioCompleto * ivaRate;
   
   return {
-    ...servicio,
+    sku: servicio.sku,
+    nombre: servicio.nombre,
     precioBase: servicio.precioBase,
-    cargoSobrepeso: servicio.cargoSobrepeso,
-    cargosAdicionales: additionalChargesTotal,
-    precioTotal: precioCompleto,  // Now includes additional charges
-    precioConIva: precioCompleto + iva,  // Now includes additional charges with IVA
+    precioFinal: servicio.precioFinal,
+    precioTotal: precioCompleto,
+    precioConIva: precioCompleto + iva,
     iva: iva,
-    esInternacional: state.isInternational,
-    peso: parsedWeight, // The actual weight entered by user
+    cargoSobrepeso: servicio.cargoSobrepeso,
+    diasEstimados: servicio.diasEstimados,
+    peso: parsedWeight,
     pesoVolumetrico: state.volumetricWeight,
+    esInternacional: state.isInternational,
+    pesoFacturable: data.pesoFacturable,
     alto: state.packageType === "Paquete" ? parseFloat(state.height) || 0 : 1,
     largo: state.packageType === "Paquete" ? parseFloat(state.length) || 0 : 30,
     ancho: state.packageType === "Paquete" ? parseFloat(state.width) || 0 : 25,
@@ -539,7 +538,8 @@ const checkSameZipCodes = () => {
     setSelectedDestination(null);
     setLoadingDestinations(false);
     setDestZipError(null);
-    setOriginZipError(null)
+    setOriginZipError(null);
+    setDetallesCotizacion(null);
   };
 
   // Function to continue to customer data entry
@@ -637,6 +637,48 @@ const checkSameZipCodes = () => {
       : !servicio.esInternacional // Show only national services
   ) || [];
 
+  const handleZipCodeUpdate = async (newOriginZip: string, newDestZip: string) => {
+  console.log('Updating ZIP codes and location data:', { newOriginZip, newDestZip });
+  
+  try {
+    // Fetch new location data for both ZIP codes
+    const [originResponse, destResponse] = await Promise.all([
+      fetch(`https://enviadores.com.mx/api/zip_codes.php?zip_code=${newOriginZip}`),
+      fetch(`https://enviadores.com.mx/api/zip_codes.php?zip_code=${newDestZip}`)
+    ]);
+    
+    const [originData, destData] = await Promise.all([
+      originResponse.json(),
+      destResponse.json()
+    ]);
+    
+    // Update origin location data
+    if (originData?.zip_codes?.length > 0) {
+      const zipData = originData.zip_codes[0];
+      setOriginState(zipData.d_estado);
+      setOriginMunicipio(zipData.d_mnpio);
+      setOriginCiudad(zipData.d_ciudad || "");
+      setOriginColonias(originData.zip_codes.map((z: any) => z.d_asenta));
+      setSelectedOriginColonia("");
+    }
+    
+    // Update destination location data
+    if (destData?.zip_codes?.length > 0) {
+      const zipData = destData.zip_codes[0];
+      setDestState(zipData.d_estado);
+      setDestMunicipio(zipData.d_mnpio);
+      setDestCiudad(zipData.d_ciudad || "");
+      setDestColonias(destData.zip_codes.map((z: any) => z.d_asenta));
+      setSelectedDestColonia("");
+    }
+    
+    console.log('Location data updated successfully');
+  } catch (error) {
+    console.error('Error updating location data:', error);
+  }
+};
+
+
   return {
     state,
     updateField,
@@ -699,5 +741,6 @@ const checkSameZipCodes = () => {
     setDestZipError,
     sameZipWarning,
   setSameZipWarning,
+  handleZipCodeUpdate,
   };
 }
