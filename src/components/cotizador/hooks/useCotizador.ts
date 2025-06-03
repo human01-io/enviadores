@@ -111,8 +111,11 @@ const [sameZipWarning, setSameZipWarning] = useState<string | null>(null);
 
   // Function to update form fields
   const updateField = (field: keyof CotizadorState, value: any) => {
-    setState(prev => ({ ...prev, [field]: value }));
-  };
+  if (field === 'clienteId' || field === 'destinoId') {
+    console.log(`useCotizador: Updating ${field} from ${state[field]} to ${value}`);
+  }
+  setState(prev => ({ ...prev, [field]: value }));
+};
 
   const resetLocationData = (isOrigin: boolean) => {
   if (isOrigin) {
@@ -511,36 +514,37 @@ const checkSameZipCodes = () => {
   };
 
   const resetForm = () => {
-    setState(initialState);
-    setDeliveryFrequency(null);
-    setEstafetaResult(null);
-    setServicios(null);
-    setDetallesCotizacion(null);
-    setSelectedService(null);
-    setOriginState("");
-    setOriginMunicipio("");
-    setOriginCiudad("");
-    setOriginColonias([]);
-    setSelectedOriginColonia("");
-    setDestState("");
-    setDestMunicipio("");
-    setDestCiudad("");
-    setDestColonias([]);
-    setSelectedDestColonia("");
-    setUseExistingClient(false);
-    setClientSearchQuery('');
-    setClientSuggestions([]);
-    setSelectedClient(null);
-    setLoadingClients(false)
-    setUseExistingDestination(false);
-    setDestSearchQuery('');
-    setDestSuggestions([]);
-    setSelectedDestination(null);
-    setLoadingDestinations(false);
-    setDestZipError(null);
-    setOriginZipError(null);
-    setDetallesCotizacion(null);
-  };
+  setState(initialState);
+  setDeliveryFrequency(null);
+  setEstafetaResult(null);
+  setServicios(null);
+  setDetallesCotizacion(null);
+  setSelectedService(null);
+  setOriginState("");
+  setOriginMunicipio("");
+  setOriginCiudad("");
+  setOriginColonias([]);
+  setSelectedOriginColonia("");
+  setDestState("");
+  setDestMunicipio("");
+  setDestCiudad("");
+  setDestColonias([]);
+  setSelectedDestColonia("");
+  setUseExistingClient(false);
+  setClientSearchQuery('');
+  setClientSuggestions([]);
+  setSelectedClient(null);
+  setLoadingClients(false);
+  setUseExistingDestination(false);
+  setDestSearchQuery('');
+  setDestSuggestions([]);
+  setSelectedDestination(null);
+  setLoadingDestinations(false);
+  setDestZipError(null);
+  setOriginZipError(null);
+  setSameZipWarning(null);
+  setDetallesCotizacion(null);
+};
 
   // Function to continue to customer data entry
   const proceedToCustomerData = async () => {

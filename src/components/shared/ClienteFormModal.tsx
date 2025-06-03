@@ -3,21 +3,23 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Combobox } from '@headlessui/react';
 import { apiService } from '../../services/apiService';
 import { Cliente } from '../../types';
-import { 
-  User, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  X, 
-  Search, 
-  Check, 
-  AlertCircle, 
+import {
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  X,
+  Search,
+  Check,
+  AlertCircle,
   Building2,
   Hash,
   FileText,
   Globe,
   Loader2,
-  ChevronDown
+  ChevronDown,
+  Plus,
+  ChevronsUpDown
 } from 'lucide-react';
 
 interface ClienteFormModalProps {
@@ -46,7 +48,7 @@ export default function ClienteFormModal({
   const [activeSection, setActiveSection] = useState<'personal' | 'address'>('personal');
   const [showColoniaDropdown, setShowColoniaDropdown] = useState(false);
   const [coloniaSearchQuery, setColoniaSearchQuery] = useState('');
-  
+
   const lastProcessedZip = useRef<string>('');
 
   const defaultCliente: Cliente = {
@@ -89,7 +91,7 @@ export default function ClienteFormModal({
       setActiveSection('personal');
       document.body.style.overflow = 'hidden';
     }
-    
+
     return () => {
       document.body.style.overflow = 'unset';
     };
@@ -101,14 +103,14 @@ export default function ClienteFormModal({
       // Create copies without auto-populated fields to compare only user changes
       const clienteForComparison = { ...cliente };
       const originalForComparison = { ...originalCliente };
-      
+
       // Remove auto-populated fields that shouldn't count as user changes
       const autoPopulatedFields = ['estado', 'municipio', 'ciudad', 'colonias'];
       autoPopulatedFields.forEach(field => {
         delete clienteForComparison[field];
         delete originalForComparison[field];
       });
-      
+
       // Only consider it a change if user manually modified non-auto-populated fields
       // or if they changed colonia to something different from what was auto-selected
       const hasUserChanges = JSON.stringify(clienteForComparison) !== JSON.stringify(originalForComparison);
@@ -180,26 +182,26 @@ export default function ClienteFormModal({
       if (data?.zip_codes?.length > 0) {
         const zipData = data.zip_codes[0];
         const colonias = data.zip_codes.map((z: any) => z.d_asenta);
-        
+
         setCliente(prev => {
           if (!prev) return prev;
-          
+
           const updatedCliente = {
             ...prev,
             estado: zipData.d_estado,
             municipio: zipData.d_mnpio,
             ciudad: zipData.d_ciudad || zipData.d_mnpio,
             colonias,
-            colonia: (isExistingCustomer && prev.colonia) 
+            colonia: (isExistingCustomer && prev.colonia)
               ? prev.colonia
-              : (!prev.colonia || prev.colonia === '' || !colonias.includes(prev.colonia)) 
-                ? (colonias[0] || '') 
+              : (!prev.colonia || prev.colonia === '' || !colonias.includes(prev.colonia))
+                ? (colonias[0] || '')
                 : prev.colonia
           };
-          
+
           return updatedCliente;
         });
-        
+
         // Also update the original cliente to include auto-populated data
         // so it doesn't count as user changes
         setOriginalCliente(prev => {
@@ -211,17 +213,17 @@ export default function ClienteFormModal({
             ciudad: zipData.d_ciudad || zipData.d_mnpio,
             colonias,
             // Only update original colonia if it was empty or we're creating new
-            colonia: (!isExistingCustomer && (!prev.colonia || prev.colonia === '')) 
-              ? (colonias[0] || '') 
+            colonia: (!isExistingCustomer && (!prev.colonia || prev.colonia === ''))
+              ? (colonias[0] || '')
               : prev.colonia
           };
         });
-        
+
         setZipValidation(true);
-        
+
         // Clear related errors without depending on formErrors state
         setFormErrors(prev => {
-          const newErrors = {...prev};
+          const newErrors = { ...prev };
           delete newErrors.codigo_postal;
           delete newErrors.estado;
           delete newErrors.municipio;
@@ -243,10 +245,10 @@ export default function ClienteFormModal({
   }, [isExistingCustomer]);
 
   useEffect(() => {
-    if (cliente?.codigo_postal && 
-        cliente.codigo_postal.length === 5 && 
-        cliente.codigo_postal !== lastProcessedZip.current) {
-      
+    if (cliente?.codigo_postal &&
+      cliente.codigo_postal.length === 5 &&
+      cliente.codigo_postal !== lastProcessedZip.current) {
+
       lastProcessedZip.current = cliente.codigo_postal;
       fetchAddressData(cliente.codigo_postal);
     }
@@ -270,19 +272,19 @@ export default function ClienteFormModal({
 
   const handleClienteChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    
+
     if (!cliente) return;
-    
+
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setCliente(prev => prev ? { ...prev, [name]: checked ? 1 : 0 } : prev);
     } else {
       setCliente(prev => prev ? { ...prev, [name]: value } : prev);
     }
-    
+
     // Clear field error
     if (formErrors[name]) {
-      const newErrors = {...formErrors};
+      const newErrors = { ...formErrors };
       delete newErrors[name];
       setFormErrors(newErrors);
     }
@@ -295,9 +297,9 @@ export default function ClienteFormModal({
 
   const validateForm = () => {
     if (!cliente) return false;
-    
+
     const errors: Record<string, string> = {};
-    
+
     if (!cliente.nombre?.trim()) errors.nombre = "El nombre es obligatorio";
     if (!cliente.apellido_paterno?.trim()) errors.apellido_paterno = "El apellido paterno es obligatorio";
     if (!cliente.telefono?.trim()) errors.telefono = "El teléfono es obligatorio";
@@ -316,14 +318,14 @@ export default function ClienteFormModal({
     }
     if (!cliente.municipio?.trim()) errors.municipio = "El municipio es obligatorio";
     if (!cliente.estado?.trim()) errors.estado = "El estado es obligatorio";
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const isFormValid = (): boolean => {
     if (!cliente) return false;
-    
+
     return (
       !!cliente.nombre?.trim() &&
       !!cliente.apellido_paterno?.trim() &&
@@ -379,636 +381,647 @@ export default function ClienteFormModal({
 
   if (!isOpen || !cliente) return null;
 
+  const handleColoniaUpdate = (newColonia: string) => {
+    // Update the state directly
+    setCliente(prev => prev ? { ...prev, colonia: newColonia } : prev);
+    
+    // Clear any validation errors for colonia
+    if (formErrors.colonia) {
+      const newErrors = { ...formErrors };
+      delete newErrors.colonia;
+      setFormErrors(newErrors);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <User className="h-6 w-6 text-blue-600" />
-            </div>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 z-50">
+      <div className="bg-white rounded-2xl shadow-lg w-full max-w-4xl h-[95vh] flex flex-col overflow-hidden">
+
+        {/* Sticky Header */}
+        <div className="flex items-center justify-between p-3 border-b bg-white sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center gap-3">
+            <User className="h-6 w-6 text-blue-600" />
             <div>
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-800">
                 {isExistingCustomer ? 'Editar Cliente' : 'Nuevo Cliente'}
               </h2>
               {isExistingCustomer && cliente.id && (
-                <p className="text-sm text-gray-600">ID: {cliente.id}</p>
+                <p className="text-xs text-gray-500">ID Cliente: {cliente.id}</p>
               )}
             </div>
           </div>
-          <button 
-            onClick={handleClose} 
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
+          <button onClick={handleClose} className="rounded-full p-2 hover:bg-gray-100">
             <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden flex flex-col">
-          {/* Search Section - Only for new clients */}
-          {!initialCliente && (
-            <div className="p-6 border-b border-gray-100 bg-gray-50">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Buscar cliente existente
-              </label>
-              <Combobox value={cliente} onChange={handleSelectCustomer}>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <Combobox.Input
-                    displayValue={(c: Cliente) => c?.nombre ? `${c.nombre} ${c.apellido_paterno || ''}`.trim() : ''}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar por nombre, teléfono o email..."
-                    className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  />
-
-                  {isSearching && (
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                      <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />
-                    </div>
-                  )}
-
-                  <Combobox.Options className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                    {customerSuggestions.length === 0 && searchQuery !== '' ? (
-                      <div className="relative cursor-default select-none py-4 px-4 text-gray-700 text-center">
-                        No se encontraron clientes
-                      </div>
-                    ) : (
-                      customerSuggestions.map((customer) => (
-                        <Combobox.Option
-                          key={customer.id || customer.telefono}
-                          value={customer}
-                          className={({ active }) =>
-                            `relative cursor-pointer select-none py-3 pl-10 pr-4 ${
-                              active ? 'bg-blue-50 text-blue-900' : 'text-gray-900'
-                            }`
-                          }
-                        >
-                          {({ selected }) => (
-                            <>
-                              <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
-                                {customer.nombre} {customer.apellido_paterno} - {customer.telefono}
-                                {customer.razon_social && ` (${customer.razon_social})`}
-                              </span>
-                              {selected && (
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-blue-600">
-                                  <Check className="h-4 w-4" />
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </Combobox.Option>
-                      ))
-                    )}
-                  </Combobox.Options>
+        {/* Search Box */}
+        {!initialCliente && (
+          <div className="p-2 bg-gray-50">
+            <Combobox value={cliente} onChange={handleSelectCustomer}>
+              <div className="relative">
+                <Combobox.Input
+                  displayValue={(c: Cliente) => c?.nombre ? `${c.nombre} ${c.apellido_paterno || ''}`.trim() : ''}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar cliente por nombre, teléfono o email..."
+                  className="w-full pl-10 pr-10 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <div className="absolute inset-y-0 left-3 flex items-center">
+                  <Search className="h-4 w-4 text-gray-400" />
                 </div>
-              </Combobox>
-            </div>
-          )}
-
-          {/* Navigation Tabs */}
-          <div className="flex border-b border-gray-200 bg-white">
-            <button
-              type="button"
-              onClick={() => setActiveSection('personal')}
-              className={`flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
-                activeSection === 'personal'
-                  ? 'border-blue-500 text-blue-600 bg-blue-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <User className="h-4 w-4 inline mr-2" />
-              Información Personal
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSection('address')}
-              className={`flex-1 py-3 px-4 text-sm font-medium border-b-2 transition-colors ${
-                activeSection === 'address'
-                  ? 'border-blue-500 text-blue-600 bg-blue-50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              <MapPin className="h-4 w-4 inline mr-2" />
-              Dirección
-            </button>
-          </div>
-
-          {/* Form Content */}
-          <div className={`flex-1 overflow-y-auto p-6 transition-all duration-300 ${
-            showColoniaDropdown ? 'pb-80' : 'pb-6'
-          }`}>
-            {activeSection === 'personal' ? (
-              <div className="space-y-6">
-                {/* Basic Info */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    label="Nombre"
-                    required
-                    error={getFieldError('nombre')}
-                    icon={<User className="h-4 w-4" />}
-                  >
-                    <input
-                      type="text"
-                      name="nombre"
-                      value={cliente.nombre}
-                      onChange={handleClienteChange}
-                      className={inputClassName(getFieldError('nombre'))}
-                      placeholder="Nombre completo"
-                    />
-                  </FormField>
-
-                  <FormField
-                    label="Apellido Paterno"
-                    required
-                    error={getFieldError('apellido_paterno')}
-                  >
-                    <input
-                      type="text"
-                      name="apellido_paterno"
-                      value={cliente.apellido_paterno}
-                      onChange={handleClienteChange}
-                      className={inputClassName(getFieldError('apellido_paterno'))}
-                      placeholder="Apellido paterno"
-                    />
-                  </FormField>
-
-                  <FormField
-                    label="Apellido Materno"
-                    error={getFieldError('apellido_materno')}
-                  >
-                    <input
-                      type="text"
-                      name="apellido_materno"
-                      value={cliente.apellido_materno}
-                      onChange={handleClienteChange}
-                      className={inputClassName(getFieldError('apellido_materno'))}
-                      placeholder="Apellido materno"
-                    />
-                  </FormField>
-                </div>
-
-                {/* Contact Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    label="Teléfono"
-                    required
-                    error={getFieldError('telefono')}
-                    icon={<Phone className="h-4 w-4" />}
-                  >
-                    <input
-                      type="tel"
-                      name="telefono"
-                      value={cliente.telefono}
-                      onChange={handleClienteChange}
-                      className={inputClassName(getFieldError('telefono'))}
-                      placeholder="10 dígitos"
-                      maxLength={10}
-                    />
-                  </FormField>
-
-                  <FormField
-                    label="Email"
-                    required
-                    error={getFieldError('email')}
-                    icon={<Mail className="h-4 w-4" />}
-                  >
-                    <input
-                      type="email"
-                      name="email"
-                      value={cliente.email}
-                      onChange={handleClienteChange}
-                      className={inputClassName(getFieldError('email'))}
-                      placeholder="correo@ejemplo.com"
-                    />
-                  </FormField>
-                </div>
-
-                {/* Business Info */}
-                <div className="space-y-4">
-                  <FormField label="Tipo de Cliente" required>
-                    <div className="relative">
-                      <select
-                        name="tipo"
-                        value={cliente.tipo}
-                        onChange={handleClienteChange}
-                        className={inputClassName(getFieldError('tipo'))}
-                      >
-                        <option value="persona">Persona Física</option>
-                        <option value="empresa">Empresa</option>
-                        <option value="gobierno">Gobierno</option>
-                      </select>
-                      <ChevronDown className="absolute right-3 top-3.5 h-4 w-4 text-gray-400 pointer-events-none" />
-                    </div>
-                  </FormField>
-
-                  {cliente.tipo === 'empresa' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-blue-50 rounded-lg">
-                      <FormField
-                        label="Razón Social"
-                        icon={<Building2 className="h-4 w-4" />}
-                      >
-                        <input
-                          type="text"
-                          name="razon_social"
-                          value={cliente.razon_social}
-                          onChange={handleClienteChange}
-                          className={inputClassName(getFieldError('razon_social'))}
-                          placeholder="Nombre de la empresa"
-                        />
-                      </FormField>
-
-                      <FormField
-                        label="RFC"
-                        icon={<Hash className="h-4 w-4" />}
-                      >
-                        <input
-                          type="text"
-                          name="rfc"
-                          value={cliente.rfc}
-                          onChange={handleClienteChange}
-                          className={inputClassName(getFieldError('rfc'))}
-                          placeholder="RFC de la empresa"
-                        />
-                      </FormField>
-                    </div>
-                  )}
-                </div>
-
-                {/* Status - only for existing customers */}
-                {isExistingCustomer && (
-                  <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
-                    <input 
-                      type="checkbox"
-                      name="activo"
-                      checked={cliente.activo === 1 || cliente.activo === true}
-                      onChange={handleClienteChange}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label className="text-sm font-medium text-gray-700">
-                      Cliente Activo
-                    </label>
+                {isSearching && (
+                  <div className="absolute inset-y-0 right-3 flex items-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                   </div>
                 )}
 
-                {/* Notes */}
+                <Combobox.Options className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  {customerSuggestions.length === 0 && searchQuery !== '' ? (
+                    <div className="relative cursor-default select-none py-3 px-3 text-gray-700 text-center text-sm">
+                      No se encontraron clientes
+                    </div>
+                  ) : (
+                    customerSuggestions.map((customer) => (
+                      <Combobox.Option
+                        key={customer.id || customer.telefono}
+                        value={customer}
+                        className={({ active }) =>
+                          `relative cursor-pointer select-none py-2 pl-8 pr-4 text-sm ${active ? 'bg-blue-50 text-blue-900' : 'text-gray-900'
+                          }`
+                        }
+                      >
+                        {({ selected }) => (
+                          <>
+                            <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                              {customer.nombre} {customer.apellido_paterno} - {customer.telefono}
+                              {customer.razon_social && ` (${customer.razon_social})`}
+                            </span>
+                            {selected && (
+                              <span className="absolute inset-y-0 left-0 flex items-center pl-2 text-blue-600">
+                                <Check className="h-3 w-3" />
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </Combobox.Option>
+                    ))
+                  )}
+                </Combobox.Options>
+              </div>
+            </Combobox>
+          </div>
+        )}
+
+        {/* Navigation Tabs */}
+        <div className="flex space-x-1 px-4 mt-2 bg-gray-50">
+          <button
+            onClick={() => setActiveSection('personal')}
+            className={`flex-1 py-2 text-sm rounded-t-lg ${activeSection === 'personal' ? 'bg-white text-blue-600 border-b-2 border-blue-500' : 'text-gray-500 hover:text-blue-500'}`}
+          >
+            Información Personal
+          </button>
+          <button
+            onClick={() => setActiveSection('address')}
+            className={`flex-1 py-2 text-sm rounded-t-lg ${activeSection === 'address' ? 'bg-white text-blue-600 border-b-2 border-blue-500' : 'text-gray-500 hover:text-blue-500'}`}
+          >
+            Dirección
+          </button>
+        </div>
+
+        {/* Scrollable Form Section */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {activeSection === 'personal' ? (
+            <div className="space-y-4">
+              {/* Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <FormField
-                  label="Notas"
-                  icon={<FileText className="h-4 w-4" />}
+                  label="Nombre"
+                  required
+                  error={getFieldError('nombre')}
+                  icon={<User className="h-4 w-4" />}
                 >
-                  <textarea
-                    name="notas"
-                    value={cliente.notas || ''}
+                  <input
+                    type="text"
+                    name="nombre"
+                    value={cliente.nombre}
                     onChange={handleClienteChange}
-                    rows={3}
-                    className={inputClassName(getFieldError('notas'))}
-                    placeholder="Información adicional sobre el cliente"
+                    className={inputClassName(getFieldError('nombre'))}
+                    placeholder="Nombre completo"
+                  />
+                </FormField>
+
+                <FormField
+                  label="Apellido Paterno"
+                  required
+                  error={getFieldError('apellido_paterno')}
+                >
+                  <input
+                    type="text"
+                    name="apellido_paterno"
+                    value={cliente.apellido_paterno}
+                    onChange={handleClienteChange}
+                    className={inputClassName(getFieldError('apellido_paterno'))}
+                    placeholder="Apellido paterno"
+                  />
+                </FormField>
+
+                <FormField
+                  label="Apellido Materno"
+                  error={getFieldError('apellido_materno')}
+                >
+                  <input
+                    type="text"
+                    name="apellido_materno"
+                    value={cliente.apellido_materno}
+                    onChange={handleClienteChange}
+                    className={inputClassName(getFieldError('apellido_materno'))}
+                    placeholder="Apellido materno"
                   />
                 </FormField>
               </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Address Fields */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    label="Código Postal"
-                    required
-                    error={getFieldError('codigo_postal')}
-                    icon={isLoadingZip ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hash className="h-4 w-4" />}
-                  >
-                    <input
-                      type="text"
-                      name="codigo_postal"
-                      value={cliente.codigo_postal}
-                      onChange={handleZipChange}
-                      className={inputClassName(getFieldError('codigo_postal') || !zipValidation)}
-                      placeholder="5 dígitos"
-                      maxLength={5}
-                    />
-                  </FormField>
 
-                  <FormField
-                    label="Estado"
-                    required
-                    error={getFieldError('estado')}
-                    icon={<Globe className="h-4 w-4" />}
-                  >
-                    <input
-                      type="text"
-                      name="estado"
-                      value={cliente.estado || ''}
+              {/* Contact Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <FormField
+                  label="Teléfono"
+                  required
+                  error={getFieldError('telefono')}
+                  icon={<Phone className="h-4 w-4" />}
+                >
+                  <input
+                    type="tel"
+                    name="telefono"
+                    value={cliente.telefono}
+                    onChange={handleClienteChange}
+                    className={inputClassName(getFieldError('telefono'))}
+                    placeholder="10 dígitos"
+                    maxLength={10}
+                  />
+                </FormField>
+
+                <FormField
+                  label="Email"
+                  required
+                  error={getFieldError('email')}
+                  icon={<Mail className="h-4 w-4" />}
+                >
+                  <input
+                    type="email"
+                    name="email"
+                    value={cliente.email}
+                    onChange={handleClienteChange}
+                    className={inputClassName(getFieldError('email'))}
+                    placeholder="correo@ejemplo.com"
+                  />
+                </FormField>
+              </div>
+
+              {/* Business Info */}
+              <div className="space-y-3">
+                <FormField label="Tipo de Cliente" required>
+                  <div className="relative">
+                    <select
+                      name="tipo"
+                      value={cliente.tipo}
                       onChange={handleClienteChange}
-                      className={inputClassName(getFieldError('estado'))}
-                      readOnly={!!cliente.codigo_postal && zipValidation}
-                      placeholder="Estado"
-                    />
-                  </FormField>
+                      className={inputClassName(getFieldError('tipo'))}
+                    >
+                      <option value="persona">Persona Física</option>
+                      <option value="empresa">Empresa</option>
+                      <option value="gobierno">Gobierno</option>
+                    </select>
+                    <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400 pointer-events-none" />
+                  </div>
+                </FormField>
 
-                  <FormField
-                    label="Municipio"
-                    required
-                    error={getFieldError('municipio')}
-                    icon={<MapPin className="h-4 w-4" />}
-                  >
-                    <input
-                      type="text"
-                      name="municipio"
-                      value={cliente.municipio || ''}
-                      onChange={handleClienteChange}
-                      className={inputClassName(getFieldError('municipio'))}
-                      readOnly={!!cliente.codigo_postal && zipValidation}
-                      placeholder="Municipio"
-                    />
-                  </FormField>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    label="Calle"
-                    required
-                    error={getFieldError('calle')}
-                    icon={<MapPin className="h-4 w-4" />}
-                  >
-                    <input
-                      type="text"
-                      name="calle"
-                      value={cliente.calle}
-                      onChange={handleClienteChange}
-                      className={inputClassName(getFieldError('calle'))}
-                      placeholder="Nombre de la calle"
-                    />
-                  </FormField>
-
-                  <div className="grid grid-cols-2 gap-2">
+                {cliente.tipo === 'empresa' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-blue-50 rounded-lg">
                     <FormField
-                      label="Núm. Ext."
-                      required
-                      error={getFieldError('numero_exterior')}
+                      label="Razón Social"
+                      icon={<Building2 className="h-4 w-4" />}
                     >
                       <input
                         type="text"
-                        name="numero_exterior"
-                        value={cliente.numero_exterior}
+                        name="razon_social"
+                        value={cliente.razon_social}
                         onChange={handleClienteChange}
-                        className={inputClassName(getFieldError('numero_exterior'))}
-                        placeholder="123"
+                        className={inputClassName(getFieldError('razon_social'))}
+                        placeholder="Nombre de la empresa"
                       />
                     </FormField>
 
-                    <FormField label="Núm. Int.">
+                    <FormField
+                      label="RFC"
+                      icon={<Hash className="h-4 w-4" />}
+                    >
                       <input
                         type="text"
-                        name="numero_interior"
-                        value={cliente.numero_interior || ''}
+                        name="rfc"
+                        value={cliente.rfc}
                         onChange={handleClienteChange}
-                        className={inputClassName(getFieldError('numero_interior'))}
-                        placeholder="A, B, 2"
+                        className={inputClassName(getFieldError('rfc'))}
+                        placeholder="RFC de la empresa"
                       />
                     </FormField>
                   </div>
+                )}
+              </div>
+
+              {/* Status - only for existing customers */}
+              {isExistingCustomer && (
+                <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                  <input
+                    type="checkbox"
+                    name="activo"
+                    checked={isClienteActive(cliente)}
+                    onChange={handleClienteChange}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label className="text-sm font-medium text-gray-700">
+                    Cliente Activo
+                  </label>
                 </div>
+              )}
+
+              {/* Notes */}
+              <FormField
+                label="Notas"
+                icon={<FileText className="h-4 w-4" />}
+              >
+                <textarea
+                  name="notas"
+                  value={cliente.notas || ''}
+                  onChange={handleClienteChange}
+                  rows={3}
+                  className={inputClassName(getFieldError('notas'))}
+                  placeholder="Información adicional sobre el cliente"
+                />
+              </FormField>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Address Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <FormField
+                  label="Código Postal"
+                  required
+                  error={getFieldError('codigo_postal')}
+                  icon={isLoadingZip ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hash className="h-4 w-4" />}
+                >
+                  <input
+                    type="text"
+                    name="codigo_postal"
+                    value={cliente.codigo_postal}
+                    onChange={handleZipChange}
+                    className={inputClassName(getFieldError('codigo_postal') || !zipValidation)}
+                    placeholder="5 dígitos"
+                    maxLength={5}
+                  />
+                </FormField>
 
                 <FormField
-                  label="Colonia"
+                  label="Estado"
                   required
-                  error={getFieldError('colonia')}
+                  error={getFieldError('estado')}
+                  icon={<Globe className="h-4 w-4" />}
                 >
-                  <div className="space-y-2">
-                    {/* Main input field */}
-                    <div className="relative">
-                      <input
-                        type="text"
-                        name="colonia"
-                        value={cliente.colonia || ''}
-                        onChange={(e) => {
-                          handleClienteChange(e);
-                          // Show dropdown when typing
-                          if (cliente.colonias && cliente.colonias.length > 0) {
-                            setShowColoniaDropdown(true);
-                          }
-                        }}
-                        onFocus={() => {
-                          if (cliente.colonias && cliente.colonias.length > 0) {
-                            setShowColoniaDropdown(true);
-                          }
-                        }}
-                        placeholder="Escribir o seleccionar colonia"
-                        className={inputClassName(getFieldError('colonia'))}
-                      />
-                      
-                      {/* Dropdown toggle button */}
-                      {cliente.colonias && cliente.colonias.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setShowColoniaDropdown(!showColoniaDropdown)}
-                          className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
-                        >
-                          <ChevronDown className={`h-4 w-4 transition-transform ${showColoniaDropdown ? 'rotate-180' : ''}`} />
-                        </button>
-                      )}
-                    </div>
+                  <input
+                    type="text"
+                    name="estado"
+                    value={cliente.estado || ''}
+                    onChange={handleClienteChange}
+                    className={inputClassName(getFieldError('estado'))}
+                    readOnly={!!cliente.codigo_postal && zipValidation}
+                    placeholder="Estado"
+                  />
+                </FormField>
+
+                <FormField
+                  label="Municipio"
+                  required
+                  error={getFieldError('municipio')}
+                  icon={<MapPin className="h-4 w-4" />}
+                >
+                  <input
+                    type="text"
+                    name="municipio"
+                    value={cliente.municipio || ''}
+                    onChange={handleClienteChange}
+                    className={inputClassName(getFieldError('municipio'))}
+                    readOnly={!!cliente.codigo_postal && zipValidation}
+                    placeholder="Municipio"
+                  />
+                </FormField>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <FormField
+                  label="Calle"
+                  required
+                  error={getFieldError('calle')}
+                  icon={<MapPin className="h-4 w-4" />}
+                >
+                  <input
+                    type="text"
+                    name="calle"
+                    value={cliente.calle}
+                    onChange={handleClienteChange}
+                    className={inputClassName(getFieldError('calle'))}
+                    placeholder="Nombre de la calle"
+                  />
+                </FormField>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <FormField
+                    label="Núm. Ext."
+                    required
+                    error={getFieldError('numero_exterior')}
+                  >
+                    <input
+                      type="text"
+                      name="numero_exterior"
+                      value={cliente.numero_exterior}
+                      onChange={handleClienteChange}
+                      className={inputClassName(getFieldError('numero_exterior'))}
+                      placeholder="123"
+                    />
+                  </FormField>
+
+                  <FormField label="Núm. Int.">
+                    <input
+                      type="text"
+                      name="numero_interior"
+                      value={cliente.numero_interior || ''}
+                      onChange={handleClienteChange}
+                      className={inputClassName(getFieldError('numero_interior'))}
+                      placeholder="A, B, 2"
+                    />
+                  </FormField>
+                </div>
+              </div>
+
+              {/* Enhanced Colonia Field */}
+              <FormField
+                label="Colonia"
+                required
+                error={getFieldError('colonia')}
+              >
+                <div className="space-y-2">
+                  {/* Main input with dropdown button */}
+                  <div className="flex gap-2">
+                    {/* Input field */}
+                    <input
+                      type="text"
+                      name="colonia"
+                      value={cliente.colonia || ''}
+                      onChange={handleClienteChange}
+                      placeholder="Escribir colonia"
+                      className={`flex-1 ${inputClassName(getFieldError('colonia'))}`}
+                    />
                     
-                    {/* Custom dropdown */}
-                    {showColoniaDropdown && cliente.colonias && cliente.colonias.length > 0 && (
-                      <div className="relative">
-                        <div className="absolute z-[60] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-2xl">
-                          {/* Search within colonias */}
-                          <div className="p-3 border-b border-gray-100 bg-gray-50">
-                            <div className="relative">
-                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <Search className="h-4 w-4 text-gray-400" />
-                              </div>
-                              <input
-                                type="text"
-                                placeholder="Buscar colonia..."
-                                value={coloniaSearchQuery}
-                                onChange={(e) => setColoniaSearchQuery(e.target.value)}
-                                className="w-full pl-10 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                autoFocus
-                              />
+                    {/* Dropdown button */}
+                    {cliente.colonias && cliente.colonias.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowColoniaDropdown(!showColoniaDropdown);
+                          setColoniaSearchQuery('');
+                        }}
+                        className="rounded-full p-2 hover:bg-gray-100 border border-gray-300"
+                      >
+                        <ChevronsUpDown className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown menu */}
+                  {showColoniaDropdown && cliente.colonias && cliente.colonias.length > 0 && (
+                    <div className="relative" data-colonia-dropdown="true">
+                      <div className="absolute z-[60] w-full bg-white border rounded-lg shadow-lg">
+                        {/* Search header */}
+                        <div className="p-2 border-b bg-gray-50">
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                              <Search className="h-4 w-4 text-gray-400" />
                             </div>
+                            <input
+                              type="text"
+                              placeholder="Buscar colonia..."
+                              value={coloniaSearchQuery}
+                              onChange={(e) => setColoniaSearchQuery(e.target.value)}
+                              className="w-full pl-10 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              autoFocus
+                            />
                           </div>
-                          
-                          {/* Filtered colonias list - increased height when dropdown is open */}
-                          <div className="max-h-60 overflow-y-auto">
-                            {cliente.colonias
-                              .filter(colonia => 
-                                colonia.toLowerCase().includes((coloniaSearchQuery || cliente.colonia || '').toLowerCase())
-                              )
-                              .map((colonia, index) => (
-                                <button
-                                  key={index}
-                                  type="button"
-                                  onClick={() => {
-                                    setCliente(prev => prev ? { ...prev, colonia } : prev);
-                                    setShowColoniaDropdown(false);
-                                    setColoniaSearchQuery('');
-                                  }}
-                                  className={`w-full text-left px-4 py-3 text-sm hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-b-0 ${
-                                    cliente.colonia === colonia ? 'bg-blue-100 text-blue-900 font-medium' : 'text-gray-900'
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span>{colonia}</span>
-                                    {cliente.colonia === colonia && (
-                                      <Check className="h-4 w-4 text-blue-600" />
-                                    )}
-                                  </div>
-                                </button>
-                              ))
-                            }
-                            
-                            {/* No results message */}
-                            {cliente.colonias.filter(colonia => 
-                              colonia.toLowerCase().includes((coloniaSearchQuery || cliente.colonia || '').toLowerCase())
-                            ).length === 0 && (
-                              <div className="px-4 py-8 text-sm text-gray-500 text-center">
-                                <Search className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                                <p>No se encontraron colonias</p>
-                                <p className="text-xs mt-1">Intenta con otro término de búsqueda</p>
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Footer with close button and count */}
-                          <div className="p-3 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
-                            <span className="text-xs text-gray-500">
-                              {cliente.colonias.filter(colonia => 
-                                colonia.toLowerCase().includes((coloniaSearchQuery || cliente.colonia || '').toLowerCase())
-                              ).length} de {cliente.colonias.length} colonias
-                            </span>
+                          {/* Clear search button when there's a search query */}
+                          {coloniaSearchQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setColoniaSearchQuery('')}
+                              className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                            >
+                              Mostrar todas las colonias
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Results list */}
+                        <div className="max-h-48 overflow-y-auto">
+                          {/* Current input as custom option (if not empty and not in list) */}
+                          {cliente.colonia && 
+                           cliente.colonia.trim() && 
+                           !cliente.colonias.some(colonia => 
+                             colonia.toLowerCase() === cliente.colonia.toLowerCase()
+                           ) && 
+                           (coloniaSearchQuery === '' || cliente.colonia.toLowerCase().includes(coloniaSearchQuery.toLowerCase())) && (
                             <button
                               type="button"
                               onClick={() => {
                                 setShowColoniaDropdown(false);
                                 setColoniaSearchQuery('');
                               }}
-                              className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-green-50 transition-colors border-b bg-green-25"
+                            >
+                              <div className="flex items-center">
+                                <Plus className="h-4 w-4 text-green-600 mr-2" />
+                                <span className="text-green-800">
+                                  Usar "<strong>{cliente.colonia}</strong>" (personalizada)
+                                </span>
+                              </div>
+                            </button>
+                          )}
+
+                          {/* Show filtered or all colonias */}
+                          {(() => {
+                            const filteredColonias = coloniaSearchQuery === '' 
+                              ? cliente.colonias // Show all if no search query
+                              : cliente.colonias.filter(colonia =>
+                                  colonia.toLowerCase().includes(coloniaSearchQuery.toLowerCase())
+                                );
+
+                            return filteredColonias.map((colonia, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => {
+                                  handleColoniaUpdate(colonia);
+                                  setShowColoniaDropdown(false);
+                                  setColoniaSearchQuery('');
+                                }}
+                                className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors border-b last:border-b-0 ${
+                                  cliente.colonia === colonia ? 'bg-blue-100 text-blue-900 font-medium' : 'text-gray-900'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="truncate">{colonia}</span>
+                                  {cliente.colonia === colonia && (
+                                    <Check className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                  )}
+                                </div>
+                              </button>
+                            ));
+                          })()}
+                          
+                          {/* No results when searching */}
+                          {coloniaSearchQuery !== '' && 
+                           cliente.colonias.filter(colonia =>
+                             colonia.toLowerCase().includes(coloniaSearchQuery.toLowerCase())
+                           ).length === 0 && (
+                            <div className="px-3 py-6 text-sm text-gray-500 text-center">
+                              <Search className="h-6 w-6 text-gray-300 mx-auto mb-2" />
+                              <p>No se encontraron colonias con "{coloniaSearchQuery}"</p>
+                              <p className="text-xs mt-1">
+                                Puedes escribir "{coloniaSearchQuery}" directamente en el campo de arriba
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Footer with better info */}
+                        <div className="p-2 border-t bg-gray-50 flex justify-between items-center">
+                          <span className="text-xs text-gray-500">
+                            {coloniaSearchQuery === '' ? (
+                              `${cliente.colonias.length} colonias disponibles`
+                            ) : (
+                              `${cliente.colonias.filter(colonia =>
+                                colonia.toLowerCase().includes(coloniaSearchQuery.toLowerCase())
+                              ).length} de ${cliente.colonias.length} colonias`
+                            )}
+                          </span>
+                          <div className="flex gap-1">
+                            {coloniaSearchQuery && (
+                              <button
+                                type="button"
+                                onClick={() => setColoniaSearchQuery('')}
+                                className="px-3 py-1 text-xs font-medium text-blue-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                              >
+                                Ver todas
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowColoniaDropdown(false);
+                                setColoniaSearchQuery('');
+                              }}
+                              className="px-3 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
                             >
                               Cerrar
                             </button>
                           </div>
                         </div>
                       </div>
-                    )}
-                    
-                    {/* Quick suggestion chips - only show when dropdown is closed */}
-                    {!showColoniaDropdown && cliente.colonias && cliente.colonias.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        <span className="text-xs text-gray-500 mr-2">Sugerencias:</span>
-                        {cliente.colonias.slice(0, 3).map((colonia, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            onClick={() => setCliente(prev => prev ? { ...prev, colonia } : prev)}
-                            className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full hover:bg-blue-200 transition-colors"
-                          >
-                            {colonia}
-                          </button>
-                        ))}
-                        {cliente.colonias.length > 3 && (
-                          <button
-                            type="button"
-                            onClick={() => setShowColoniaDropdown(true)}
-                            className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors"
-                          >
-                            Ver todas ({cliente.colonias.length})
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Quick suggestions when dropdown is closed */}
+                  {!showColoniaDropdown && cliente.colonias && cliente.colonias.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      <span className="text-xs text-gray-500 mr-2">Sugerencias:</span>
+                      {cliente.colonias.slice(0, 3).map((colonia, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => handleColoniaUpdate(colonia)}
+                          className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full hover:bg-blue-200 transition-colors"
+                        >
+                          {colonia}
+                        </button>
+                      ))}
+                      {cliente.colonias.length > 3 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowColoniaDropdown(true);
+                            setColoniaSearchQuery('');
+                          }}
+                          className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition-colors"
+                        >
+                          +{cliente.colonias.length - 3} más
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </FormField>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <FormField
+                  label="País"
+                  required
+                  error={getFieldError('pais')}
+                  icon={<Globe className="h-4 w-4" />}
+                >
+                  <input
+                    type="text"
+                    name="pais"
+                    value={cliente.pais || 'México'}
+                    onChange={handleClienteChange}
+                    className={inputClassName(getFieldError('pais'))}
+                    placeholder="País"
+                  />
                 </FormField>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    label="País"
-                    required
-                    error={getFieldError('pais')}
-                    icon={<Globe className="h-4 w-4" />}
-                  >
-                    <input
-                      type="text"
-                      name="pais"
-                      value={cliente.pais || 'México'}
-                      onChange={handleClienteChange}
-                      className={inputClassName(getFieldError('pais'))}
-                      placeholder="País"
-                    />
-                  </FormField>
-
-                  <FormField
-                    label="Referencia"
-                    error={getFieldError('referencia')}
-                  >
-                    <input
-                      type="text"
-                      name="referencia"
-                      value={cliente.referencia || ''}
-                      onChange={handleClienteChange}
-                      className={inputClassName(getFieldError('referencia'))}
-                      placeholder="Referencias para ubicar"
-                    />
-                  </FormField>
-                </div>
+                <FormField
+                  label="Referencia"
+                  error={getFieldError('referencia')}
+                >
+                  <input
+                    type="text"
+                    name="referencia"
+                    value={cliente.referencia || ''}
+                    onChange={handleClienteChange}
+                    className={inputClassName(getFieldError('referencia'))}
+                    placeholder="Referencias para ubicar"
+                  />
+                </FormField>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Footer */}
-        <div className="border-t border-gray-200 bg-gray-50 px-6 py-4 flex justify-between items-center">
-          <div className="flex space-x-3">
+        {/* Sticky Footer */}
+        <div className="sticky bottom-0 bg-gray-50 border-t p-3 flex justify-between items-center">
+          <div className="flex space-x-2">
             <button
-              type="button"
-              onClick={() => {
-                if (isExistingCustomer && hasChanges) {
-                  if (confirm("¿Estás seguro de eliminar los cambios?")) {
-                    if (initialCliente) {
-                      setCliente(initialCliente);
-                    } else {
-                      setCliente(defaultCliente);
-                    }
-                    setFormErrors({});
-                  }
-                } else {
-                  setCliente(defaultCliente);
-                  setFormErrors({});
-                }
-              }}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+              onClick={() => setCliente(defaultCliente)}
+              className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
             >
               {isExistingCustomer ? 'Restaurar' : 'Limpiar'}
             </button>
             <button
-              type="button"
               onClick={handleClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+              className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
             >
               Cancelar
             </button>
           </div>
-          
           <button
-            type="button"
             onClick={handleSaveCustomer}
             disabled={!isFormValid()}
-            className={`px-6 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-              isFormValid()
-                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
+            className={`px-4 py-1.5 text-xs font-medium rounded ${isFormValid() ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
           >
-            {/* Context-aware button text for shipping process */}
-            {!isExistingCustomer 
-              ? 'Crear Cliente'
-              : hasChanges 
-                ? 'Guardar Cambios'
-                : 'Continuar'
-            }
+            {!isExistingCustomer ? 'Crear Cliente' : hasChanges ? 'Guardar Cambios' : 'Continuar'}
           </button>
         </div>
       </div>
@@ -1041,8 +1054,8 @@ function FormField({ label, required = false, error, icon, children }: FormField
         <div className={icon ? "pl-10" : ""}>{children}</div>
       </div>
       {error && (
-        <p className="flex items-center text-xs text-red-600 mt-1">
-          <AlertCircle className="h-3 w-3 mr-1 flex-shrink-0" />
+        <p className="flex items-center text-sm text-red-600 mt-1">
+          <AlertCircle className="h-4 w-4 mr-1 flex-shrink-0" />
           {error}
         </p>
       )}
@@ -1050,12 +1063,12 @@ function FormField({ label, required = false, error, icon, children }: FormField
   );
 }
 
+// Input styling consistent with base
 function inputClassName(error?: string | boolean) {
-  return `w-full px-3 py-2.5 border rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-0 ${
-    error
+  return `w-full px-3 py-2 text-sm border rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-0 ${error
       ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
       : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
-  } disabled:bg-gray-50 disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-600`;
+    } disabled:bg-gray-50 disabled:text-gray-500 read-only:bg-gray-50 read-only:text-gray-600`;
 }
 
 function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
@@ -1065,3 +1078,13 @@ function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
     timeout = setTimeout(() => func(...args), wait);
   }) as T;
 }
+
+const isClienteActive = (cliente: Cliente): boolean => {
+  if (typeof cliente.activo === 'number') {
+    return cliente.activo === 1;
+  }
+  if (typeof cliente.activo === 'boolean') {
+    return cliente.activo;
+  }
+  return false;
+};

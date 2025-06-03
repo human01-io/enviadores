@@ -1,3 +1,5 @@
+// Updated DatosEnvio.tsx with proper state synchronization
+
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { apiService } from '../../services/apiService';
@@ -39,7 +41,7 @@ interface DatosEnvioProps {
   destZip: string;
   clienteId?: string | null;
   destinoId?: string | null;
-     onUpdateSelectedService?: (service: ServicioCotizado, newQuoteData?: {
+  onUpdateSelectedService?: (service: ServicioCotizado, newQuoteData?: {
     servicios: CotizadorServicioCotizado[];
     detallesCotizacion: DetallesCotizacion;
     newOriginZip?: string;
@@ -84,9 +86,17 @@ export default function DatosEnvio({
   // Content state
   const [contenido, setContenido] = useState<string>('');
 
-  // Client and destination state
+  // Client and destination state - CRITICAL: Track current active IDs
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [destino, setDestino] = useState<Destino | null>(null);
+  
+  // NEW: Track the currently active cliente and destino IDs
+  const [currentClienteId, setCurrentClienteId] = useState<string | null>(clienteId || null);
+  const [currentDestinoId, setCurrentDestinoId] = useState<string | null>(destinoId || null);
+
+  // CRITICAL: Track original ZIP codes from the initial quote
+  const [originalOriginZip] = useState<string>(originZip);
+  const [originalDestZip] = useState<string>(destZip);
 
   // Validation state
   const [zipValidation, setZipValidation] = useState({
@@ -113,15 +123,32 @@ export default function DatosEnvio({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // UPDATED: Enhanced remove handlers that update current IDs
   const handleRemoveCliente = () => {
     setCliente(null);
     setDestino(null);
+    setCurrentClienteId(null);
+    setCurrentDestinoId(null);
     setErrorMessage(null);
     setNeedsNewQuote(false);
+    
+    // Notify parent component about the ID changes
+    if (onUpdateSelectedService) {
+      // Call with updated IDs but don't generate new quote yet
+      onUpdateSelectedService(selectedService, {
+        servicios: [],
+        detallesCotizacion: {} as DetallesCotizacion,
+        newOriginZip: originZip,
+        newDestZip: destZip,
+        newClienteId: null,
+        newDestinoId: null
+      });
+    }
   };
 
   const handleRemoveDestino = () => {
     setDestino(null);
+    setCurrentDestinoId(null);
     setErrorMessage(null);
     // Check if we still need a new quote based on client ZIP
     if (cliente && cliente.codigo_postal !== originZip) {
@@ -129,49 +156,73 @@ export default function DatosEnvio({
     } else {
       setNeedsNewQuote(false);
     }
+    
+    // Notify parent component about the destino ID change
+    if (onUpdateSelectedService) {
+      onUpdateSelectedService(selectedService, {
+        servicios: [],
+        detallesCotizacion: {} as DetallesCotizacion,
+        newOriginZip: cliente?.codigo_postal || originZip,
+        newDestZip: destZip,
+        newClienteId: currentClienteId,
+        newDestinoId: null
+      });
+    }
   };
 
   // Effects
- useEffect(() => {
-  // Initial load when component mounts
-  if (clienteId || destinoId) {
-    console.log('Initial data load on mount with:', { clienteId, destinoId });
-    loadExistingData();
-  }
-}, []);
-
-useEffect(() => {
-  // If the clienteId or destinoId in props doesn't match what we have loaded, 
-  // it means the user generated a new quote with different cliente/destino
-  const currentClienteId = cliente?.id || null;
-  const currentDestinoId = destino?.id || null;
-  
-  if (clienteId !== currentClienteId || destinoId !== currentDestinoId) {
-    console.log('ClienteId or DestinoId changed, reloading data:', {
-      propsClienteId: clienteId,
-      currentClienteId,
-      propsDestinoId: destinoId, 
-      currentDestinoId
-    });
-    
-    // Clear current data if IDs don't match
-    if (clienteId !== currentClienteId) {
-      setCliente(null);
-      setDestino(null); // Also clear destino since it depends on cliente
-    } else if (destinoId !== currentDestinoId) {
-      setDestino(null); // Only clear destino
-    }
-    
-    // Reload with new IDs if they exist
-    if (clienteId || destinoId) {
+  useEffect(() => {
+    // Initial load when component mounts
+    if (currentClienteId || currentDestinoId) {
+      console.log('Initial data load on mount with:', { 
+        currentClienteId, 
+        currentDestinoId,
+        propsClienteId: clienteId,
+        propsDestinoId: destinoId 
+      });
       loadExistingData();
     }
+  }, []);
+
+  // UPDATED: Monitor changes to prop IDs and sync with current state
+  useEffect(() => {
+    const propClienteId = clienteId || null;
+    const propDestinoId = destinoId || null;
     
-    // Reset validation state since we have new data
-    setNeedsNewQuote(false);
-    setErrorMessage(null);
-  }
-}, [clienteId, destinoId]); // Dependencies: clienteId and destinoId from props
+    console.log('Props changed:', {
+      propClienteId,
+      propDestinoId,
+      currentClienteId,
+      currentDestinoId,
+      propsChanged: propClienteId !== currentClienteId || propDestinoId !== currentDestinoId
+    });
+    
+    // Only update if the props actually changed and we don't already have that data loaded
+    if (propClienteId !== currentClienteId || propDestinoId !== currentDestinoId) {
+      console.log('Syncing IDs from props to current state');
+      
+      // Update our tracked IDs
+      setCurrentClienteId(propClienteId);
+      setCurrentDestinoId(propDestinoId);
+      
+      // Clear existing data if IDs changed
+      if (propClienteId !== currentClienteId) {
+        setCliente(null);
+        setDestino(null); // Also clear destino since it depends on cliente
+      } else if (propDestinoId !== currentDestinoId) {
+        setDestino(null); // Only clear destino
+      }
+      
+      // Reload with new IDs if they exist
+      if (propClienteId || propDestinoId) {
+        loadExistingData(propClienteId, propDestinoId);
+      }
+      
+      // Reset validation state since we have new data
+      setNeedsNewQuote(false);
+      setErrorMessage(null);
+    }
+  }, [clienteId, destinoId]); // Dependencies: clienteId and destinoId from props
 
   useEffect(() => {
     if (cliente?.codigo_postal || destino?.codigo_postal) {
@@ -179,346 +230,390 @@ useEffect(() => {
     }
   }, [cliente?.codigo_postal, destino?.codigo_postal, originZip, destZip]);
 
-  // Helper functions
-  async function loadExistingData() {
-  // Only proceed if we have valid IDs
-  if (!clienteId && !destinoId) {
-    console.log('No clienteId or destinoId provided, skipping data load');
-    return;
-  }
-
-  setIsLoading(true);
-  setErrorMessage(null);
-
-  try {
-    // Load cliente data if clienteId is provided
-    if (clienteId) {
-      console.log('Loading cliente data for ID:', clienteId);
-      const results = await apiService.searchCustomers(clienteId);
-      if (results && results.length > 0) {
-        const clienteData = results[0];
-        console.log('Loaded cliente:', clienteData);
-        setCliente(clienteData);
-      } else {
-        console.warn('No cliente found for ID:', clienteId);
-        setCliente(null);
-      }
+  // UPDATED: Enhanced loadExistingData with parameters
+  async function loadExistingData(useClienteId?: string | null, useDestinoId?: string | null) {
+    const targetClienteId = useClienteId !== undefined ? useClienteId : currentClienteId;
+    const targetDestinoId = useDestinoId !== undefined ? useDestinoId : currentDestinoId;
+    
+    // Only proceed if we have valid IDs
+    if (!targetClienteId && !targetDestinoId) {
+      console.log('No clienteId or destinoId provided, skipping data load');
+      return;
     }
 
-    // Load destino data if both clienteId and destinoId are provided
-    if (clienteId && destinoId) {
-      console.log('Loading destino data for clienteId:', clienteId, 'destinoId:', destinoId);
-      const results = await apiService.getCustomerDestinations(clienteId);
-      if (results && results.length > 0) {
-        const destinoData = results.find(d => d.id === destinoId);
-        if (destinoData) {
-          console.log('Loaded destino:', destinoData);
-          setDestino(destinoData);
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      // Load cliente data if clienteId is provided
+      if (targetClienteId) {
+        console.log('Loading cliente data for ID:', targetClienteId);
+        const results = await apiService.searchCustomers(targetClienteId);
+        if (results && results.length > 0) {
+          const clienteData = results[0];
+          console.log('Loaded cliente:', clienteData);
+          setCliente(clienteData);
         } else {
-          console.warn('No destino found for ID:', destinoId);
+          console.warn('No cliente found for ID:', targetClienteId);
+          setCliente(null);
+        }
+      }
+
+      // Load destino data if both clienteId and destinoId are provided
+      if (targetClienteId && targetDestinoId) {
+        console.log('Loading destino data for clienteId:', targetClienteId, 'destinoId:', targetDestinoId);
+        const results = await apiService.getCustomerDestinations(targetClienteId);
+        if (results && results.length > 0) {
+          const destinoData = results.find(d => d.id === targetDestinoId);
+          if (destinoData) {
+            console.log('Loaded destino:', destinoData);
+            setDestino(destinoData);
+          } else {
+            console.warn('No destino found for ID:', targetDestinoId);
+            setDestino(null);
+          }
+        } else {
+          console.warn('No destinations found for clienteId:', targetClienteId);
           setDestino(null);
         }
-      } else {
-        console.warn('No destinations found for clienteId:', clienteId);
-        setDestino(null);
       }
+    } catch (error) {
+      console.error('Error loading cliente/destino data:', error);
+      setErrorMessage('Error al cargar los datos del cliente/destino');
+      // Don't clear data on error, keep what we have
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error('Error loading cliente/destino data:', error);
-    setErrorMessage('Error al cargar los datos del cliente/destino');
-    // Don't clear data on error, keep what we have
-  } finally {
-    setIsLoading(false);
   }
-}
 
   function validateZipCodes() {
     if (cliente && destino) {
-      const originValid = cliente.codigo_postal === originZip;
-      const destValid = destino.codigo_postal === destZip;
+      // CRITICAL: Compare against ORIGINAL quote ZIP codes, not current ones
+      const originValid = cliente.codigo_postal === originalOriginZip;
+      const destValid = destino.codigo_postal === originalDestZip;
       
       setZipValidation({
         originValid,
         destValid
       });
 
-      // Set needsNewQuote if any ZIP doesn't match
+      // Set needsNewQuote if any ZIP doesn't match the ORIGINAL quote
       setNeedsNewQuote(!originValid || !destValid);
+      
+      console.log('ZIP Validation:', {
+        clienteZip: cliente.codigo_postal,
+        destinoZip: destino.codigo_postal,
+        originalOriginZip,
+        originalDestZip,
+        originValid,
+        destValid,
+        needsNewQuote: !originValid || !destValid
+      });
     } else if (cliente) {
-      const originValid = cliente.codigo_postal === originZip;
+      // Compare client ZIP against ORIGINAL origin ZIP
+      const originValid = cliente.codigo_postal === originalOriginZip;
       setZipValidation({
         originValid,
         destValid: true // No destination yet
       });
       setNeedsNewQuote(!originValid);
+      
+      console.log('ZIP Validation (cliente only):', {
+        clienteZip: cliente.codigo_postal,
+        originalOriginZip,
+        originValid,
+        needsNewQuote: !originValid
+      });
     }
   }
 
-  // New function to handle generating a new quote
-  // In DatosEnvio.tsx - Replace the existing handleGenerateNewQuote function
-
-// In DatosEnvio.tsx, replace the existing handleGenerateNewQuote function:
-
-const handleGenerateNewQuote = async () => {
-  if (!cliente || !destino) {
-    setErrorMessage('Por favor complete los datos del remitente y destinatario');
-    return;
-  }
-
-  if (!originalCotizadorState) {
-    setErrorMessage('No se encontró información de la cotización original');
-    return;
-  }
-
-  if (!onUpdateSelectedService) {
-    setErrorMessage('No se puede actualizar el servicio seleccionado');
-    return;
-  }
-
-  setIsGeneratingNewQuote(true);
-  setErrorMessage(null);
-
-  try {
-    // First, validate the new ZIP codes and calculate zone
-    const originPostal = parseInt(cliente.codigo_postal);
-    const destPostal = parseInt(destino.codigo_postal);
-
-    if (isNaN(originPostal) || isNaN(destPostal)) {
-      setErrorMessage('Códigos postales inválidos');
-      setIsGeneratingNewQuote(false);
+  // UPDATED: Enhanced handleGenerateNewQuote with ID tracking
+  const handleGenerateNewQuote = async () => {
+    if (!cliente || !destino) {
+      setErrorMessage('Por favor complete los datos del remitente y destinatario');
       return;
     }
 
-    // Calculate zone using the same function as cotizador
-    const calculatedZone = calculateZone(originPostal, destPostal);
-
-    // Check if we need reexpedition cost
-    let requiereReexpedicion = false;
-    try {
-      const formData = new FormData();
-      formData.append('originZipCode', cliente.codigo_postal);
-      formData.append('destinationZipCode', destino.codigo_postal);
-      formData.append('country', 'MEX');
-      formData.append('language', '0');
-
-      const estafetaResponse = await fetch('https://eproxy.alejandro-sarmiento-pa.workers.dev/', {
-        method: 'POST',
-        body: new URLSearchParams(formData as any),
-      });
-
-      const estafetaData = await estafetaResponse.json();
-      
-      const parseReexpeditionCost = (value: string | undefined): boolean => {
-        if (!value) return false;
-        const normalizedValue = value.trim().toLowerCase();
-        if (normalizedValue === "no") return false;
-        const numericValue = parseFloat(normalizedValue.replace(/[^0-9.]/g, ''));
-        return !isNaN(numericValue) && numericValue > 0;
-      };
-
-      requiereReexpedicion = estafetaData?.reexpe ? parseReexpeditionCost(estafetaData.reexpe) : false;
-    } catch (error) {
-      console.warn('Could not fetch Estafeta data, proceeding without reexpedition check');
+    if (!originalCotizadorState) {
+      setErrorMessage('No se encontró información de la cotización original');
+      return;
     }
 
-    // Create the payload using the original cotizador state
-    const payload = {
-      zona: calculatedZone,
-      tipoPaquete: originalCotizadorState.packageType,
-      peso: parseFloat(originalCotizadorState.weight),
-      pesoVolumetrico: originalCotizadorState.volumetricWeight,
-      esInternacional: false,
-      valorSeguro: originalCotizadorState.insurance ? parseFloat(originalCotizadorState.insuranceValue) || 0 : 0,
-      opcionEmpaque: originalCotizadorState.packagingOption,
-      precioEmpaquePersonalizado: originalCotizadorState.packagingOption === 'EMP05' ? originalCotizadorState.customPackagingPrice : null,
-      requiereRecoleccion: originalCotizadorState.collectionRequired,
-      precioRecoleccion: originalCotizadorState.collectionRequired ? originalCotizadorState.collectionPrice : null,
-      requiereReexpedicion: requiereReexpedicion
-    };
+    if (!onUpdateSelectedService) {
+      setErrorMessage('No se puede actualizar el servicio seleccionado');
+      return;
+    }
 
-    console.log('Generating new quote with payload:', payload);
+    setIsGeneratingNewQuote(true);
+    setErrorMessage(null);
 
-    const response = await fetch('https://enviadores.com.mx/api/get-prices.php', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
+    try {
+      // First, validate the new ZIP codes and calculate zone
+      const originPostal = parseInt(cliente.codigo_postal);
+      const destPostal = parseInt(destino.codigo_postal);
 
-    const data = await response.json();
+      if (isNaN(originPostal) || isNaN(destPostal)) {
+        setErrorMessage('Códigos postales inválidos');
+        setIsGeneratingNewQuote(false);
+        return;
+      }
 
-    if (data.exito && data.servicios?.length > 0) {
-      console.log('New quote data received:', data);
-      
-      // Process all services with proper pricing calculations
-      const ivaRate = data.iva || 0.16;
-      const additionalChargesTotal = 
-        data.cargosAdicionales.empaque + 
-        data.cargosAdicionales.seguro + 
-        data.cargosAdicionales.recoleccion + 
-        (data.cargosAdicionales.reexpedicion || 0);
+      // Calculate zone using the same function as cotizador
+      const calculatedZone = calculateZone(originPostal, destPostal);
 
-      const serviciosConTotales: CotizadorServicioCotizado[] = data.servicios.map((servicio: any): CotizadorServicioCotizado => {
-        const precioCompleto = servicio.precioFinal + additionalChargesTotal;
-        const iva = precioCompleto * ivaRate;
+      // Check if we need reexpedition cost
+      let requiereReexpedicion = false;
+      try {
+        const formData = new FormData();
+        formData.append('originZipCode', cliente.codigo_postal);
+        formData.append('destinationZipCode', destino.codigo_postal);
+        formData.append('country', 'MEX');
+        formData.append('language', '0');
+
+        const estafetaResponse = await fetch('https://eproxy.alejandro-sarmiento-pa.workers.dev/', {
+          method: 'POST',
+          body: new URLSearchParams(formData as any),
+        });
+
+        const estafetaData = await estafetaResponse.json();
         
-        return {
-          sku: servicio.sku,
-          nombre: servicio.nombre,
-          precioBase: typeof servicio.precioBase === 'string' 
-            ? parseFloat(servicio.precioBase) 
-            : servicio.precioBase || 0,
-          precioFinal: servicio.precioFinal || 0,
-          precioTotal: precioCompleto,
-          precioConIva: precioCompleto + iva,
-          iva: iva,
-          cargoSobrepeso: servicio.cargoSobrepeso || 0,
-          diasEstimados: servicio.diasEstimados || 1,
-          peso: parseFloat(originalCotizadorState.weight),
-          pesoVolumetrico: originalCotizadorState.volumetricWeight,
-          esInternacional: false,
-          pesoFacturable: data.pesoFacturable
+        const parseReexpeditionCost = (value: string | undefined): boolean => {
+          if (!value) return false;
+          const normalizedValue = value.trim().toLowerCase();
+          if (normalizedValue === "no") return false;
+          const numericValue = parseFloat(normalizedValue.replace(/[^0-9.]/g, ''));
+          return !isNaN(numericValue) && numericValue > 0;
         };
-      });
 
-      // Create detallesCotizacion
-      const calcularConIva = (amount: number) => amount + (amount * ivaRate);
-      const detallesCotizacion = {
-        empaque: data.cargosAdicionales.empaque,
-        empaqueConIva: calcularConIva(data.cargosAdicionales.empaque),
-        seguro: data.cargosAdicionales.seguro,
-        seguroConIva: calcularConIva(data.cargosAdicionales.seguro),
-        recoleccion: data.cargosAdicionales.recoleccion,
-        recoleccionConIva: calcularConIva(data.cargosAdicionales.recoleccion),
-        reexpedicion: data.cargosAdicionales.reexpedicion || 0,
-        reexpedicionConIva: calcularConIva(data.cargosAdicionales.reexpedicion || 0),
-        pesoTotal: data.pesoTotal,
-        pesoVolumetrico: data.pesoVolumetrico,
-        pesoFacturable: data.pesoFacturable,
-        iva: ivaRate,
-        totalConIva: serviciosConTotales.reduce((sum: number, s: any) => sum + s.precioConIva, 0) +
-          calcularConIva(data.cargosAdicionales.empaque) +
-          calcularConIva(data.cargosAdicionales.seguro) +
-          calcularConIva(data.cargosAdicionales.recoleccion) +
-          calcularConIva(data.cargosAdicionales.reexpedicion || 0)
+        requiereReexpedicion = estafetaData?.reexpe ? parseReexpeditionCost(estafetaData.reexpe) : false;
+      } catch (error) {
+        console.warn('Could not fetch Estafeta data, proceeding without reexpedition check');
+      }
+
+      // Create the payload using the original cotizador state
+      const payload = {
+        zona: calculatedZone,
+        tipoPaquete: originalCotizadorState.packageType,
+        peso: parseFloat(originalCotizadorState.weight),
+        pesoVolumetrico: originalCotizadorState.volumetricWeight,
+        esInternacional: false,
+        valorSeguro: originalCotizadorState.insurance ? parseFloat(originalCotizadorState.insuranceValue) || 0 : 0,
+        opcionEmpaque: originalCotizadorState.packagingOption,
+        precioEmpaquePersonalizado: originalCotizadorState.packagingOption === 'EMP05' ? originalCotizadorState.customPackagingPrice : null,
+        requiereRecoleccion: originalCotizadorState.collectionRequired,
+        precioRecoleccion: originalCotizadorState.collectionRequired ? originalCotizadorState.collectionPrice : null,
+        requiereReexpedicion: requiereReexpedicion
       };
 
-      // Smart service matching strategy
-      let matchingService = null;
+      console.log('Generating new quote with payload:', payload);
 
-      // 1. Try exact SKU match first
-      matchingService = serviciosConTotales.find((s: any) => s.sku === selectedService.sku);
+      const response = await fetch('https://enviadores.com.mx/api/get-prices.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
 
-      if (!matchingService) {
-        console.log(`Exact service ${selectedService.sku} not found, looking for similar service...`);
+      const data = await response.json();
+
+      if (data.exito && data.servicios?.length > 0) {
+        console.log('New quote data received:', data);
         
-        // 2. Try to match by service type (first part of name)
-        const originalServiceType = selectedService.nombre.split(' ')[0]; // e.g., "DIA" from "DIA SIGUIENTE 01"
-        
-        matchingService = serviciosConTotales.find((s: any) => 
-          s.nombre.startsWith(originalServiceType)
-        );
-        
-        if (matchingService) {
-          console.log(`Found similar service: ${matchingService.nombre} (${matchingService.sku}) for original ${selectedService.nombre} (${selectedService.sku})`);
-        }
-      }
+        // Process all services with proper pricing calculations
+        const ivaRate = data.iva || 0.16;
+        const additionalChargesTotal = 
+          data.cargosAdicionales.empaque + 
+          data.cargosAdicionales.seguro + 
+          data.cargosAdicionales.recoleccion + 
+          (data.cargosAdicionales.reexpedicion || 0);
 
-      if (!matchingService) {
-        console.log('No similar service found, looking for fastest delivery...');
-        
-        // 3. Fallback: find service with fastest delivery (lowest diasEstimados)
-        matchingService = serviciosConTotales.reduce((fastest: any, current: any) => 
-          (current.diasEstimados || 999) < (fastest.diasEstimados || 999) ? current : fastest
-        );
-        
-        if (matchingService) {
-          console.log(`Selected fastest service as fallback: ${matchingService.nombre} (${matchingService.sku})`);
-        }
-      }
+        const serviciosConTotales: CotizadorServicioCotizado[] = data.servicios.map((servicio: any): CotizadorServicioCotizado => {
+          const precioCompleto = servicio.precioFinal + additionalChargesTotal;
+          const iva = precioCompleto * ivaRate;
+          
+          return {
+            sku: servicio.sku,
+            nombre: servicio.nombre,
+            precioBase: typeof servicio.precioBase === 'string' 
+              ? parseFloat(servicio.precioBase) 
+              : servicio.precioBase || 0,
+            precioFinal: servicio.precioFinal || 0,
+            precioTotal: precioCompleto,
+            precioConIva: precioCompleto + iva,
+            iva: iva,
+            cargoSobrepeso: servicio.cargoSobrepeso || 0,
+            diasEstimados: servicio.diasEstimados || 1,
+            peso: parseFloat(originalCotizadorState.weight),
+            pesoVolumetrico: originalCotizadorState.volumetricWeight,
+            esInternacional: false,
+            pesoFacturable: data.pesoFacturable
+          };
+        });
 
-      if (!matchingService) {
-        // 4. Last resort: pick the first service
-        matchingService = serviciosConTotales[0];
-        console.log(`Using first available service as last resort: ${matchingService.nombre} (${matchingService.sku})`);
-      }
-
-      if (matchingService) {
-        console.log('Final selected service:', matchingService);
-
-        // Create the updated service object
-        const updatedService: ServicioCotizado = {
-          ...selectedService,
-          // Update service identification
-          sku: matchingService.sku,
-          nombre: matchingService.nombre,
-          // Update pricing
-          precioBase: matchingService.precioBase,
-          cargoSobrepeso: matchingService.cargoSobrepeso,
-          precioFinal: matchingService.precioFinal || 0,
-          precioTotal: matchingService.precioTotal,
-          precioConIva: matchingService.precioConIva,
-          iva: matchingService.iva,
-          diasEstimados: matchingService.diasEstimados || 1,
-          pesoFacturable: data.pesoFacturable || selectedService.pesoFacturable,
-          // Keep original package details
-          peso: parseFloat(originalCotizadorState.weight),
-          pesoVolumetrico: originalCotizadorState.volumetricWeight,
-          alto: originalCotizadorState.packageType === "Paquete" ? parseFloat(originalCotizadorState.height || '0') : 1,
-          largo: originalCotizadorState.packageType === "Paquete" ? parseFloat(originalCotizadorState.length || '0') : 30,
-          ancho: originalCotizadorState.packageType === "Paquete" ? parseFloat(originalCotizadorState.width || '0') : 25,
-          valorSeguro: originalCotizadorState.insurance ? parseFloat(originalCotizadorState.insuranceValue || '0') : 1,
+        // Create detallesCotizacion
+        const calcularConIva = (amount: number) => amount + (amount * ivaRate);
+        const detallesCotizacion = {
+          empaque: data.cargosAdicionales.empaque,
+          empaqueConIva: calcularConIva(data.cargosAdicionales.empaque),
+          seguro: data.cargosAdicionales.seguro,
+          seguroConIva: calcularConIva(data.cargosAdicionales.seguro),
+          recoleccion: data.cargosAdicionales.recoleccion,
+          recoleccionConIva: calcularConIva(data.cargosAdicionales.recoleccion),
+          reexpedicion: data.cargosAdicionales.reexpedicion || 0,
+          reexpedicionConIva: calcularConIva(data.cargosAdicionales.reexpedicion || 0),
+          pesoTotal: data.pesoTotal,
+          pesoVolumetrico: data.pesoVolumetrico,
+          pesoFacturable: data.pesoFacturable,
+          iva: ivaRate,
+          totalConIva: serviciosConTotales.reduce((sum: number, s: any) => sum + s.precioConIva, 0) +
+            calcularConIva(data.cargosAdicionales.empaque) +
+            calcularConIva(data.cargosAdicionales.seguro) +
+            calcularConIva(data.cargosAdicionales.recoleccion) +
+            calcularConIva(data.cargosAdicionales.reexpedicion || 0)
         };
 
-        // Update the parent component with both the selected service AND the full quote data + ZIP codes + cliente/destino IDs
-        onUpdateSelectedService(updatedService, {
-          servicios: serviciosConTotales,
-          detallesCotizacion: detallesCotizacion,
-          newOriginZip: cliente.codigo_postal,
-          newDestZip: destino.codigo_postal,
-          newZone: calculatedZone,
-          newClienteId: cliente.id || null,
-          newDestinoId: destino.id || null
-        });
+        // Smart service matching strategy
+        let matchingService = null;
 
-        // Update local ZIP validation
-        setZipValidation({
-          originValid: true,
-          destValid: true
-        });
-        setNeedsNewQuote(false);
+        // 1. Try exact SKU match first
+        matchingService = serviciosConTotales.find((s: any) => s.sku === selectedService.sku);
 
-        // Show success message
-        setErrorMessage(null);
-        console.log('Quote updated successfully');
+        if (!matchingService) {
+          console.log(`Exact service ${selectedService.sku} not found, looking for similar service...`);
+          
+          // 2. Try to match by service type (first part of name)
+          const originalServiceType = selectedService.nombre.split(' ')[0]; // e.g., "DIA" from "DIA SIGUIENTE 01"
+          
+          matchingService = serviciosConTotales.find((s: any) => 
+            s.nombre.startsWith(originalServiceType)
+          );
+          
+          if (matchingService) {
+            console.log(`Found similar service: ${matchingService.nombre} (${matchingService.sku}) for original ${selectedService.nombre} (${selectedService.sku})`);
+          }
+        }
+
+        if (!matchingService) {
+          console.log('No similar service found, looking for fastest delivery...');
+          
+          // 3. Fallback: find service with fastest delivery (lowest diasEstimados)
+          matchingService = serviciosConTotales.reduce((fastest: any, current: any) => 
+            (current.diasEstimados || 999) < (fastest.diasEstimados || 999) ? current : fastest
+          );
+          
+          if (matchingService) {
+            console.log(`Selected fastest service as fallback: ${matchingService.nombre} (${matchingService.sku})`);
+          }
+        }
+
+        if (!matchingService) {
+          // 4. Last resort: pick the first service
+          matchingService = serviciosConTotales[0];
+          console.log(`Using first available service as last resort: ${matchingService.nombre} (${matchingService.sku})`);
+        }
+
+        if (matchingService) {
+          console.log('Final selected service:', matchingService);
+
+          // Create the updated service object
+          const updatedService: ServicioCotizado = {
+            ...selectedService,
+            // Update service identification
+            sku: matchingService.sku,
+            nombre: matchingService.nombre,
+            // Update pricing
+            precioBase: matchingService.precioBase,
+            cargoSobrepeso: matchingService.cargoSobrepeso,
+            precioFinal: matchingService.precioFinal || 0,
+            precioTotal: matchingService.precioTotal,
+            precioConIva: matchingService.precioConIva,
+            iva: matchingService.iva,
+            diasEstimados: matchingService.diasEstimados || 1,
+            pesoFacturable: data.pesoFacturable || selectedService.pesoFacturable,
+            // Keep original package details
+            peso: parseFloat(originalCotizadorState.weight),
+            pesoVolumetrico: originalCotizadorState.volumetricWeight,
+            alto: originalCotizadorState.packageType === "Paquete" ? parseFloat(originalCotizadorState.height || '0') : 1,
+            largo: originalCotizadorState.packageType === "Paquete" ? parseFloat(originalCotizadorState.length || '0') : 30,
+            ancho: originalCotizadorState.packageType === "Paquete" ? parseFloat(originalCotizadorState.width || '0') : 25,
+            valorSeguro: originalCotizadorState.insurance ? parseFloat(originalCotizadorState.insuranceValue || '0') : 1,
+          };
+
+          // UPDATED: Include current IDs in the update
+          onUpdateSelectedService(updatedService, {
+            servicios: serviciosConTotales,
+            detallesCotizacion: detallesCotizacion,
+            newOriginZip: cliente.codigo_postal,
+            newDestZip: destino.codigo_postal,
+            newZone: calculatedZone,
+            newClienteId: cliente.id || null,
+            newDestinoId: destino.id || null
+          });
+
+          // Update local ZIP validation
+          setZipValidation({
+            originValid: true,
+            destValid: true
+          });
+          setNeedsNewQuote(false);
+
+          // Show success message
+          setErrorMessage(null);
+          console.log('Quote updated successfully');
+
+        } else {
+          setErrorMessage('No se encontraron servicios disponibles para estos códigos postales');
+        }
 
       } else {
-        setErrorMessage('No se encontraron servicios disponibles para estos códigos postales');
+        setErrorMessage(data.error || 'No se encontraron servicios disponibles para estos códigos postales');
+        console.log('API Error or no services:', data);
       }
 
-    } else {
-      setErrorMessage(data.error || 'No se encontraron servicios disponibles para estos códigos postales');
-      console.log('API Error or no services:', data);
+    } catch (error) {
+      console.error('Error generating new quote:', error);
+      setErrorMessage('Error al generar nueva cotización. Por favor intente nuevamente.');
+    } finally {
+      setIsGeneratingNewQuote(false);
     }
+  };
 
-  } catch (error) {
-    console.error('Error generating new quote:', error);
-    setErrorMessage('Error al generar nueva cotización. Por favor intente nuevamente.');
-  } finally {
-    setIsGeneratingNewQuote(false);
-  }
-};
-
-  // Event handlers
+  // UPDATED: Enhanced update handlers that track current IDs
   const handleUpdateCliente = (updatedCliente: Cliente) => {
     setCliente(updatedCliente);
+    setCurrentClienteId(updatedCliente.id || null);
     validateZipCodes();
+    
+    // Notify parent of the cliente ID change
+    if (onUpdateSelectedService && updatedCliente.id) {
+      onUpdateSelectedService(selectedService, {
+        servicios: [],
+        detallesCotizacion: {} as DetallesCotizacion,
+        newOriginZip: updatedCliente.codigo_postal,
+        newDestZip: destino?.codigo_postal || destZip,
+        newClienteId: updatedCliente.id,
+        newDestinoId: currentDestinoId
+      });
+    }
   };
 
   const handleUpdateDestino = (updatedDestino: Destino) => {
     setDestino(updatedDestino);
+    setCurrentDestinoId(updatedDestino.id || null);
     validateZipCodes();
+    
+    // Notify parent of the destino ID change
+    if (onUpdateSelectedService && updatedDestino.id) {
+      onUpdateSelectedService(selectedService, {
+        servicios: [],
+        detallesCotizacion: {} as DetallesCotizacion,
+        newOriginZip: cliente?.codigo_postal || originZip,
+        newDestZip: updatedDestino.codigo_postal,
+        newClienteId: currentClienteId,
+        newDestinoId: updatedDestino.id
+      });
+    }
   };
 
   const handleUpdateContenido = (newContenido: string) => {
@@ -761,10 +856,10 @@ const handleGenerateNewQuote = async () => {
                   </h3>
                   <div className="text-sm text-yellow-700 space-y-2">
                     {!zipValidation.originValid && (
-                      <p>• Código postal de origen: {cliente?.codigo_postal} (cotización: {originZip})</p>
+                      <p>• Código postal de origen: {cliente?.codigo_postal} (cotización original: {originalOriginZip})</p>
                     )}
                     {!zipValidation.destValid && (
-                      <p>• Código postal de destino: {destino?.codigo_postal} (cotización: {destZip})</p>
+                      <p>• Código postal de destino: {destino?.codigo_postal} (cotización original: {originalDestZip})</p>
                     )}
                   </div>
                   <p className="text-sm text-yellow-700 mt-3">
@@ -792,12 +887,12 @@ const handleGenerateNewQuote = async () => {
             onUpdateDestino={handleUpdateDestino}
             onRemoveCliente={handleRemoveCliente}
             onRemoveDestino={handleRemoveDestino}
-            clienteId={clienteId}
+            clienteId={currentClienteId} // Use current tracked ID
             contenido={contenido}
             onUpdateContenido={handleUpdateContenido}
             zipValidation={zipValidation}
-            originZip={originZip}
-            destZip={destZip}
+            originZip={originalOriginZip} // Pass original ZIP for display
+            destZip={originalDestZip} // Pass original ZIP for display
           />
 
           {/* Form Actions */}

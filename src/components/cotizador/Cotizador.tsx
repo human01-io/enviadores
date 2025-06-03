@@ -281,12 +281,17 @@ export default function Cotizador() {
 
 
 // Update the handleUpdateSelectedService function to call this when ZIP codes change:
+// Updated handleUpdateSelectedService function in Cotizador.tsx
+
+// Update the handleUpdateSelectedService function to properly handle all state updates:
 const handleUpdateSelectedService = (updatedService: ServicioCotizado, newQuoteData?: {
   servicios: CotizadorServicioCotizado[];
   detallesCotizacion: DetallesCotizacion;
   newOriginZip?: string;
   newDestZip?: string;
   newZone?: number;
+  newClienteId?: string | null;
+  newDestinoId?: string | null;
 }) => {
   console.log('Updating service with:', updatedService);
   console.log('New quote data:', newQuoteData);
@@ -315,8 +320,15 @@ const handleUpdateSelectedService = (updatedService: ServicioCotizado, newQuoteD
   // If new quote data is provided, update the full quote state AND the core state
   if (newQuoteData) {
     console.log('Updating full quote data');
-    setServicios(newQuoteData.servicios);
-    setDetallesCotizacion(newQuoteData.detallesCotizacion);
+    
+    // Only update services and details if they're provided and not empty
+    if (newQuoteData.servicios && newQuoteData.servicios.length > 0) {
+      setServicios(newQuoteData.servicios);
+    }
+    
+    if (newQuoteData.detallesCotizacion && Object.keys(newQuoteData.detallesCotizacion).length > 0) {
+      setDetallesCotizacion(newQuoteData.detallesCotizacion);
+    }
     
     // Update the core ZIP codes and zone if provided
     if (newQuoteData.newOriginZip && newQuoteData.newDestZip) {
@@ -332,10 +344,23 @@ const handleUpdateSelectedService = (updatedService: ServicioCotizado, newQuoteD
       updateField('zone', newQuoteData.newZone);
     }
     
-    console.log('Updated core state with new ZIP codes:', {
+    // CRITICAL: Update the cliente and destino IDs in the core state
+    if (newQuoteData.newClienteId !== undefined) {
+      updateField('clienteId', newQuoteData.newClienteId);
+      console.log('Updated clienteId in core state:', newQuoteData.newClienteId);
+    }
+    
+    if (newQuoteData.newDestinoId !== undefined) {
+      updateField('destinoId', newQuoteData.newDestinoId);
+      console.log('Updated destinoId in core state:', newQuoteData.newDestinoId);
+    }
+    
+    console.log('Updated core state with new data:', {
       originZip: newQuoteData.newOriginZip,
       destZip: newQuoteData.newDestZip,
-      zone: newQuoteData.newZone
+      zone: newQuoteData.newZone,
+      clienteId: newQuoteData.newClienteId,
+      destinoId: newQuoteData.newDestinoId
     });
   }
 };
