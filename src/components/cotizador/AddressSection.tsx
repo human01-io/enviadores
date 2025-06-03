@@ -515,7 +515,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
                                             >
                                               <div className="bg-white rounded border border-gray-200 p-2 h-full">
                                                 <label className="text-xs font-medium text-gray-700 mb-1 block">
-                                                  Colonia origen (Opcional):
+                                                  Colonias Disponibles:
                                                 </label>
                                                 <Select
                                                   value={selectedOriginColonia || "placeholder"}
@@ -528,7 +528,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
                                                     </div>
                                                   </SelectTrigger>
                                                   <SelectContent>
-                                                    <SelectItem value="placeholder" disabled>Busca una Colonia</SelectItem>
+                                                    <SelectItem value="placeholder" disabled>Busca Colonias</SelectItem>
                                                     {originColonias.map((colonia, index) => (
                                                       <SelectItem key={index} value={colonia || `colonia-${index}`}>
                                                         {colonia}
@@ -738,7 +738,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
                                             >
                                               <div className="bg-white rounded border border-gray-200 p-2 h-full">
                                                 <label className="text-xs font-medium text-gray-700 mb-1 block">
-                                                  Colonia destino:
+                                                  Colonias disponibles:
                                                 </label>
                                                 <Select
                                                   value={selectedDestColonia || "placeholder"}
@@ -751,7 +751,7 @@ export const AddressSection: React.FC<AddressSectionProps> = ({
                                                     </div>
                                                   </SelectTrigger>
                                                   <SelectContent>
-                                                    <SelectItem value="placeholder" disabled>Busca una Colonia</SelectItem>
+                                                    <SelectItem value="placeholder" disabled>Busca Colonias</SelectItem>
                                                     {destColonias.map((colonia, index) => (
                                                       <SelectItem key={index} value={colonia || `colonia-${index}`}>{colonia}</SelectItem>
                                                     ))}

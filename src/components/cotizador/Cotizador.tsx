@@ -93,7 +93,7 @@ export default function Cotizador() {
     setOriginZipError,
     sameZipWarning,
     setSameZipWarning,
-    handleZipCodeUpdate 
+    handleZipCodeUpdate
   } = useCotizador();
 
   // User data state
@@ -130,19 +130,19 @@ export default function Cotizador() {
   }, [state.originZip, state.destZip]);
 
   // Check if ready to quote
-  const canQuote = (state.isInternational ? state.selectedZone : state.isValidated) && 
+  const canQuote = (state.isInternational ? state.selectedZone : state.isValidated) &&
     state.packageType &&
-    ((state.packageType === "Paquete" && 
-      state.length && state.width && state.height && state.weight && 
-      !isNaN(parseFloat(state.length)) && !isNaN(parseFloat(state.width)) && 
+    ((state.packageType === "Paquete" &&
+      state.length && state.width && state.height && state.weight &&
+      !isNaN(parseFloat(state.length)) && !isNaN(parseFloat(state.width)) &&
       !isNaN(parseFloat(state.height)) && !isNaN(parseFloat(state.weight))) ||
-    (state.packageType === "Sobre" && state.weight && !isNaN(parseFloat(state.weight)))) &&
+      (state.packageType === "Sobre" && state.weight && !isNaN(parseFloat(state.weight)))) &&
     !originZipError && !destZipError;
 
   // Handle the combined validation and quote process
   const handleCotizar = async () => {
     setIsValidatingAndQuoting(true);
-    
+
     try {
       // If not validated yet, validate first
       if (!state.isValidated && !state.isInternational) {
@@ -280,89 +280,159 @@ export default function Cotizador() {
   };
 
 
-// Update the handleUpdateSelectedService function to call this when ZIP codes change:
-// Updated handleUpdateSelectedService function in Cotizador.tsx
+  // Update the handleUpdateSelectedService function to call this when ZIP codes change:
+  // Updated handleUpdateSelectedService function in Cotizador.tsx
 
-// Update the handleUpdateSelectedService function to properly handle all state updates:
-const handleUpdateSelectedService = (updatedService: ServicioCotizado, newQuoteData?: {
-  servicios: CotizadorServicioCotizado[];
-  detallesCotizacion: DetallesCotizacion;
-  newOriginZip?: string;
-  newDestZip?: string;
-  newZone?: number;
-  newClienteId?: string | null;
-  newDestinoId?: string | null;
-}) => {
-  console.log('Updating service with:', updatedService);
-  console.log('New quote data:', newQuoteData);
-  
-  // Convert the main ServicioCotizado to the internal cotizador type
-  const cotizadorService: CotizadorServicioCotizado = {
-    sku: updatedService.sku || '',
-    nombre: updatedService.nombre || '',
-    precioBase: typeof updatedService.precioBase === 'number' ? updatedService.precioBase : 0,
-    precioFinal: typeof updatedService.precioFinal === 'number' ? updatedService.precioFinal : 0,
-    precioTotal: typeof updatedService.precioTotal === 'number' ? updatedService.precioTotal : 0,
-    precioConIva: typeof updatedService.precioConIva === 'number' ? updatedService.precioConIva : 0,
-    iva: typeof updatedService.iva === 'number' ? updatedService.iva : 0,
-    cargoSobrepeso: typeof updatedService.cargoSobrepeso === 'number' ? updatedService.cargoSobrepeso : 0,
-    diasEstimados: typeof updatedService.diasEstimados === 'number' ? updatedService.diasEstimados : 1,
-    peso: typeof updatedService.peso === 'number' ? updatedService.peso : 1,
-    pesoVolumetrico: typeof updatedService.pesoVolumetrico === 'number' ? updatedService.pesoVolumetrico : 0,
-    esInternacional: updatedService.esInternacional || false,
-    // Copy optional fields if they exist
-    pesoFacturable: updatedService.pesoFacturable
+  // Update the handleUpdateSelectedService function to properly handle all state updates:
+  const handleUpdateSelectedService = (updatedService: ServicioCotizado, newQuoteData?: {
+    servicios: CotizadorServicioCotizado[];
+    detallesCotizacion: DetallesCotizacion;
+    newOriginZip?: string;
+    newDestZip?: string;
+    newZone?: number;
+    newClienteId?: string | null;
+    newDestinoId?: string | null;
+  }) => {
+    console.log('Updating service with:', updatedService);
+    console.log('New quote data:', newQuoteData);
+
+    // Convert the main ServicioCotizado to the internal cotizador type
+    const cotizadorService: CotizadorServicioCotizado = {
+      sku: updatedService.sku || '',
+      nombre: updatedService.nombre || '',
+      precioBase: typeof updatedService.precioBase === 'number' ? updatedService.precioBase : 0,
+      precioFinal: typeof updatedService.precioFinal === 'number' ? updatedService.precioFinal : 0,
+      precioTotal: typeof updatedService.precioTotal === 'number' ? updatedService.precioTotal : 0,
+      precioConIva: typeof updatedService.precioConIva === 'number' ? updatedService.precioConIva : 0,
+      iva: typeof updatedService.iva === 'number' ? updatedService.iva : 0,
+      cargoSobrepeso: typeof updatedService.cargoSobrepeso === 'number' ? updatedService.cargoSobrepeso : 0,
+      diasEstimados: typeof updatedService.diasEstimados === 'number' ? updatedService.diasEstimados : 1,
+      peso: typeof updatedService.peso === 'number' ? updatedService.peso : 1,
+      pesoVolumetrico: typeof updatedService.pesoVolumetrico === 'number' ? updatedService.pesoVolumetrico : 0,
+      esInternacional: updatedService.esInternacional || false,
+      // Copy optional fields if they exist
+      pesoFacturable: updatedService.pesoFacturable
+    };
+
+    console.log('Converted cotizador service:', cotizadorService);
+    setSelectedService(cotizadorService);
+
+    // If new quote data is provided, update the full quote state AND the core state
+    if (newQuoteData) {
+      console.log('Updating full quote data');
+
+      // Only update services and details if they're provided and not empty
+      if (newQuoteData.servicios && newQuoteData.servicios.length > 0) {
+        setServicios(newQuoteData.servicios);
+      }
+
+      if (newQuoteData.detallesCotizacion && Object.keys(newQuoteData.detallesCotizacion).length > 0) {
+        setDetallesCotizacion(newQuoteData.detallesCotizacion);
+      }
+
+      // Update the core ZIP codes and zone if provided
+      if (newQuoteData.newOriginZip && newQuoteData.newDestZip) {
+        updateField('originZip', newQuoteData.newOriginZip);
+        updateField('destZip', newQuoteData.newDestZip);
+        updateField('isValidated', true); // Mark as validated since we just generated a successful quote
+
+        // Update location data asynchronously using the hook function
+        handleZipCodeUpdate(newQuoteData.newOriginZip, newQuoteData.newDestZip);
+      }
+
+      if (newQuoteData.newZone !== undefined) {
+        updateField('zone', newQuoteData.newZone);
+      }
+
+      // CRITICAL: Update the cliente and destino IDs in the core state
+      if (newQuoteData.newClienteId !== undefined) {
+        updateField('clienteId', newQuoteData.newClienteId);
+        console.log('Updated clienteId in core state:', newQuoteData.newClienteId);
+      }
+
+      if (newQuoteData.newDestinoId !== undefined) {
+        updateField('destinoId', newQuoteData.newDestinoId);
+        console.log('Updated destinoId in core state:', newQuoteData.newDestinoId);
+      }
+
+      console.log('Updated core state with new data:', {
+        originZip: newQuoteData.newOriginZip,
+        destZip: newQuoteData.newDestZip,
+        zone: newQuoteData.newZone,
+        clienteId: newQuoteData.newClienteId,
+        destinoId: newQuoteData.newDestinoId
+      });
+    }
+  };
+
+ const getZoneStyles = (zone: number) => {
+  const styles = {
+    1: {
+      bg: 'bg-gradient-to-r from-emerald-50 to-emerald-100 border-emerald-200',
+      iconBg: 'bg-emerald-600',
+      text: 'text-emerald-700',
+      description: 'text-emerald-600',
+      badge: 'bg-emerald-600'
+    },
+    2: {
+      bg: 'bg-gradient-to-r from-green-50 to-green-100 border-green-200',
+      iconBg: 'bg-green-600',
+      text: 'text-green-700',
+      description: 'text-green-600',
+      badge: 'bg-green-600'
+    },
+    3: {
+      bg: 'bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200',
+      iconBg: 'bg-blue-600',
+      text: 'text-blue-700',
+      description: 'text-blue-600',
+      badge: 'bg-blue-600'
+    },
+    4: {
+      bg: 'bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200',
+      iconBg: 'bg-purple-600',
+      text: 'text-purple-700',
+      description: 'text-purple-600',
+      badge: 'bg-purple-600'
+    },
+    5: {
+      bg: 'bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200',
+      iconBg: 'bg-orange-600',
+      text: 'text-orange-700',
+      description: 'text-orange-600',
+      badge: 'bg-orange-600'
+    },
+    6: {
+      bg: 'bg-gradient-to-r from-red-50 to-red-100 border-red-200',
+      iconBg: 'bg-red-600',
+      text: 'text-red-700',
+      description: 'text-red-600',
+      badge: 'bg-red-600'
+    },
+    7: {
+      bg: 'bg-gradient-to-r from-rose-50 to-rose-100 border-rose-200',
+      iconBg: 'bg-rose-600',
+      text: 'text-rose-700',
+      description: 'text-rose-600',
+      badge: 'bg-rose-600'
+    }
   };
   
-  console.log('Converted cotizador service:', cotizadorService);
-  setSelectedService(cotizadorService);
+  return styles[zone as keyof typeof styles] || styles[3]; // Default to zone 3 styling
+};
 
-  // If new quote data is provided, update the full quote state AND the core state
-  if (newQuoteData) {
-    console.log('Updating full quote data');
-    
-    // Only update services and details if they're provided and not empty
-    if (newQuoteData.servicios && newQuoteData.servicios.length > 0) {
-      setServicios(newQuoteData.servicios);
-    }
-    
-    if (newQuoteData.detallesCotizacion && Object.keys(newQuoteData.detallesCotizacion).length > 0) {
-      setDetallesCotizacion(newQuoteData.detallesCotizacion);
-    }
-    
-    // Update the core ZIP codes and zone if provided
-    if (newQuoteData.newOriginZip && newQuoteData.newDestZip) {
-      updateField('originZip', newQuoteData.newOriginZip);
-      updateField('destZip', newQuoteData.newDestZip);
-      updateField('isValidated', true); // Mark as validated since we just generated a successful quote
-      
-      // Update location data asynchronously using the hook function
-      handleZipCodeUpdate(newQuoteData.newOriginZip, newQuoteData.newDestZip);
-    }
-    
-    if (newQuoteData.newZone !== undefined) {
-      updateField('zone', newQuoteData.newZone);
-    }
-    
-    // CRITICAL: Update the cliente and destino IDs in the core state
-    if (newQuoteData.newClienteId !== undefined) {
-      updateField('clienteId', newQuoteData.newClienteId);
-      console.log('Updated clienteId in core state:', newQuoteData.newClienteId);
-    }
-    
-    if (newQuoteData.newDestinoId !== undefined) {
-      updateField('destinoId', newQuoteData.newDestinoId);
-      console.log('Updated destinoId in core state:', newQuoteData.newDestinoId);
-    }
-    
-    console.log('Updated core state with new data:', {
-      originZip: newQuoteData.newOriginZip,
-      destZip: newQuoteData.newDestZip,
-      zone: newQuoteData.newZone,
-      clienteId: newQuoteData.newClienteId,
-      destinoId: newQuoteData.newDestinoId
-    });
-  }
+const getZoneDescription = (zone: number) => {
+  const descriptions = {
+    1: 'Zona metropolitana - Costo mínimo',
+    2: 'Área urbana cercana - Costo bajo',
+    3: 'Zona urbana - Costo estándar',
+    4: 'Área semi-urbana - Costo moderado',
+    5: 'Zona foránea - Costo elevado',
+    6: 'Área remota - Costo alto',
+    7: 'Zona más lejana - Costo máximo'
+  };
+  
+  return descriptions[zone as keyof typeof descriptions] || 'Zona estándar';
 };
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -586,7 +656,7 @@ const handleUpdateSelectedService = (updatedService: ServicioCotizado, newQuoteD
                               isInternational={state.isInternational}
                               selectedZone={state.selectedZone}
                               isValidated={state.isValidated}
-                              onContinueToPackage={() => {}}
+                              onContinueToPackage={() => { }}
                               useExistingClient={useExistingClient}
                               setUseExistingClient={setUseExistingClient}
                               clientSearchQuery={clientSearchQuery}
@@ -623,8 +693,8 @@ const handleUpdateSelectedService = (updatedService: ServicioCotizado, newQuoteD
                               updateField={updateField}
                               servicios={servicios}
                               validated={state.isValidated}
-                              fetchQuote={() => {}}
-                              onContinueToResults={() => {}}
+                              fetchQuote={() => { }}
+                              onContinueToResults={() => { }}
                               hideAdditionalServices={true}
                             />
                           </div>
@@ -774,21 +844,21 @@ const handleUpdateSelectedService = (updatedService: ServicioCotizado, newQuoteD
                     destZip={state.destZip}
                     clienteId={state.clienteId || null}
                     destinoId={state.destinoId || null}
-                   onUpdateSelectedService={handleUpdateSelectedService}
-    originalCotizadorState={{
-      packageType: state.packageType,
-      weight: state.weight,
-      length: state.length,
-      width: state.width,
-      height: state.height,
-      volumetricWeight: state.volumetricWeight,
-      insurance: state.insurance,
-      insuranceValue: state.insuranceValue,
-      packagingOption: state.packagingOption,
-      customPackagingPrice: state.customPackagingPrice,
-      collectionRequired: state.collectionRequired,
-      collectionPrice: state.collectionPrice
-    }}
+                    onUpdateSelectedService={handleUpdateSelectedService}
+                    originalCotizadorState={{
+                      packageType: state.packageType,
+                      weight: state.weight,
+                      length: state.length,
+                      width: state.width,
+                      height: state.height,
+                      volumetricWeight: state.volumetricWeight,
+                      insurance: state.insurance,
+                      insuranceValue: state.insuranceValue,
+                      packagingOption: state.packagingOption,
+                      customPackagingPrice: state.customPackagingPrice,
+                      collectionRequired: state.collectionRequired,
+                      collectionPrice: state.collectionPrice
+                    }}
                   />
                 )}
               </div>
@@ -797,52 +867,100 @@ const handleUpdateSelectedService = (updatedService: ServicioCotizado, newQuoteD
         )}
       </main>
 
-      {/* Delivery Info Modal */}
-      <Dialog open={showDeliveryModal} onOpenChange={setShowDeliveryModal}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center">
-              <Info className="h-5 w-5 mr-2 text-blue-600" />
-              Información de Entrega
-            </DialogTitle>
-          </DialogHeader>
-          
-          {/* Zone Information */}
-          {state.zone !== null && (
-            <div className="bg-blue-50 text-blue-800 rounded-lg p-3 border border-blue-200 mb-4">
-              <div className="flex items-center">
-                <MapPin className="h-4 w-4 mr-2" />
-                <p className="font-medium text-sm">Zona Nacional: {state.zone}</p>
-              </div>
+      {/* Delivery Info Modal - Redesigned */}
+<Dialog open={showDeliveryModal} onOpenChange={setShowDeliveryModal}>
+  <DialogContent className="max-w-4xl max-h-[90vh] p-0 gap-0 flex flex-col">
+    {/* Sticky Header */}
+    <div className="flex items-center justify-between p-3 border-b bg-white shrink-0">
+      <div className="flex items-center gap-2">
+        <div className="p-1.5 bg-blue-100 rounded-lg">
+          <Info className="h-4 w-4 text-blue-600" />
+        </div>
+        <div>
+          <DialogTitle className="text-base font-semibold text-gray-800">
+            Información de Entrega
+          </DialogTitle>
+          <p className="text-xs text-gray-500">
+            Detalles y validación de zona de entrega
+          </p>
+        </div>
+      </div>
+      <button 
+        onClick={() => setShowDeliveryModal(false)}
+        className="rounded-full p-1.5 hover:bg-gray-100 transition-colors"
+      >
+        
+      </button>
+    </div>
+
+    {/* Scrollable Content */}
+    <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+      {/* Main Content Grid with Zone and Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        
+        {/* Zone Display - Big Square */}
+        {state.zone !== null && (
+          <div className={`${getZoneStyles(state.zone).bg} border rounded-lg p-6 flex flex-col items-center justify-center text-center min-h-[140px]`}>
+            {/* Big Zone Number */}
+            <div className={`text-6xl font-bold ${getZoneStyles(state.zone).text} mb-2`}>
+              {state.zone}
             </div>
-          )}
+            
+            {/* Zone Label */}
+            <div className={`text-sm font-medium ${getZoneStyles(state.zone).text} mb-3`}>
+              Zona Nacional
+            </div>
+            
+            {/* Description */}
+            <div className={`text-xs ${getZoneStyles(state.zone).description} leading-tight max-w-[140px]`}>
+              {getZoneDescription(state.zone)}
+            </div>
+          </div>
+        )}
+
+        {/* Cards Container */}
+        <div className={`${state.zone !== null ? 'lg:col-span-2' : 'lg:col-span-3'} grid grid-cols-1 md:grid-cols-2 gap-3`}>
           
-          <div className="mt-4">
-            <DeliveryInfoDisplay
-              estafetaResult={estafetaResult}
-              loadingEstafeta={loadingEstafeta}
-              validateThreeTimes={validateThreeTimes}
-              handleReport={handleReport}
-              reportSubmitted={reportSubmitted}
-            />
-          </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setShowDeliveryModal(false)}
-              className="px-4 py-2"
-            >
-              Cerrar
-            </Button>
-            <Button
-              onClick={proceedWithQuote}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Continuar con Cotización
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          {/* Enhanced Delivery Info Display */}
+          <DeliveryInfoDisplay
+            estafetaResult={estafetaResult}
+            loadingEstafeta={loadingEstafeta}
+            validateThreeTimes={validateThreeTimes}
+            handleReport={handleReport}
+            reportSubmitted={reportSubmitted}
+          />
+        </div>
+      </div>
+    </div>
+
+    {/* Sticky Footer */}
+    <div className="shrink-0 bg-gray-50 border-t p-3 flex justify-between items-center">
+      <div className="flex items-center gap-2 text-xs text-gray-600">
+        <Info className="h-3 w-3" />
+        <span>Información actualizada automáticamente</span>
+      </div>
+      
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          onClick={() => setShowDeliveryModal(false)}
+          className="px-4 py-1.5 text-sm"
+          size="sm"
+        >
+          Cerrar
+        </Button>
+        <Button
+          onClick={proceedWithQuote}
+          className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1"
+          size="sm"
+        >
+          Continuar con Cotización
+          <ArrowRight className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  </DialogContent>
+</Dialog>
 
       {/* Notification Popup */}
       <AnimatePresence>

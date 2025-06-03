@@ -579,20 +579,17 @@ export default function ClienteFormModal({
               {/* Business Info */}
               <div className="space-y-3">
                 <FormField label="Tipo de Cliente" required>
-                  <div className="relative">
-                    <select
-                      name="tipo"
-                      value={cliente.tipo}
-                      onChange={handleClienteChange}
-                      className={inputClassName(getFieldError('tipo'))}
-                    >
-                      <option value="persona">Persona Física</option>
-                      <option value="empresa">Empresa</option>
-                      <option value="gobierno">Gobierno</option>
-                    </select>
-                    <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400 pointer-events-none" />
-                  </div>
-                </FormField>
+  <select
+    name="tipo"
+    value={cliente.tipo}
+    onChange={handleClienteChange}
+    className={inputClassName(getFieldError('tipo'))}
+  >
+    <option value="persona">Persona Física</option>
+    <option value="empresa">Empresa</option>
+    <option value="gobierno">Gobierno</option>
+  </select>
+</FormField>
 
                 {cliente.tipo === 'empresa' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-blue-50 rounded-lg">
