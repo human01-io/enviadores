@@ -1,6 +1,6 @@
-// Updated DatosEnvio.tsx with proper state synchronization
+// Fixed DatosEnvio.tsx with proper debouncing and rate limiting for 429 errors
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { apiService } from '../../services/apiService';
 import { Cliente, Destino, ServicioCotizado } from '../../types';
@@ -70,8 +70,6 @@ export default function DatosEnvio({
   selectedService,
   onBack,
   onSubmit,
-  originData,
-  destData,
   originZip,
   destZip,
   clienteId,
@@ -86,15 +84,15 @@ export default function DatosEnvio({
   // Content state
   const [contenido, setContenido] = useState<string>('');
 
-  // Client and destination state - CRITICAL: Track current active IDs
+  // Client and destination state
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [destino, setDestino] = useState<Destino | null>(null);
   
-  // NEW: Track the currently active cliente and destino IDs
+  // Track the currently active cliente and destino IDs
   const [currentClienteId, setCurrentClienteId] = useState<string | null>(clienteId || null);
   const [currentDestinoId, setCurrentDestinoId] = useState<string | null>(destinoId || null);
 
-  // CRITICAL: Track original ZIP codes from the initial quote
+  // Track original ZIP codes from the initial quote
   const [originalOriginZip] = useState<string>(originZip);
   const [originalDestZip] = useState<string>(destZip);
 
@@ -123,7 +121,192 @@ export default function DatosEnvio({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // UPDATED: Enhanced remove handlers that update current IDs
+  // **NEW: Rate limiting and debouncing refs**
+  const loadDataTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastApiCallRef = useRef<number>(0);
+  const isLoadingDataRef = useRef<boolean>(false);
+  const loadedIdsRef = useRef<{ clienteId: string | null; destinoId: string | null }>({ 
+    clienteId: null, 
+    destinoId: null 
+  });
+
+  // **NEW: Rate limiting constants**
+  const API_RATE_LIMIT_MS = 1000; // Minimum 1 second between API calls
+  const DEBOUNCE_DELAY_MS = 500; // 500ms debounce delay
+
+  // **NEW: Debounced and rate-limited loadExistingData function**
+  const debouncedLoadExistingData = useCallback((useClienteId?: string | null, useDestinoId?: string | null) => {
+    const targetClienteId = useClienteId !== undefined ? useClienteId : currentClienteId;
+    const targetDestinoId = useDestinoId !== undefined ? useDestinoId : currentDestinoId;
+    
+    // Check if we already loaded this exact combination
+    if (loadedIdsRef.current.clienteId === targetClienteId && 
+        loadedIdsRef.current.destinoId === targetDestinoId) {
+      console.log('Data already loaded for these IDs, skipping');
+      return;
+    }
+
+    // Clear any existing timeout
+    if (loadDataTimeoutRef.current) {
+      clearTimeout(loadDataTimeoutRef.current);
+    }
+
+    // If already loading, don't start another load
+    if (isLoadingDataRef.current) {
+      console.log('Data load already in progress, skipping');
+      return;
+    }
+
+    // Only proceed if we have valid IDs
+    if (!targetClienteId && !targetDestinoId) {
+      console.log('No clienteId or destinoId provided, skipping data load');
+      return;
+    }
+
+    // Set up debounced execution
+    loadDataTimeoutRef.current = setTimeout(() => {
+      const now = Date.now();
+      const timeSinceLastCall = now - lastApiCallRef.current;
+      
+      if (timeSinceLastCall < API_RATE_LIMIT_MS) {
+        // If we're within rate limit, schedule for later
+        const delay = API_RATE_LIMIT_MS - timeSinceLastCall;
+        console.log(`Rate limiting API call, delaying by ${delay}ms`);
+        
+        loadDataTimeoutRef.current = setTimeout(() => {
+          loadExistingDataInternal(targetClienteId, targetDestinoId);
+        }, delay);
+      } else {
+        // Safe to make API call
+        loadExistingDataInternal(targetClienteId, targetDestinoId);
+      }
+    }, DEBOUNCE_DELAY_MS);
+  }, [currentClienteId, currentDestinoId]);
+
+  // **NEW: Internal function that actually loads the data**
+  const loadExistingDataInternal = async (targetClienteId: string | null, targetDestinoId: string | null) => {
+    // Prevent concurrent calls
+    if (isLoadingDataRef.current) {
+      console.log('Load already in progress, aborting');
+      return;
+    }
+
+    isLoadingDataRef.current = true;
+    setIsLoading(true);
+    setErrorMessage(null);
+    lastApiCallRef.current = Date.now();
+
+    try {
+      console.log('Starting data load for:', { targetClienteId, targetDestinoId });
+
+      // Load cliente data if clienteId is provided
+      if (targetClienteId) {
+        console.log('Loading cliente data for ID:', targetClienteId);
+        
+        // **ENHANCED: Add retry logic for 429 errors**
+        let retryCount = 0;
+        const maxRetries = 3;
+        let clienteData = null;
+
+        while (retryCount < maxRetries && !clienteData) {
+          try {
+            const results = await apiService.searchCustomers(targetClienteId);
+            if (results && results.length > 0) {
+              clienteData = results[0];
+              console.log('Loaded cliente:', clienteData);
+              setCliente(clienteData);
+            } else {
+              console.warn('No cliente found for ID:', targetClienteId);
+              setCliente(null);
+            }
+            break; // Success, exit retry loop
+          } catch (error: any) {
+            retryCount++;
+            console.warn(`Cliente API call failed (attempt ${retryCount}/${maxRetries}):`, error);
+            
+            if (error.message?.includes('429') || error.message?.includes('Too Many Requests')) {
+              // Wait longer for rate limit errors
+              const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 5000); // Exponential backoff, max 5s
+              console.log(`Rate limited, waiting ${backoffDelay}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, backoffDelay));
+            } else if (retryCount >= maxRetries) {
+              throw error; // Re-throw if not rate limit error or max retries reached
+            }
+          }
+        }
+      }
+
+      // Load destino data if both clienteId and destinoId are provided
+      if (targetClienteId && targetDestinoId) {
+        console.log('Loading destino data for clienteId:', targetClienteId, 'destinoId:', targetDestinoId);
+        
+        // **ENHANCED: Add retry logic for destino as well**
+        let retryCount = 0;
+        const maxRetries = 3;
+        let destinoData = null;
+
+        while (retryCount < maxRetries && !destinoData) {
+          try {
+            // Add small delay between cliente and destino calls to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            const results = await apiService.getCustomerDestinations(targetClienteId);
+            if (results && results.length > 0) {
+              destinoData = results.find((d: Destino) => d.id === targetDestinoId);
+              if (destinoData) {
+                console.log('Loaded destino:', destinoData);
+                setDestino(destinoData);
+              } else {
+                console.warn('No destino found for ID:', targetDestinoId);
+                setDestino(null);
+              }
+            } else {
+              console.warn('No destinations found for clienteId:', targetClienteId);
+              setDestino(null);
+            }
+            break; // Success, exit retry loop
+          } catch (error: any) {
+            retryCount++;
+            console.warn(`Destino API call failed (attempt ${retryCount}/${maxRetries}):`, error);
+            
+            if (error.message?.includes('429') || error.message?.includes('Too Many Requests')) {
+              // Wait longer for rate limit errors
+              const backoffDelay = Math.min(1000 * Math.pow(2, retryCount), 5000);
+              console.log(`Rate limited, waiting ${backoffDelay}ms before retry...`);
+              await new Promise(resolve => setTimeout(resolve, backoffDelay));
+            } else if (retryCount >= maxRetries) {
+              throw error; // Re-throw if not rate limit error or max retries reached
+            }
+          }
+        }
+      }
+
+      // Update the loaded IDs reference
+      loadedIdsRef.current = { 
+        clienteId: targetClienteId, 
+        destinoId: targetDestinoId 
+      };
+
+    } catch (error: any) {
+      console.error('Error loading cliente/destino data:', error);
+      
+      // **ENHANCED: Better error messages based on error type**
+      if (error.message?.includes('429') || error.message?.includes('Too Many Requests')) {
+        setErrorMessage('Demasiadas solicitudes. Por favor espere un momento e intente nuevamente.');
+      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        setErrorMessage('Error de conexión. Verifique su conexión a internet e intente nuevamente.');
+      } else {
+        setErrorMessage('Error al cargar los datos del cliente/destino. Por favor intente nuevamente.');
+      }
+      
+      // Don't clear data on error, keep what we have
+    } finally {
+      setIsLoading(false);
+      isLoadingDataRef.current = false;
+    }
+  };
+
+  // **UPDATED: Enhanced remove handlers that update current IDs and clear loaded refs**
   const handleRemoveCliente = () => {
     setCliente(null);
     setDestino(null);
@@ -132,9 +315,11 @@ export default function DatosEnvio({
     setErrorMessage(null);
     setNeedsNewQuote(false);
     
+    // Clear loaded IDs reference
+    loadedIdsRef.current = { clienteId: null, destinoId: null };
+    
     // Notify parent component about the ID changes
     if (onUpdateSelectedService) {
-      // Call with updated IDs but don't generate new quote yet
       onUpdateSelectedService(selectedService, {
         servicios: [],
         detallesCotizacion: {} as DetallesCotizacion,
@@ -150,6 +335,13 @@ export default function DatosEnvio({
     setDestino(null);
     setCurrentDestinoId(null);
     setErrorMessage(null);
+    
+    // Update loaded IDs reference
+    loadedIdsRef.current = { 
+      clienteId: loadedIdsRef.current.clienteId, 
+      destinoId: null 
+    };
+    
     // Check if we still need a new quote based on client ZIP
     if (cliente && cliente.codigo_postal !== originZip) {
       setNeedsNewQuote(true);
@@ -170,7 +362,7 @@ export default function DatosEnvio({
     }
   };
 
-  // Effects
+  // **UPDATED: Effects with better dependency management**
   useEffect(() => {
     // Initial load when component mounts
     if (currentClienteId || currentDestinoId) {
@@ -180,11 +372,11 @@ export default function DatosEnvio({
         propsClienteId: clienteId,
         propsDestinoId: destinoId 
       });
-      loadExistingData();
+      debouncedLoadExistingData();
     }
-  }, []);
+  }, []); // Empty dependency array for mount only
 
-  // UPDATED: Monitor changes to prop IDs and sync with current state
+  // **UPDATED: Monitor changes to prop IDs with debouncing**
   useEffect(() => {
     const propClienteId = clienteId || null;
     const propDestinoId = destinoId || null;
@@ -197,7 +389,7 @@ export default function DatosEnvio({
       propsChanged: propClienteId !== currentClienteId || propDestinoId !== currentDestinoId
     });
     
-    // Only update if the props actually changed and we don't already have that data loaded
+    // Only update if the props actually changed
     if (propClienteId !== currentClienteId || propDestinoId !== currentDestinoId) {
       console.log('Syncing IDs from props to current state');
       
@@ -209,86 +401,43 @@ export default function DatosEnvio({
       if (propClienteId !== currentClienteId) {
         setCliente(null);
         setDestino(null); // Also clear destino since it depends on cliente
+        loadedIdsRef.current = { clienteId: null, destinoId: null };
       } else if (propDestinoId !== currentDestinoId) {
         setDestino(null); // Only clear destino
+        loadedIdsRef.current.destinoId = null;
       }
       
-      // Reload with new IDs if they exist
+      // Load with new IDs if they exist (debounced)
       if (propClienteId || propDestinoId) {
-        loadExistingData(propClienteId, propDestinoId);
+        debouncedLoadExistingData(propClienteId, propDestinoId);
       }
       
       // Reset validation state since we have new data
       setNeedsNewQuote(false);
       setErrorMessage(null);
     }
-  }, [clienteId, destinoId]); // Dependencies: clienteId and destinoId from props
+  }, [clienteId, destinoId, debouncedLoadExistingData]); // Include debouncedLoadExistingData in dependencies
 
+  // **UPDATED: ZIP validation effect**
   useEffect(() => {
     if (cliente?.codigo_postal || destino?.codigo_postal) {
       validateZipCodes();
     }
   }, [cliente?.codigo_postal, destino?.codigo_postal, originZip, destZip]);
 
-  // UPDATED: Enhanced loadExistingData with parameters
-  async function loadExistingData(useClienteId?: string | null, useDestinoId?: string | null) {
-    const targetClienteId = useClienteId !== undefined ? useClienteId : currentClienteId;
-    const targetDestinoId = useDestinoId !== undefined ? useDestinoId : currentDestinoId;
-    
-    // Only proceed if we have valid IDs
-    if (!targetClienteId && !targetDestinoId) {
-      console.log('No clienteId or destinoId provided, skipping data load');
-      return;
-    }
-
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      // Load cliente data if clienteId is provided
-      if (targetClienteId) {
-        console.log('Loading cliente data for ID:', targetClienteId);
-        const results = await apiService.searchCustomers(targetClienteId);
-        if (results && results.length > 0) {
-          const clienteData = results[0];
-          console.log('Loaded cliente:', clienteData);
-          setCliente(clienteData);
-        } else {
-          console.warn('No cliente found for ID:', targetClienteId);
-          setCliente(null);
-        }
+  // **NEW: Cleanup effect**
+  useEffect(() => {
+    return () => {
+      // Cleanup timeout on unmount
+      if (loadDataTimeoutRef.current) {
+        clearTimeout(loadDataTimeoutRef.current);
       }
-
-      // Load destino data if both clienteId and destinoId are provided
-      if (targetClienteId && targetDestinoId) {
-        console.log('Loading destino data for clienteId:', targetClienteId, 'destinoId:', targetDestinoId);
-        const results = await apiService.getCustomerDestinations(targetClienteId);
-        if (results && results.length > 0) {
-          const destinoData = results.find(d => d.id === targetDestinoId);
-          if (destinoData) {
-            console.log('Loaded destino:', destinoData);
-            setDestino(destinoData);
-          } else {
-            console.warn('No destino found for ID:', targetDestinoId);
-            setDestino(null);
-          }
-        } else {
-          console.warn('No destinations found for clienteId:', targetClienteId);
-          setDestino(null);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading cliente/destino data:', error);
-      setErrorMessage('Error al cargar los datos del cliente/destino');
-      // Don't clear data on error, keep what we have
-    } finally {
-      setIsLoading(false);
-    }
-  }
+    };
+  }, []);
 
   function validateZipCodes() {
     if (cliente && destino) {
-      // CRITICAL: Compare against ORIGINAL quote ZIP codes, not current ones
+      // Compare against ORIGINAL quote ZIP codes, not current ones
       const originValid = cliente.codigo_postal === originalOriginZip;
       const destValid = destino.codigo_postal === originalDestZip;
       
@@ -327,7 +476,7 @@ export default function DatosEnvio({
     }
   }
 
-  // UPDATED: Enhanced handleGenerateNewQuote with ID tracking
+  // Enhanced handleGenerateNewQuote with rate limiting
   const handleGenerateNewQuote = async () => {
     if (!cliente || !destino) {
       setErrorMessage('Por favor complete los datos del remitente y destinatario');
@@ -344,8 +493,18 @@ export default function DatosEnvio({
       return;
     }
 
+    // **NEW: Check rate limiting for quote generation**
+    const now = Date.now();
+    const timeSinceLastCall = now - lastApiCallRef.current;
+    
+    if (timeSinceLastCall < API_RATE_LIMIT_MS) {
+      setErrorMessage(`Por favor espere ${Math.ceil((API_RATE_LIMIT_MS - timeSinceLastCall) / 1000)} segundos antes de generar otra cotización.`);
+      return;
+    }
+
     setIsGeneratingNewQuote(true);
     setErrorMessage(null);
+    lastApiCallRef.current = Date.now();
 
     try {
       // First, validate the new ZIP codes and calculate zone
@@ -540,7 +699,7 @@ export default function DatosEnvio({
             valorSeguro: originalCotizadorState.insurance ? parseFloat(originalCotizadorState.insuranceValue || '0') : 1,
           };
 
-          // UPDATED: Include current IDs in the update
+          // Include current IDs in the update
           onUpdateSelectedService(updatedService, {
             servicios: serviciosConTotales,
             detallesCotizacion: detallesCotizacion,
@@ -579,10 +738,14 @@ export default function DatosEnvio({
     }
   };
 
-  // UPDATED: Enhanced update handlers that track current IDs
+  // Enhanced update handlers that track current IDs
   const handleUpdateCliente = (updatedCliente: Cliente) => {
     setCliente(updatedCliente);
     setCurrentClienteId(updatedCliente.id || null);
+    
+    // Update loaded IDs reference
+    loadedIdsRef.current.clienteId = updatedCliente.id || null;
+    
     validateZipCodes();
     
     // Notify parent of the cliente ID change
@@ -601,6 +764,10 @@ export default function DatosEnvio({
   const handleUpdateDestino = (updatedDestino: Destino) => {
     setDestino(updatedDestino);
     setCurrentDestinoId(updatedDestino.id || null);
+    
+    // Update loaded IDs reference
+    loadedIdsRef.current.destinoId = updatedDestino.id || null;
+    
     validateZipCodes();
     
     // Notify parent of the destino ID change
@@ -810,6 +977,13 @@ export default function DatosEnvio({
     }
   }
 
+  // **NEW: Add a manual retry function for users**
+  const handleRetryDataLoad = () => {
+    setErrorMessage(null);
+    loadedIdsRef.current = { clienteId: null, destinoId: null }; // Reset loaded IDs
+    debouncedLoadExistingData();
+  };
+
   // Render component based on current step
   return (
     <div className="w-full">
@@ -827,7 +1001,7 @@ export default function DatosEnvio({
 
       {step === 'form' ? (
         <div className="space-y-6">
-          {/* Error Message */}
+          {/* Error Message with Retry Option */}
           {errorMessage && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
@@ -836,7 +1010,20 @@ export default function DatosEnvio({
             >
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4 mr-2" />
-                <AlertDescription>{errorMessage}</AlertDescription>
+                <AlertDescription className="flex justify-between items-center">
+                  <span>{errorMessage}</span>
+                  {errorMessage.includes('cargar los datos') && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRetryDataLoad}
+                      className="ml-4"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Reintentar
+                    </Button>
+                  )}
+                </AlertDescription>
               </Alert>
             </motion.div>
           )}
