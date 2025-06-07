@@ -530,8 +530,7 @@ class ManuableService {
 
     const fullName = [
       data.nombre || '',
-      data.apellido_paterno || '',
-      data.apellido_materno || ''
+      data.apellido_paterno || ''
     ].filter(Boolean).join(' ').trim();
 
     const fullAddress = [
@@ -553,7 +552,7 @@ class ManuableService {
       country_code: 'MX', // Default to Mexico
       reference: data.referencia || '',
       zip_code: data.codigo_postal,
-      company: data.razon_social || 'enviadores.com.mx'
+      company: data.razon_social || 'Enviadores'
     };
   }
 

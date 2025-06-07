@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RefreshCw, MapPin, Package, Check, CheckCircle, AlertTriangle, ArrowRight, ArrowLeft, Clock, DollarSign, Info, X } from 'lucide-react';
+import { RefreshCw, MapPin, Package, Check, CheckCircle, AlertTriangle, ArrowRight, ArrowLeft, Clock, DollarSign, Info, FileText } from 'lucide-react';
 import { AddressSection } from './AddressSection';
 import { DeliveryInfoDisplay } from './DeliveryInfoDisplay';
 import { PackageDetailsSection } from './PackageDetailsSection';
@@ -20,10 +20,13 @@ import { Separator } from '../ui/SeparatorComponent';
 import { ScrollArea } from '../ui/ScrollAreaComponent';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '../../services/apiService';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/Dialog';
+import { Dialog, DialogContent, DialogTitle } from '../ui/Dialog';
 import { ServicioCotizado } from '../../types';
 import type { ServicioCotizado as CotizadorServicioCotizado, DetallesCotizacion } from './utils/cotizadorTypes';
+import { EnhancedReceiptManager } from '../envio/ThermalRecieptManager';
 
+import { WhatsAppConfig } from './WhatsAppConfig';
+import { Settings } from 'lucide-react';
 
 interface UserData {
   name: string;
@@ -109,6 +112,13 @@ export default function Cotizador() {
   const [isValidatingAndQuoting, setIsValidatingAndQuoting] = useState(false);
   const [additionalChargesChanged, setAdditionalChargesChanged] = useState(false);
 
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successShipmentData, setSuccessShipmentData] = useState<any>(null);
+
+
+  const [showWhatsAppConfig, setShowWhatsAppConfig] = useState(false);
+const [shipmentCliente, setShipmentCliente] = useState<any>(null);
+const [shipmentDestino, setShipmentDestino] = useState<any>(null);
   // Track changes to additional services
   useEffect(() => {
     if (servicios && servicios.length > 0) {
@@ -365,75 +375,75 @@ export default function Cotizador() {
     }
   };
 
- const getZoneStyles = (zone: number) => {
-  const styles = {
-    1: {
-      bg: 'bg-gradient-to-r from-emerald-50 to-emerald-100 border-emerald-200',
-      iconBg: 'bg-emerald-600',
-      text: 'text-emerald-700',
-      description: 'text-emerald-600',
-      badge: 'bg-emerald-600'
-    },
-    2: {
-      bg: 'bg-gradient-to-r from-green-50 to-green-100 border-green-200',
-      iconBg: 'bg-green-600',
-      text: 'text-green-700',
-      description: 'text-green-600',
-      badge: 'bg-green-600'
-    },
-    3: {
-      bg: 'bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200',
-      iconBg: 'bg-blue-600',
-      text: 'text-blue-700',
-      description: 'text-blue-600',
-      badge: 'bg-blue-600'
-    },
-    4: {
-      bg: 'bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200',
-      iconBg: 'bg-purple-600',
-      text: 'text-purple-700',
-      description: 'text-purple-600',
-      badge: 'bg-purple-600'
-    },
-    5: {
-      bg: 'bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200',
-      iconBg: 'bg-orange-600',
-      text: 'text-orange-700',
-      description: 'text-orange-600',
-      badge: 'bg-orange-600'
-    },
-    6: {
-      bg: 'bg-gradient-to-r from-red-50 to-red-100 border-red-200',
-      iconBg: 'bg-red-600',
-      text: 'text-red-700',
-      description: 'text-red-600',
-      badge: 'bg-red-600'
-    },
-    7: {
-      bg: 'bg-gradient-to-r from-rose-50 to-rose-100 border-rose-200',
-      iconBg: 'bg-rose-600',
-      text: 'text-rose-700',
-      description: 'text-rose-600',
-      badge: 'bg-rose-600'
-    }
-  };
-  
-  return styles[zone as keyof typeof styles] || styles[3]; // Default to zone 3 styling
-};
+  const getZoneStyles = (zone: number) => {
+    const styles = {
+      1: {
+        bg: 'bg-gradient-to-r from-emerald-50 to-emerald-100 border-emerald-200',
+        iconBg: 'bg-emerald-600',
+        text: 'text-emerald-700',
+        description: 'text-emerald-600',
+        badge: 'bg-emerald-600'
+      },
+      2: {
+        bg: 'bg-gradient-to-r from-green-50 to-green-100 border-green-200',
+        iconBg: 'bg-green-600',
+        text: 'text-green-700',
+        description: 'text-green-600',
+        badge: 'bg-green-600'
+      },
+      3: {
+        bg: 'bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200',
+        iconBg: 'bg-blue-600',
+        text: 'text-blue-700',
+        description: 'text-blue-600',
+        badge: 'bg-blue-600'
+      },
+      4: {
+        bg: 'bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200',
+        iconBg: 'bg-purple-600',
+        text: 'text-purple-700',
+        description: 'text-purple-600',
+        badge: 'bg-purple-600'
+      },
+      5: {
+        bg: 'bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200',
+        iconBg: 'bg-orange-600',
+        text: 'text-orange-700',
+        description: 'text-orange-600',
+        badge: 'bg-orange-600'
+      },
+      6: {
+        bg: 'bg-gradient-to-r from-red-50 to-red-100 border-red-200',
+        iconBg: 'bg-red-600',
+        text: 'text-red-700',
+        description: 'text-red-600',
+        badge: 'bg-red-600'
+      },
+      7: {
+        bg: 'bg-gradient-to-r from-rose-50 to-rose-100 border-rose-200',
+        iconBg: 'bg-rose-600',
+        text: 'text-rose-700',
+        description: 'text-rose-600',
+        badge: 'bg-rose-600'
+      }
+    };
 
-const getZoneDescription = (zone: number) => {
-  const descriptions = {
-    1: 'Zona metropolitana - Costo mínimo',
-    2: 'Área urbana cercana - Costo bajo',
-    3: 'Zona urbana - Costo estándar',
-    4: 'Área semi-urbana - Costo moderado',
-    5: 'Zona foránea - Costo elevado',
-    6: 'Área remota - Costo alto',
-    7: 'Zona más lejana - Costo máximo'
+    return styles[zone as keyof typeof styles] || styles[3]; // Default to zone 3 styling
   };
-  
-  return descriptions[zone as keyof typeof descriptions] || 'Zona estándar';
-};
+
+  const getZoneDescription = (zone: number) => {
+    const descriptions = {
+      1: 'Zona metropolitana - Costo mínimo',
+      2: 'Área urbana cercana - Costo bajo',
+      3: 'Zona urbana - Costo estándar',
+      4: 'Área semi-urbana - Costo moderado',
+      5: 'Zona foránea - Costo elevado',
+      6: 'Área remota - Costo alto',
+      7: 'Zona más lejana - Costo máximo'
+    };
+
+    return descriptions[zone as keyof typeof descriptions] || 'Zona estándar';
+  };
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Clean Header */}
@@ -531,13 +541,26 @@ const getZoneDescription = (zone: number) => {
 
             {/* Right section */}
             <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-              <UserAccount
-                userData={userData}
-                onLogout={handleLogout}
-                variant="dropdown"
-                className="bg-white border border-gray-200 shadow-sm hover:shadow-md"
-              />
-            </div>
+  <Button
+    variant="ghost"
+    size="sm"
+    onClick={() => setShowWhatsAppConfig(true)}
+    className="text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+    title="Configuración WhatsApp"
+  >
+    <Settings className="h-4 w-4" />
+    <span className="sr-only sm:not-sr-only sm:inline ml-1">WhatsApp</span>
+  </Button>
+  
+  <UserAccount
+    userData={userData}
+    onLogout={handleLogout}
+    variant="dropdown"
+    className="bg-white border border-gray-200 shadow-sm hover:shadow-md"
+  />
+</div>
+            
+
           </div>
         </div>
       </header>
@@ -806,28 +829,50 @@ const getZoneDescription = (zone: number) => {
               <div className="p-4">
                 {selectedService && (
                   <DatosEnvio
-                    selectedService={selectedService}
-                    onBack={backToQuote}
-                    onSubmit={(envioData) => {
-                      console.log('Datos del envío:', {
-                        servicio: selectedService,
-                        cliente: envioData.cliente,
-                        destino: envioData.destino
-                      });
+  selectedService={selectedService}
+  onBack={backToQuote}
+  onSubmit={(envioData) => {
+  console.log('Datos del envío:', envioData);
 
-                      updateField('flowStage', 'quote');
-                      resetForm();
+  // NEW: Store cliente and destino data for receipt
+  setShipmentCliente(envioData.cliente);
+  setShipmentDestino(envioData.destino);
 
-                      setNotification({
-                        show: true,
-                        message: `Envío registrado para ${envioData.cliente.nombre}`,
-                        details: {
-                          service: selectedService,
-                          client: envioData.cliente,
-                          destination: envioData.destino
-                        }
-                      });
-                    }}
+  // NEW: Prepare receipt data
+  const receiptData = {
+    shipmentId: envioData.shipmentId || `ENV-${Date.now()}`,
+    clienteId: envioData.cliente.id || state.clienteId || 'N/A',
+    destinoId: envioData.destino.id || state.destinoId || 'N/A',
+    destinoCiudad: destCiudad || envioData.destino.ciudad || 'N/A',
+    servicio: {
+      nombre: selectedService.nombre,
+      precioConIva: selectedService.precioConIva,
+      diasEstimados: selectedService.diasEstimados
+    },
+    fecha: new Date().toLocaleDateString('es-MX')
+  };
+
+  // NEW: Show success modal instead of notification
+  setSuccessShipmentData(receiptData);
+  setShowSuccessModal(true);
+
+  // EXISTING: Reset cotizador state
+  setCurrentTab('details');
+  updateField('flowStage', 'quote');
+  setServicios([]);
+  setDetallesCotizacion(null);
+  setSelectedService(null);
+  setAdditionalChargesChanged(false);
+  resetForm();
+  localStorage.removeItem('current_cotizacion_id');
+
+  // Success notification
+  setNotification({
+    show: true,
+    message: `✅ Envío registrado exitosamente para ${envioData.cliente.nombre}`,
+    details: envioData.shipmentId ? `ID: ${envioData.shipmentId}` : null
+  });
+}}
                     originData={{
                       estado: originState || '',
                       municipio: originMunicipio || '',
@@ -868,99 +913,99 @@ const getZoneDescription = (zone: number) => {
       </main>
 
       {/* Delivery Info Modal - Redesigned */}
-<Dialog open={showDeliveryModal} onOpenChange={setShowDeliveryModal}>
-  <DialogContent className="max-w-4xl max-h-[90vh] p-0 gap-0 flex flex-col">
-    {/* Sticky Header */}
-    <div className="flex items-center justify-between p-3 border-b bg-white shrink-0">
-      <div className="flex items-center gap-2">
-        <div className="p-1.5 bg-blue-100 rounded-lg">
-          <Info className="h-4 w-4 text-blue-600" />
-        </div>
-        <div>
-          <DialogTitle className="text-base font-semibold text-gray-800">
-            Información de Entrega
-          </DialogTitle>
-          <p className="text-xs text-gray-500">
-            Detalles y validación de zona de entrega
-          </p>
-        </div>
-      </div>
-      <button 
-        onClick={() => setShowDeliveryModal(false)}
-        className="rounded-full p-1.5 hover:bg-gray-100 transition-colors"
-      >
-        
-      </button>
-    </div>
+      <Dialog open={showDeliveryModal} onOpenChange={setShowDeliveryModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 gap-0 flex flex-col">
+          {/* Sticky Header */}
+          <div className="flex items-center justify-between p-3 border-b bg-white shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-blue-100 rounded-lg">
+                <Info className="h-4 w-4 text-blue-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-semibold text-gray-800">
+                  Información de Entrega
+                </DialogTitle>
+                <p className="text-xs text-gray-500">
+                  Detalles y validación de zona de entrega
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowDeliveryModal(false)}
+              className="rounded-full p-1.5 hover:bg-gray-100 transition-colors"
+            >
 
-    {/* Scrollable Content */}
-    <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
-      {/* Main Content Grid with Zone and Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        
-        {/* Zone Display - Big Square */}
-        {state.zone !== null && (
-          <div className={`${getZoneStyles(state.zone).bg} border rounded-lg p-6 flex flex-col items-center justify-center text-center min-h-[140px]`}>
-            {/* Big Zone Number */}
-            <div className={`text-6xl font-bold ${getZoneStyles(state.zone).text} mb-2`}>
-              {state.zone}
-            </div>
-            
-            {/* Zone Label */}
-            <div className={`text-sm font-medium ${getZoneStyles(state.zone).text} mb-3`}>
-              Zona Nacional
-            </div>
-            
-            {/* Description */}
-            <div className={`text-xs ${getZoneStyles(state.zone).description} leading-tight max-w-[140px]`}>
-              {getZoneDescription(state.zone)}
+            </button>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+            {/* Main Content Grid with Zone and Cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+
+              {/* Zone Display - Big Square */}
+              {state.zone !== null && (
+                <div className={`${getZoneStyles(state.zone).bg} border rounded-lg p-6 flex flex-col items-center justify-center text-center min-h-[140px]`}>
+                  {/* Big Zone Number */}
+                  <div className={`text-6xl font-bold ${getZoneStyles(state.zone).text} mb-2`}>
+                    {state.zone}
+                  </div>
+
+                  {/* Zone Label */}
+                  <div className={`text-sm font-medium ${getZoneStyles(state.zone).text} mb-3`}>
+                    Zona Nacional
+                  </div>
+
+                  {/* Description */}
+                  <div className={`text-xs ${getZoneStyles(state.zone).description} leading-tight max-w-[140px]`}>
+                    {getZoneDescription(state.zone)}
+                  </div>
+                </div>
+              )}
+
+              {/* Cards Container */}
+              <div className={`${state.zone !== null ? 'lg:col-span-2' : 'lg:col-span-3'} grid grid-cols-1 md:grid-cols-2 gap-3`}>
+
+                {/* Enhanced Delivery Info Display */}
+                <DeliveryInfoDisplay
+                  estafetaResult={estafetaResult}
+                  loadingEstafeta={loadingEstafeta}
+                  validateThreeTimes={validateThreeTimes}
+                  handleReport={handleReport}
+                  reportSubmitted={reportSubmitted}
+                />
+              </div>
             </div>
           </div>
-        )}
 
-        {/* Cards Container */}
-        <div className={`${state.zone !== null ? 'lg:col-span-2' : 'lg:col-span-3'} grid grid-cols-1 md:grid-cols-2 gap-3`}>
-          
-          {/* Enhanced Delivery Info Display */}
-          <DeliveryInfoDisplay
-            estafetaResult={estafetaResult}
-            loadingEstafeta={loadingEstafeta}
-            validateThreeTimes={validateThreeTimes}
-            handleReport={handleReport}
-            reportSubmitted={reportSubmitted}
-          />
-        </div>
-      </div>
-    </div>
+          {/* Sticky Footer */}
+          <div className="shrink-0 bg-gray-50 border-t p-3 flex justify-between items-center">
+            <div className="flex items-center gap-2 text-xs text-gray-600">
+              <Info className="h-3 w-3" />
+              <span>Información actualizada automáticamente</span>
+            </div>
 
-    {/* Sticky Footer */}
-    <div className="shrink-0 bg-gray-50 border-t p-3 flex justify-between items-center">
-      <div className="flex items-center gap-2 text-xs text-gray-600">
-        <Info className="h-3 w-3" />
-        <span>Información actualizada automáticamente</span>
-      </div>
-      
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          onClick={() => setShowDeliveryModal(false)}
-          className="px-4 py-1.5 text-sm"
-          size="sm"
-        >
-          Cerrar
-        </Button>
-        <Button
-          onClick={proceedWithQuote}
-          className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1"
-          size="sm"
-        >
-          Continuar con Cotización
-          <ArrowRight className="h-3 w-3" />
-        </Button>
-      </div>
-    </div>
-  </DialogContent>
-</Dialog>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeliveryModal(false)}
+                className="px-4 py-1.5 text-sm"
+                size="sm"
+              >
+                Cerrar
+              </Button>
+              <Button
+                onClick={proceedWithQuote}
+                className="px-4 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1"
+                size="sm"
+              >
+                Continuar con Cotización
+                <ArrowRight className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Notification Popup */}
       <AnimatePresence>
@@ -978,6 +1023,121 @@ const getZoneDescription = (zone: number) => {
           </motion.div>
         )}
       </AnimatePresence>
+
+{showSuccessModal && successShipmentData && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-3 p-4 border-b bg-gradient-to-r from-green-50 to-emerald-50">
+        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+          <Check className="h-6 w-6 text-green-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">🎉 ¡Envío Registrado Exitosamente!</h3>
+          <p className="text-sm text-gray-600">ID: {successShipmentData.shipmentId}</p>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
+        {/* Shipment Summary */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+          <h4 className="font-medium text-blue-900 mb-3 flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Resumen del Envío
+          </h4>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="space-y-2">
+              <div><span className="text-blue-700">Servicio:</span></div>
+              <div><span className="text-blue-700">Total:</span></div>
+              <div><span className="text-blue-700">Entrega:</span></div>
+            </div>
+            <div className="space-y-2">
+              <div className="font-medium text-blue-900">{successShipmentData.servicio.nombre}</div>
+              <div className="font-bold text-green-700">${successShipmentData.servicio.precioConIva.toFixed(2)} MXN</div>
+              <div className="font-medium text-blue-900">{successShipmentData.servicio.diasEstimados} días</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Route Info */}
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
+          <h4 className="font-medium text-purple-900 mb-3 flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Ruta de Envío
+          </h4>
+          <div className="flex items-center justify-between text-sm">
+            <div className="text-center">
+              <div className="font-medium text-purple-900">Origen</div>
+              <div className="text-purple-700">{originCiudad || 'Ciudad origen'}</div>
+              <div className="text-purple-600 text-xs">{state.originZip}</div>
+            </div>
+            <div className="flex-1 px-4">
+              <div className="h-px bg-purple-300 relative">
+                <ArrowRight className="h-4 w-4 text-purple-500 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-purple-50 rounded-full p-1" />
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="font-medium text-purple-900">Destino</div>
+              <div className="text-purple-700">{successShipmentData.destinoCiudad}</div>
+              <div className="text-purple-600 text-xs">{state.destZip}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Receipt Manager with Cliente and Destino data */}
+        <div className="border border-gray-200 rounded-lg p-4 bg-white">
+          <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            📄 Comprobante de Envío
+          </h4>
+          <EnhancedReceiptManager 
+            receiptData={successShipmentData}
+            onComplete={(recordId) => {
+              console.log('Digital record created:', recordId);
+            }}
+            className="w-full"
+            cliente={shipmentCliente}
+            destino={shipmentDestino}
+          />
+        </div>
+      </div>
+
+      {/* Footer Actions */}
+      <div className="p-4 border-t bg-gray-50 flex gap-3">
+        <button
+          onClick={() => {
+            setShowSuccessModal(false);
+            setSuccessShipmentData(null);
+            setShipmentCliente(null);
+            setShipmentDestino(null);
+          }}
+          className="flex-1 px-4 py-2 text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-md transition-colors"
+        >
+          Nueva Cotización
+        </button>
+        <button
+          onClick={() => {
+            setShowSuccessModal(false);
+            setSuccessShipmentData(null);
+            setShipmentCliente(null);
+            setShipmentDestino(null);
+            redirectToDashboard();
+          }}
+          className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+        >
+          Ver Dashboard
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+<WhatsAppConfig
+  isOpen={showWhatsAppConfig}
+  onClose={() => setShowWhatsAppConfig(false)}
+/>
+
     </div>
   );
 }

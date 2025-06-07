@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, FileText, Truck, Upload, CheckCircle2, Download, AlertCircle } from 'lucide-react';
+import { X, FileText, Truck, Upload, CheckCircle2, Download, Loader2, AlertTriangle } from 'lucide-react';
 import { Cliente, Destino } from '../../types';
 import { ManuableRate, ManuableLabelResponse } from '../../services/manuableService';
 import ManuableRatesComponent from './ManuableRatesComponent';
@@ -15,7 +15,7 @@ interface ShippingOptionsModalProps {
     externalCost?: number | null;
     selectedManuableService?: ManuableRate | null;
     labelData?: ManuableLabelResponse | null;
-  }) => void;
+  }) => Promise<void>; // Make this async to handle loading states
   originZip: string;
   destZip: string;
   packageDetails: {
@@ -56,6 +56,11 @@ export default function ShippingOptionsModal({
   const [selectedManuableService, setSelectedManuableService] = useState<ManuableRate | null>(null);
   const [labelData, setLabelData] = useState<ManuableLabelResponse | null>(null);
 
+  // **NEW: Loading and error states**
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
   // Reset states when modal opens/closes or option changes
   useEffect(() => {
     if (!isOpen) {
@@ -84,17 +89,23 @@ export default function ShippingOptionsModal({
     setExternalCost(null);
     setSelectedManuableService(null);
     setLabelData(null);
+    // **NEW: Reset loading states**
+    setIsSubmitting(false);
+    setSubmitError(null);
+    setSubmitSuccess(false);
   };
 
   const handleLabelGenerated = (data: ManuableLabelResponse) => {
     console.log('Label generated:', data);
     setLabelData(data);
+    setSubmitError(null); // Clear any previous errors
   };
 
   const handleBack = () => {
     if (step === 'configure') {
       setStep('select');
       setSelectedOption(null);
+      setSubmitError(null); // Clear errors when going back
     } else {
       onClose();
     }
@@ -112,27 +123,57 @@ export default function ShippingOptionsModal({
   };
 
   const canSubmit = () => {
+    if (isSubmitting) return false; // Can't submit while submitting
     if (selectedOption === 'external') return isExternalComplete();
     if (selectedOption === 'manuable') return isManuableComplete();
     return false;
   };
 
-  const handleSubmit = () => {
+  // **ENHANCED: Submit handler with loading states**
+  const handleSubmit = async () => {
     if (!canSubmit()) return;
 
-    onSubmit({
-      selectedOption: selectedOption!,
-      externalLabelData: selectedOption === 'external' ? externalLabelData : undefined,
-      externalCost: selectedOption === 'external' ? externalCost : undefined,
-      selectedManuableService: selectedOption === 'manuable' ? selectedManuableService : undefined,
-      labelData: selectedOption === 'manuable' ? labelData : undefined
-    });
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(false);
+
+    try {
+      await onSubmit({
+        selectedOption: selectedOption!,
+        externalLabelData: selectedOption === 'external' ? externalLabelData : undefined,
+        externalCost: selectedOption === 'external' ? externalCost : undefined,
+        selectedManuableService: selectedOption === 'manuable' ? selectedManuableService : undefined,
+        labelData: selectedOption === 'manuable' ? labelData : undefined
+      });
+
+      // If we get here, submission was successful
+      setSubmitSuccess(true);
+      
+      // Close modal after a brief success message
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+
+    } catch (error: any) {
+      console.error('Error submitting shipping data:', error);
+      setSubmitError(error.message || 'Error al procesar el envío. Por favor intente nuevamente.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const downloadLabel = () => {
     if (labelData?.label_url) {
       window.open(labelData.label_url, '_blank');
     }
+  };
+
+  // **NEW: Handle closing modal when submitting (prevent accidental close)**
+  const handleClose = () => {
+    if (isSubmitting) {
+      return; // Don't allow closing while submitting
+    }
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -148,7 +189,7 @@ export default function ShippingOptionsModal({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black bg-opacity-50"
-              onClick={onClose}
+              onClick={handleClose}
             />
 
             {/* Modal */}
@@ -158,27 +199,83 @@ export default function ShippingOptionsModal({
               exit={{ opacity: 0, scale: 0.95 }}
               className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
             >
+              {/* **NEW: Loading Overlay** */}
+              {isSubmitting && (
+                <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10">
+                  <div className="text-center">
+                    <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Procesando envío...</h3>
+                    <p className="text-sm text-gray-600">
+                      {selectedOption === 'external' 
+                        ? 'Guardando datos de guía externa...' 
+                        : 'Creando cliente y guardando información...'}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-2">Por favor no cierre esta ventana</p>
+                  </div>
+                </div>
+              )}
+
+              {/* **NEW: Success Overlay** */}
+              {submitSuccess && (
+                <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-10">
+                  <div className="text-center">
+                    <CheckCircle2 className="w-16 h-16 text-green-600 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-green-800 mb-2">¡Envío creado exitosamente!</h3>
+                    <p className="text-sm text-green-600">Redirigiendo...</p>
+                  </div>
+                </div>
+              )}
+
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b">
                 <h2 className="text-xl font-semibold text-gray-900">
                   {step === 'select' ? 'Seleccionar Opción de Envío' : 'Configurar Envío'}
                 </h2>
                 <button
-                  onClick={onClose}
-                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  onClick={handleClose}
+                  disabled={isSubmitting}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isSubmitting 
+                      ? 'text-gray-300 cursor-not-allowed' 
+                      : 'hover:bg-gray-100 text-gray-500'
+                  }`}
                 >
-                  <X className="w-5 h-5 text-gray-500" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
               {/* Content */}
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-8rem)]">
+                {/* **NEW: Error Alert** */}
+                {submitError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start"
+                  >
+                    <AlertTriangle className="w-5 h-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-semibold text-red-800 mb-1">Error al procesar envío</h4>
+                      <p className="text-sm text-red-700">{submitError}</p>
+                    </div>
+                    <button
+                      onClick={() => setSubmitError(null)}
+                      className="text-red-400 hover:text-red-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </motion.div>
+                )}
+
                 {step === 'select' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* External Option */}
                     <button
                       onClick={() => setSelectedOption('external')}
-                      className="p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-md transition-all text-left"
+                      disabled={isSubmitting}
+                      className={`p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-md transition-all text-left ${
+                        isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
                     >
                       <FileText className="w-8 h-8 text-blue-600 mb-3" />
                       <h3 className="font-semibold text-lg mb-2">Guía Externa</h3>
@@ -195,7 +292,10 @@ export default function ShippingOptionsModal({
                     {/* Manuable Option */}
                     <button
                       onClick={() => setSelectedOption('manuable')}
-                      className="p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-md transition-all text-left"
+                      disabled={isSubmitting}
+                      className={`p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-md transition-all text-left ${
+                        isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
                     >
                       <Truck className="w-8 h-8 text-green-600 mb-3" />
                       <h3 className="font-semibold text-lg mb-2">Generar con Manuable</h3>
@@ -220,7 +320,10 @@ export default function ShippingOptionsModal({
                         <select
                           value={externalLabelData.carrier}
                           onChange={(e) => setExternalLabelData({...externalLabelData, carrier: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          disabled={isSubmitting}
+                          className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                            isSubmitting ? 'bg-gray-100 cursor-not-allowed' : ''
+                          }`}
                         >
                           <option value="">Seleccionar paquetería</option>
                           <option value="FEDEX">FedEx</option>
@@ -240,7 +343,10 @@ export default function ShippingOptionsModal({
                           type="text"
                           value={externalLabelData.trackingNumber}
                           onChange={(e) => setExternalLabelData({...externalLabelData, trackingNumber: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          disabled={isSubmitting}
+                          className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                            isSubmitting ? 'bg-gray-100 cursor-not-allowed' : ''
+                          }`}
                           placeholder="Ej: 1234567890"
                         />
                       </div>
@@ -255,7 +361,10 @@ export default function ShippingOptionsModal({
                             type="number"
                             value={externalCost ?? ''}
                             onChange={(e) => setExternalCost(e.target.value ? parseFloat(e.target.value) : null)}
-                            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            disabled={isSubmitting}
+                            className={`w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                              isSubmitting ? 'bg-gray-100 cursor-not-allowed' : ''
+                            }`}
                             placeholder="0.00"
                             step="0.01"
                           />
@@ -275,12 +384,15 @@ export default function ShippingOptionsModal({
                                 setExternalLabelData({...externalLabelData, labelFile: e.target.files[0]});
                               }
                             }}
+                            disabled={isSubmitting}
                             className="hidden"
                             id="file-upload"
                           />
                           <label
                             htmlFor="file-upload"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 flex items-center justify-between"
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 flex items-center justify-between ${
+                              isSubmitting ? 'bg-gray-100 cursor-not-allowed opacity-50' : ''
+                            }`}
                           >
                             <span className="text-sm text-gray-600">
                               {externalLabelData.labelFile ? externalLabelData.labelFile.name : 'Seleccionar archivo'}
@@ -291,11 +403,15 @@ export default function ShippingOptionsModal({
                       </div>
                     </div>
 
-                    {isExternalComplete() && (
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
+                    {isExternalComplete() && !isSubmitting && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center"
+                      >
                         <CheckCircle2 className="w-5 h-5 text-green-600 mr-2" />
                         <span className="text-sm text-green-800">Datos completos. Puede finalizar el envío.</span>
-                      </div>
+                      </motion.div>
                     )}
                   </div>
                 )}
@@ -329,7 +445,11 @@ export default function ShippingOptionsModal({
                     ) : (
                       /* Label Generated Success */
                       <div className="space-y-4">
-                        <div className="p-6 bg-green-50 border border-green-200 rounded-lg">
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="p-6 bg-green-50 border border-green-200 rounded-lg"
+                        >
                           <div className="flex items-start">
                             <CheckCircle2 className="w-6 h-6 text-green-600 mr-3 flex-shrink-0" />
                             <div className="flex-1">
@@ -341,12 +461,15 @@ export default function ShippingOptionsModal({
                               </div>
                             </div>
                           </div>
-                        </div>
+                        </motion.div>
 
                         <div className="flex gap-3">
                           <button
                             onClick={downloadLabel}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            disabled={isSubmitting}
+                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
+                              isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                           >
                             <Download className="w-4 h-4" />
                             Descargar Etiqueta
@@ -356,7 +479,10 @@ export default function ShippingOptionsModal({
                               setLabelData(null);
                               setSelectedManuableService(null);
                             }}
-                            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                            disabled={isSubmitting}
+                            className={`px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors ${
+                              isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                           >
                             Cambiar servicio
                           </button>
@@ -371,7 +497,12 @@ export default function ShippingOptionsModal({
               <div className="flex items-center justify-between p-6 border-t bg-gray-50">
                 <button
                   onClick={handleBack}
-                  className="px-4 py-2 text-gray-700 hover:text-gray-900"
+                  disabled={isSubmitting}
+                  className={`px-4 py-2 transition-colors ${
+                    isSubmitting 
+                      ? 'text-gray-400 cursor-not-allowed' 
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
                 >
                   {step === 'select' ? 'Cancelar' : 'Atrás'}
                 </button>
@@ -380,13 +511,14 @@ export default function ShippingOptionsModal({
                   <button
                     onClick={handleSubmit}
                     disabled={!canSubmit()}
-                    className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                    className={`px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
                       canSubmit()
                         ? 'bg-blue-600 text-white hover:bg-blue-700'
                         : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                   >
-                    Finalizar Envío
+                    {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {isSubmitting ? 'Procesando...' : 'Finalizar Envío'}
                   </button>
                 )}
               </div>

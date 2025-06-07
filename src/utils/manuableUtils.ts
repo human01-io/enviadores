@@ -11,7 +11,7 @@ import { manuableConfig } from '../config/manuableConfig';
  */
 export const mapClienteToManuableAddress = (cliente: Cliente): ManuableAddress => {
   return {
-    name: `${cliente.nombre} ${cliente.apellido_paterno} ${cliente.apellido_materno || ''}`.trim(),
+    name: `${cliente.nombre} ${cliente.apellido_paterno} || ''}`.trim(),
     street1: cliente.calle,
     neighborhood: cliente.colonia,
     external_number: cliente.numero_exterior,
@@ -23,7 +23,7 @@ export const mapClienteToManuableAddress = (cliente: Cliente): ManuableAddress =
     country_code: 'MX', // Default to Mexico
     reference: cliente.referencia || '',
     zip_code: cliente.codigo_postal,
-    company: cliente.razon_social || 'enviadores.com.mx',
+    company: cliente.razon_social || 'Enviadores',
   };
 };
 
