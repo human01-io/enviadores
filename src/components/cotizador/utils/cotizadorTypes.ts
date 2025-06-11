@@ -81,6 +81,15 @@ export interface CotizadorState {
   destinoId?: string | null;
   servicios?: import('../../../types').ServicioCotizado[];
   detallesCotizacion?: DetallesCotizacion;
+  discount?: {
+    tipo: 'porcentaje' | 'fijo' | 'codigo' | '';
+    valor: number;
+    codigo: string;
+    aplicado: boolean;
+    subtotalBeforeDiscount?: number;
+    discountAmount?: number;
+  };
+
 }
 
 export interface AddressData {

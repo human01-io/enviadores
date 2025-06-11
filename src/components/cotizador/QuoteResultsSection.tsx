@@ -14,7 +14,10 @@ import {
   Info,
   Box,
   Shield,
-  RefreshCw
+  RefreshCw,
+  Percent,
+  Tag,
+  Gift
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/CardComponent';
@@ -24,6 +27,7 @@ import { Checkbox } from '../ui/Checkbox';
 import { Label } from '../ui/Label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/SelectComponent';
 import { Input } from '../ui/Input';
+import { apiService } from '../../services/apiService';
 
 interface QuoteResultsSectionProps {
   servicios: ServicioCotizado[];
@@ -36,6 +40,15 @@ interface QuoteResultsSectionProps {
   updateField: (field: keyof CotizadorState, value: any) => void;
   additionalChargesChanged?: boolean;
   onReQuote?: () => void;
+}
+
+interface DiscountState {
+  tipo: 'porcentaje' | 'fijo' | 'codigo' | '';
+  valor: number;
+  codigo: string;
+  aplicado: boolean;
+  isValidating?: boolean;
+  error?: string;
 }
 
 export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
@@ -56,6 +69,25 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
     recoleccion: 0
   });
 
+  // Discount state
+  const [discount, setDiscount] = useState<DiscountState>({
+    tipo: '',
+    valor: 0,
+    codigo: '',
+    aplicado: false
+  });
+
+  // Track if any changes were made that require requoting
+  const [hasChanges, setHasChanges] = useState(false);
+  
+  // Track original discount state to detect changes
+  const [originalDiscountState, setOriginalDiscountState] = useState<DiscountState>({
+    tipo: '',
+    valor: 0,
+    codigo: '',
+    aplicado: false
+  });
+
   // Calculate local additional charges when state changes
   useEffect(() => {
     let empaqueCharge = 0;
@@ -73,45 +105,230 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
       : 0;
 
     const recoleccionCharge = state.collectionRequired 
-      ? (state.collectionPrice || 100) // Default collection price if not specified
+      ? (state.collectionPrice || 100)
       : 0;
 
-    setLocalAdditionalCharges({
+    const newCharges = {
       empaque: empaqueCharge,
       seguro: seguroCharge,
       recoleccion: recoleccionCharge
-    });
-  }, [state.packagingOption, state.customPackagingPrice, state.insurance, state.insuranceValue, state.collectionRequired, state.collectionPrice]);
+    };
 
-  // Calculate total additional charges (from server + local changes)
+    setLocalAdditionalCharges(newCharges);
+
+    // Check if charges have changed from original
+    if (detallesCotizacion) {
+      const hasChargeChanges = 
+        newCharges.empaque !== detallesCotizacion.empaque ||
+        newCharges.seguro !== detallesCotizacion.seguro ||
+        newCharges.recoleccion !== detallesCotizacion.recoleccion;
+      
+      // Check if discount has changed from original state
+      const hasDiscountChanges = 
+        discount.aplicado !== originalDiscountState.aplicado ||
+        discount.tipo !== originalDiscountState.tipo ||
+        discount.valor !== originalDiscountState.valor ||
+        discount.codigo !== originalDiscountState.codigo;
+      
+      setHasChanges(hasChargeChanges || hasDiscountChanges);
+    }
+  }, [
+    state.packagingOption, 
+    state.customPackagingPrice, 
+    state.insurance, 
+    state.insuranceValue, 
+    state.collectionRequired, 
+    state.collectionPrice,
+    detallesCotizacion,
+    discount.aplicado,
+    discount.tipo,
+    discount.valor,
+    discount.codigo,
+    originalDiscountState
+  ]);
+
+  // Initialize original discount state when component mounts or when additionalChargesChanged prop changes
+  useEffect(() => {
+    if (!additionalChargesChanged) {
+      // Reset original discount state when starting fresh (no changes from parent)
+      setOriginalDiscountState({
+        tipo: '',
+        valor: 0,
+        codigo: '',
+        aplicado: false
+      });
+      setHasChanges(false);
+    }
+  }, [additionalChargesChanged]);
+
+  // Calculate total additional charges
   const calculateTotalAdditionalCharges = () => {
     if (!detallesCotizacion) return 0;
     
-    // If there are local changes, use local calculations, otherwise use server values
-    const empaque = additionalChargesChanged ? localAdditionalCharges.empaque : detallesCotizacion.empaque;
-    const seguro = additionalChargesChanged ? localAdditionalCharges.seguro : detallesCotizacion.seguro;
-    const recoleccion = additionalChargesChanged ? localAdditionalCharges.recoleccion : detallesCotizacion.recoleccion;
+    const empaque = hasChanges ? localAdditionalCharges.empaque : detallesCotizacion.empaque;
+    const seguro = hasChanges ? localAdditionalCharges.seguro : detallesCotizacion.seguro;
+    const recoleccion = hasChanges ? localAdditionalCharges.recoleccion : detallesCotizacion.recoleccion;
     
     return empaque + seguro + recoleccion + detallesCotizacion.reexpedicion;
   };
 
-  // Calculate service prices with local additional charges
-  const getServicePriceWithLocalCharges = (servicio: ServicioCotizado) => {
-    if (!additionalChargesChanged) {
+  // Calculate discount amount
+  const calculateDiscountAmount = (subtotal: number): number => {
+    if (!discount.aplicado || !discount.tipo || discount.valor <= 0) return 0;
+    
+    switch (discount.tipo) {
+      case 'porcentaje':
+        return subtotal * (discount.valor / 100);
+      case 'fijo':
+        return Math.min(discount.valor, subtotal);
+      case 'codigo':
+        return Math.min(discount.valor, subtotal);
+      default:
+        return 0;
+    }
+  };
+
+  // Calculate service prices with local charges and discount
+  const getServicePriceWithLocalChargesAndDiscount = (servicio: ServicioCotizado) => {
+    // If no changes have been made, use original server prices
+    if (!hasChanges && !discount.aplicado) {
       return {
-        subtotal: servicio.precioTotal,
+        subtotalBeforeDiscount: servicio.precioTotal,
+        discountAmount: 0,
+        subtotalAfterDiscount: servicio.precioTotal,
         total: servicio.precioConIva
       };
     }
 
+    // Calculate with current state (local charges and/or discounts)
     const localChargesTotal = localAdditionalCharges.empaque + localAdditionalCharges.seguro + localAdditionalCharges.recoleccion;
-    const subtotal = servicio.precioBase + servicio.cargoSobrepeso + localChargesTotal + detallesCotizacion.reexpedicion;
-    const total = subtotal * 1.16; // 16% IVA
+    const subtotalBeforeDiscount = servicio.precioBase + servicio.cargoSobrepeso + localChargesTotal + (detallesCotizacion?.reexpedicion || 0);
+    
+    const discountAmount = calculateDiscountAmount(subtotalBeforeDiscount);
+    const subtotalAfterDiscount = subtotalBeforeDiscount - discountAmount;
+    const total = subtotalAfterDiscount * 1.16; // 16% IVA
 
     return {
-      subtotal,
+      subtotalBeforeDiscount,
+      discountAmount,
+      subtotalAfterDiscount,
       total
     };
+  };
+
+  // Handle discount type change
+  const handleDiscountTypeChange = (tipo: string) => {
+    const newTipo = tipo === "none" ? '' : tipo as 'porcentaje' | 'fijo' | 'codigo' | '';
+    setDiscount(prev => ({
+      ...prev,
+      tipo: newTipo,
+      aplicado: newTipo !== '',
+      valor: 0,
+      codigo: '',
+      error: undefined
+    }));
+  };
+
+  // Handle discount value change
+  const handleDiscountValueChange = (valor: number) => {
+    const validValue = Math.max(0, valor);
+    setDiscount(prev => ({
+      ...prev,
+      valor: validValue
+    }));
+  };
+
+  // Handle discount code change
+  const handleDiscountCodeChange = (codigo: string) => {
+    setDiscount(prev => ({
+      ...prev,
+      codigo,
+      error: undefined
+    }));
+  };
+
+  // Validate discount code
+  const validateDiscountCode = async (codigo: string): Promise<{ valid: boolean; valor?: number; tipo?: string; error?: string }> => {
+    try {
+      // Mock validation - replace with actual API call
+      const mockCodes = {
+        'DESCUENTO10': { valid: true, valor: 10, tipo: 'porcentaje' },
+        'AHORRO50': { valid: true, valor: 50, tipo: 'fijo' },
+        'ENVIOGRATIS': { valid: true, valor: 100, tipo: 'fijo' }
+      };
+
+      const code = mockCodes[codigo.toUpperCase() as keyof typeof mockCodes];
+      
+      if (code) {
+        return code;
+      } else {
+        return {
+          valid: false,
+          error: 'Código de descuento inválido'
+        };
+      }
+    } catch (error) {
+      console.error('Error validating discount code:', error);
+      return {
+        valid: false,
+        error: 'Error al validar el código de descuento'
+      };
+    }
+  };
+
+  // Apply discount code
+  const applyDiscountCodeHandler = async () => {
+    if (!discount.codigo.trim()) return;
+
+    setDiscount(prev => ({ ...prev, isValidating: true, error: undefined }));
+
+    try {
+      const validation = await validateDiscountCode(discount.codigo);
+      
+      if (validation.valid && validation.valor && validation.tipo) {
+        setDiscount(prev => ({
+          ...prev,
+          tipo: validation.tipo as 'porcentaje' | 'fijo',
+          valor: validation.valor!,
+          aplicado: true,
+          isValidating: false,
+          error: undefined
+        }));
+      } else {
+        setDiscount(prev => ({
+          ...prev,
+          aplicado: false,
+          isValidating: false,
+          error: validation.error || 'Código de descuento inválido'
+        }));
+      }
+    } catch (error) {
+      console.error('Error validating discount code:', error);
+      setDiscount(prev => ({
+        ...prev,
+        aplicado: false,
+        isValidating: false,
+        error: 'Error al validar el código de descuento'
+      }));
+    }
+  };
+
+  // Handle requote
+  const handleReQuote = () => {
+    if (onReQuote) {
+      onReQuote();
+      
+      // After requoting, update the original state to match current state
+      // so we can track future changes properly
+      setOriginalDiscountState({
+        tipo: discount.tipo,
+        valor: discount.valor,
+        codigo: discount.codigo,
+        aplicado: discount.aplicado
+      });
+      
+      setHasChanges(false);
+    }
   };
 
   if (!servicios || !detallesCotizacion) {
@@ -141,19 +358,6 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
     });
   };
 
-  // Get packaging option label
-  const getPackagingOptionLabel = (id: string) => {
-    switch (id) {
-      case 'EMP00': return 'Sin empaque ($0)';
-      case 'EMP01': return 'Sobre ($10)';
-      case 'EMP02': return 'Chico ($25)';
-      case 'EMP03': return 'Mediano ($70)';
-      case 'EMP04': return 'Grande ($170)';
-      case 'EMP05': return 'Personalizado';
-      default: return id;
-    }
-  };
-
   return (
     <motion.div
       className="space-y-6"
@@ -161,22 +365,22 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
       animate="visible"
       variants={containerVariants}
     >
-      {/* Additional Services Card */}
+      {/* Additional Services and Discounts Card */}
       <Card className="border-2 border-blue-200 bg-blue-50">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base flex items-center">
                 <ShoppingBag className="h-5 w-5 mr-2 text-blue-600" />
-                Servicios Adicionales
+                Servicios Adicionales y Descuentos
               </CardTitle>
               <CardDescription>
-                Configure los servicios adicionales para su envío
+                Configure los servicios adicionales y descuentos para su envío
               </CardDescription>
             </div>
-            {additionalChargesChanged && (
+            {hasChanges && (
               <Button
-                onClick={onReQuote}
+                onClick={handleReQuote}
                 variant="default"
                 size="sm"
                 className="bg-orange-600 hover:bg-orange-700 text-white"
@@ -187,7 +391,7 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
             )}
           </div>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Packaging Option */}
           <div className="bg-white p-4 rounded-lg border border-gray-200">
             <div className="flex items-center mb-3">
@@ -310,6 +514,125 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
               </div>
             )}
           </div>
+
+          {/* Discount Section */}
+          <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="flex items-center mb-3">
+              <Gift className="h-4 w-4 mr-2 text-green-600" />
+              <Label className="text-sm font-medium">Descuento</Label>
+            </div>
+            
+            <Select
+              value={discount.tipo || "none"}
+              onValueChange={handleDiscountTypeChange}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Tipo de descuento" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sin descuento</SelectItem>
+                <SelectItem value="porcentaje">Porcentaje (%)</SelectItem>
+                <SelectItem value="fijo">Cantidad fija ($)</SelectItem>
+                <SelectItem value="codigo">Código promocional</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {discount.tipo === 'porcentaje' && (
+              <div className="mt-3 space-y-2">
+                <Label className="text-xs font-medium text-gray-500">
+                  Porcentaje de descuento
+                </Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    placeholder="0"
+                    value={discount.valor || ''}
+                    onChange={(e) => handleDiscountValueChange(parseFloat(e.target.value) || 0)}
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    className="pr-8"
+                  />
+                  <Percent className="absolute right-2 top-2.5 h-4 w-4 text-gray-400" />
+                </div>
+              </div>
+            )}
+
+            {discount.tipo === 'fijo' && (
+              <div className="mt-3 space-y-2">
+                <Label className="text-xs font-medium text-gray-500">
+                  Cantidad de descuento
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={discount.valor || ''}
+                    onChange={(e) => handleDiscountValueChange(parseFloat(e.target.value) || 0)}
+                    min="0"
+                    step="0.01"
+                    className="pl-8"
+                  />
+                </div>
+              </div>
+            )}
+
+            {discount.tipo === 'codigo' && (
+              <div className="mt-3 space-y-2">
+                <Label className="text-xs font-medium text-gray-500">
+                  Código promocional
+                </Label>
+                <div className="flex space-x-1">
+                  <Input
+                    type="text"
+                    placeholder="Ingrese código"
+                    value={discount.codigo}
+                    onChange={(e) => handleDiscountCodeChange(e.target.value)}
+                    className={`flex-1 ${discount.error ? 'border-red-300' : ''}`}
+                    disabled={discount.isValidating}
+                  />
+                  <Button
+                    onClick={applyDiscountCodeHandler}
+                    size="sm"
+                    variant="outline"
+                    disabled={!discount.codigo.trim() || discount.isValidating}
+                  >
+                    {discount.isValidating ? (
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Tag className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+                
+                {/* Error message */}
+                {discount.error && (
+                  <p className="text-xs text-red-600 mt-1 flex items-center">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    {discount.error}
+                  </p>
+                )}
+                
+                {/* Success message */}
+                {discount.aplicado && discount.valor > 0 && !discount.error && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Descuento aplicado: {discount.tipo === 'porcentaje' ? `${discount.valor}%` : `$${discount.valor}`}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {discount.aplicado && discount.valor > 0 && (
+              <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded">
+                <p className="text-xs text-green-700 flex items-center">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Descuento aplicado
+                </p>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -339,6 +662,7 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                 <TableHead>Cargo Sobrepeso</TableHead>
                 <TableHead>Cargos Adicionales</TableHead>
                 <TableHead>Subtotal</TableHead>
+                {discount.aplicado && <TableHead className="text-green-600">Descuento</TableHead>}
                 <TableHead>Total (con IVA)</TableHead>
                 <TableHead>Tiempo</TableHead>
                 <TableHead className="text-right">Seleccionar</TableHead>
@@ -346,7 +670,7 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
             </TableHeader>
             <TableBody>
               {servicios.map((servicio, index) => {
-                const prices = getServicePriceWithLocalCharges(servicio);
+                const prices = getServicePriceWithLocalChargesAndDiscount(servicio);
                 const totalAdditionalCharges = calculateTotalAdditionalCharges();
                 
                 return (
@@ -364,15 +688,20 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                     </TableCell>
                     <TableCell className="font-medium text-blue-600">
                       ${formatCurrency(totalAdditionalCharges)}
-                      {additionalChargesChanged && (
+                      {hasChanges && (
                         <Badge variant="outline" className="ml-2 bg-orange-100 text-orange-700 border-orange-300 text-xs">
                           Actualizado
                         </Badge>
                       )}
                     </TableCell>
                     <TableCell className="font-medium">
-                      ${formatCurrency(prices.subtotal)}
+                      ${formatCurrency(prices.subtotalBeforeDiscount)}
                     </TableCell>
+                    {discount.aplicado && (
+                      <TableCell className="font-medium text-green-600">
+                        -${formatCurrency(prices.discountAmount)}
+                      </TableCell>
+                    )}
                     <TableCell className="font-medium text-blue-700">
                       ${formatCurrency(prices.total)}
                     </TableCell>
@@ -409,7 +738,7 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
       {/* Mobile card view */}
       <div className="md:hidden space-y-4">
         {servicios.map((servicio, index) => {
-          const prices = getServicePriceWithLocalCharges(servicio);
+          const prices = getServicePriceWithLocalChargesAndDiscount(servicio);
           const totalAdditionalCharges = calculateTotalAdditionalCharges();
           
           return (
@@ -440,7 +769,7 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                     <Badge className="text-lg font-semibold bg-blue-100 text-blue-700 border-blue-200 px-3 py-1">
                       ${formatCurrency(prices.total)}
                     </Badge>
-                    {additionalChargesChanged && (
+                    {hasChanges && (
                       <Badge variant="outline" className="mt-1 bg-orange-100 text-orange-700 border-orange-300 text-xs">
                         Actualizado
                       </Badge>
@@ -467,8 +796,14 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                     </div>
                     <div>
                       <span className="text-gray-500">Subtotal:</span>
-                      <p className="font-medium">${formatCurrency(prices.subtotal)}</p>
+                      <p className="font-medium">${formatCurrency(prices.subtotalBeforeDiscount)}</p>
                     </div>
+                    {discount.aplicado && prices.discountAmount > 0 && (
+                      <div>
+                        <span className="text-gray-500">Descuento:</span>
+                        <p className="font-medium text-green-600">-${formatCurrency(prices.discountAmount)}</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
                 <CardFooter className="p-3 pt-0 flex justify-end">
@@ -556,7 +891,7 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                     </p>
                     <p className="text-base font-bold text-amber-700">
                       <DollarSign className="h-4 w-4 inline mr-1" />
-                      {formatCurrency(selectedService.cargoSobrepeso)}
+                      ${formatCurrency(selectedService.cargoSobrepeso)}
                     </p>
                   </div>
                 )}
@@ -573,7 +908,7 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                 <ShoppingBag className="h-5 w-5 mr-2 text-blue-600" />
                 <CardTitle className="text-base">Resumen de Cargos Adicionales</CardTitle>
               </div>
-              {additionalChargesChanged && (
+              {hasChanges && (
                 <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">
                   <Info className="h-3 w-3 mr-1" />
                   Pendiente recotizar
@@ -587,8 +922,8 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                 <p className="text-xs text-gray-500 mb-1">Empaque:</p>
                 <p className="text-base font-medium">
                   <DollarSign className="h-3.5 w-3.5 inline mr-1 text-blue-600" />
-                  {formatCurrency(additionalChargesChanged ? localAdditionalCharges.empaque : detallesCotizacion.empaque)}
-                  {additionalChargesChanged && localAdditionalCharges.empaque !== detallesCotizacion.empaque && (
+                  ${formatCurrency(hasChanges ? localAdditionalCharges.empaque : detallesCotizacion.empaque)}
+                  {hasChanges && localAdditionalCharges.empaque !== detallesCotizacion.empaque && (
                     <span className="text-xs text-orange-600 ml-1">
                       (era: ${formatCurrency(detallesCotizacion.empaque)})
                     </span>
@@ -599,8 +934,8 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                 <p className="text-xs text-gray-500 mb-1">Seguro:</p>
                 <p className="text-base font-medium">
                   <DollarSign className="h-3.5 w-3.5 inline mr-1 text-blue-600" />
-                  {formatCurrency(additionalChargesChanged ? localAdditionalCharges.seguro : detallesCotizacion.seguro)}
-                  {additionalChargesChanged && localAdditionalCharges.seguro !== detallesCotizacion.seguro && (
+                  ${formatCurrency(hasChanges ? localAdditionalCharges.seguro : detallesCotizacion.seguro)}
+                  {hasChanges && localAdditionalCharges.seguro !== detallesCotizacion.seguro && (
                     <span className="text-xs text-orange-600 ml-1">
                       (era: ${formatCurrency(detallesCotizacion.seguro)})
                     </span>
@@ -611,8 +946,8 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                 <p className="text-xs text-gray-500 mb-1">Recolección:</p>
                 <p className="text-base font-medium">
                   <DollarSign className="h-3.5 w-3.5 inline mr-1 text-blue-600" />
-                  {formatCurrency(additionalChargesChanged ? localAdditionalCharges.recoleccion : detallesCotizacion.recoleccion)}
-                  {additionalChargesChanged && localAdditionalCharges.recoleccion !== detallesCotizacion.recoleccion && (
+                  ${formatCurrency(hasChanges ? localAdditionalCharges.recoleccion : detallesCotizacion.recoleccion)}
+                  {hasChanges && localAdditionalCharges.recoleccion !== detallesCotizacion.recoleccion && (
                     <span className="text-xs text-orange-600 ml-1">
                       (era: ${formatCurrency(detallesCotizacion.recoleccion)})
                     </span>
@@ -623,7 +958,7 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                 <p className="text-xs text-gray-500 mb-1">Reexpedición:</p>
                 <p className="text-base font-medium">
                   <DollarSign className="h-3.5 w-3.5 inline mr-1 text-blue-600" />
-                  {formatCurrency(detallesCotizacion.reexpedicion)}
+                  ${formatCurrency(detallesCotizacion.reexpedicion)}
                 </p>
               </div>
             </div>
@@ -632,9 +967,9 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                 <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
                 Total cargos adicionales: ${formatCurrency(calculateTotalAdditionalCharges())}
               </Badge>
-              {additionalChargesChanged && onReQuote && (
+              {hasChanges && (
                 <Button
-                  onClick={onReQuote}
+                  onClick={handleReQuote}
                   size="sm"
                   variant="outline"
                   className="text-orange-600 border-orange-300 hover:bg-orange-50"
@@ -647,6 +982,49 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
           </CardContent>
         </Card>
       </div>
+
+      {/* Discount Summary Card */}
+      {discount.aplicado && (
+        <Card className="border-2 border-green-200 bg-green-50">
+          <CardHeader className="pb-2">
+            <div className="flex items-center">
+              <Gift className="h-5 w-5 mr-2 text-green-600" />
+              <CardTitle className="text-base">Resumen de Descuento</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-3 bg-white rounded-lg border border-green-200">
+                <p className="text-xs text-gray-500 mb-1">Tipo de Descuento:</p>
+                <p className="text-base font-medium text-green-700">
+                  {discount.tipo === 'porcentaje' && <Percent className="h-3.5 w-3.5 inline mr-1" />}
+                  {discount.tipo === 'fijo' && <DollarSign className="h-3.5 w-3.5 inline mr-1" />}
+                  {discount.tipo === 'codigo' && <Tag className="h-3.5 w-3.5 inline mr-1" />}
+                  {discount.tipo === 'porcentaje' ? `${discount.valor}%` : 
+                   discount.tipo === 'fijo' ? `${formatCurrency(discount.valor)}` :
+                   `Código: ${discount.codigo}`}
+                </p>
+              </div>
+              {selectedService && (
+                <>
+                  <div className="p-3 bg-white rounded-lg border border-green-200">
+                    <p className="text-xs text-gray-500 mb-1">Ahorro en {selectedService.nombre}:</p>
+                    <p className="text-base font-medium text-green-700">
+                      ${formatCurrency(getServicePriceWithLocalChargesAndDiscount(selectedService).discountAmount)}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white rounded-lg border border-green-200">
+                    <p className="text-xs text-gray-500 mb-1">Precio Final:</p>
+                    <p className="text-base font-medium text-green-700">
+                      ${formatCurrency(getServicePriceWithLocalChargesAndDiscount(selectedService).total)}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Continue button - fixed to the bottom of the screen */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
@@ -662,6 +1040,11 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
                 className="text-white w-full px-4 py-3 gap-2 bg-green-600 hover:bg-green-700 h-12"
               >
                 Continuar con {selectedService.nombre}
+                {discount.aplicado && (
+                  <span className="ml-2 px-2 py-1 bg-green-700 rounded text-xs">
+                    Descuento aplicado
+                  </span>
+                )}
                 <ArrowRight className="h-5 w-5" />
               </Button>
             </motion.div>

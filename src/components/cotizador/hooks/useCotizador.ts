@@ -11,6 +11,15 @@ import { calculateZone } from '../../postalUtils';
 import { apiService } from '../../../services';
 import { Cliente, Destino } from '../../../types';
 
+interface DiscountState {
+  tipo: 'porcentaje' | 'fijo' | 'codigo' | '';
+  valor: number;
+  codigo: string;
+  aplicado: boolean;
+  isValidating?: boolean;
+  error?: string;
+}
+
 const initialState: CotizadorState = {
   originZip: "",
   destZip: "",
@@ -53,6 +62,13 @@ export function useCotizador() {
     show: false,
     message: '',
     details: null
+  });
+
+    const [discount, setDiscount] = useState<DiscountState>({
+    tipo: '',
+    valor: 0,
+    codigo: '',
+    aplicado: false
   });
 
   const [originState, setOriginState] = useState("");
@@ -544,12 +560,46 @@ const checkSameZipCodes = () => {
   setOriginZipError(null);
   setSameZipWarning(null);
   setDetallesCotizacion(null);
+    setDiscount({
+    tipo: '',
+    valor: 0,
+    codigo: '',
+    aplicado: false
+  });
 };
 
   // Function to continue to customer data entry
-  const proceedToCustomerData = async () => {
+  const proceedToCustomerData = async (discountData?: DiscountState) => {
     if (selectedService) {
       try {
+        // Update discount state if provided
+        if (discountData) {
+          setDiscount(discountData);
+        }
+
+        // Calculate discount amount if applicable
+        let discountAmount = 0;
+        let finalPriceAfterDiscount = selectedService.precioTotal;
+        
+        const currentDiscount = discountData || discount;
+        if (currentDiscount.aplicado && currentDiscount.valor > 0) {
+          const subtotal = selectedService.precioTotal;
+          
+          switch (currentDiscount.tipo) {
+            case 'porcentaje':
+              discountAmount = subtotal * (currentDiscount.valor / 100);
+              break;
+            case 'fijo':
+              discountAmount = Math.min(currentDiscount.valor, subtotal);
+              break;
+            case 'codigo':
+              discountAmount = Math.min(currentDiscount.valor, subtotal);
+              break;
+          }
+          
+          finalPriceAfterDiscount = subtotal - discountAmount;
+        }
+
         // Generate a unique temporary ID for the quotation
         const tempId = localStorage.getItem('current_cotizacion_id') ||
           `COT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
@@ -557,7 +607,7 @@ const checkSameZipCodes = () => {
         // Store the quotation ID in localStorage for retrieval
         localStorage.setItem('current_cotizacion_id', tempId);
 
-        // Prepare quotation data with detailed information including all pricing
+        // Prepare quotation data with detailed information including all pricing AND DISCOUNT
         const quotationData = {
           temp_id: tempId,
           origen_cp: state.originZip,
@@ -568,9 +618,9 @@ const checkSameZipCodes = () => {
           servicio_id: selectedService.sku,
           servicio_nombre: selectedService.nombre,
           precio_base: selectedService.precioBase,
-          precio_sobrepeso: selectedService.cargoSobrepeso, // Added explicitly
+          precio_sobrepeso: selectedService.cargoSobrepeso,
           precio_final: selectedService.precioTotal,
-          precio_total: selectedService.precioConIva,
+          precio_total: finalPriceAfterDiscount + (finalPriceAfterDiscount * 0.16), // Final price with IVA after discount
           dias_estimados: selectedService.diasEstimados,
 
           // Package details with proper types
@@ -595,6 +645,14 @@ const checkSameZipCodes = () => {
           recoleccion: detallesCotizacion?.recoleccion || 0,
           reexpedicion: detallesCotizacion?.reexpedicion || 0,
 
+          // NEW: Discount information
+          descuento_tipo: currentDiscount.aplicado ? currentDiscount.tipo : null,
+          descuento_valor: currentDiscount.aplicado ? currentDiscount.valor : 0,
+          descuento_codigo: currentDiscount.aplicado && currentDiscount.tipo === 'codigo' ? currentDiscount.codigo : null,
+          descuento_monto: discountAmount,
+          precio_antes_descuento: selectedService.precioTotal,
+          precio_despues_descuento: finalPriceAfterDiscount,
+
           // Content field initialized as empty
           contenido: '',
 
@@ -603,7 +661,7 @@ const checkSameZipCodes = () => {
           destino_id: state.destinoId || ''
         };
 
-        console.log('Saving quotation before proceeding to customer data:',
+        console.log('Saving quotation with discount data before proceeding to customer data:',
           JSON.stringify(quotationData));
 
         try {
@@ -629,9 +687,12 @@ const checkSameZipCodes = () => {
     }
   };
 
-  // Function to go back to quotation page
+  // Function to go back to quotation page - UPDATED TO PRESERVE DISCOUNT
   const backToQuote = () => {
+    // Preserve the current discount state when going back
+    console.log('Going back to quote, preserving discount state:', discount);
     setState(prev => ({ ...prev, flowStage: 'quote' }));
+    // Discount state is preserved automatically since we're not resetting it
   };
 
   // Get filtered services based on international flag

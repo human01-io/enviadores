@@ -64,6 +64,14 @@ interface DatosEnvioProps {
     collectionRequired: boolean;
     collectionPrice?: number | null;
   };
+  discountData?: {
+    tipo: 'porcentaje' | 'fijo' | 'codigo' | '';
+    valor: number;
+    codigo?: string;
+    aplicado: boolean;
+    subtotalBeforeDiscount?: number;
+    discountAmount?: number;
+  };
 }
 
 export default function DatosEnvio({
@@ -75,7 +83,8 @@ export default function DatosEnvio({
   clienteId,
   destinoId,
   onUpdateSelectedService,
-  originalCotizadorState
+  originalCotizadorState,
+  discountData
 }: DatosEnvioProps) {
   // Main UI state
   const [step, setStep] = useState<'form' | 'confirmation'>('form');
@@ -916,6 +925,40 @@ export default function DatosEnvio({
       }
     }
 
+    let empaqueCharge = 0;
+  let seguroCharge = 0;
+  let recoleccionCharge = 0;
+  let reexpedicionCharge = 0;
+
+  if (originalCotizadorState) {
+    // Calculate empaque charge
+    switch (originalCotizadorState.packagingOption) {
+      case 'EMP00': empaqueCharge = 0; break;
+      case 'EMP01': empaqueCharge = 10; break;
+      case 'EMP02': empaqueCharge = 25; break;
+      case 'EMP03': empaqueCharge = 70; break;
+      case 'EMP04': empaqueCharge = 170; break;
+      case 'EMP05': empaqueCharge = originalCotizadorState.customPackagingPrice || 0; break;
+    }
+
+    // Calculate seguro charge
+    if (originalCotizadorState.insurance && originalCotizadorState.insuranceValue) {
+      seguroCharge = parseFloat(originalCotizadorState.insuranceValue) * 0.0175;
+    }
+
+    // Calculate recoleccion charge
+    if (originalCotizadorState.collectionRequired) {
+      recoleccionCharge = originalCotizadorState.collectionPrice || 100;
+    }
+  }
+
+  let finalDiscountData = discountData;
+  
+  // If no discount data passed from parent, try to get it from the quotation state
+  if (!finalDiscountData && originalCotizadorState?.discount) {
+    finalDiscountData = originalCotizadorState.discount;
+  }
+
     // Create shipment data
     const shipmentData = createShipmentData(
       clientId,
@@ -927,7 +970,11 @@ export default function DatosEnvio({
       externalCost,
       selectedManuableService,
       tempCotizacionId || '',
-      manuableLabelData
+      manuableLabelData,
+      empaqueCharge,
+      seguroCharge,
+      recoleccionCharge,
+      reexpedicionCharge 
     );
 
     // Create the shipment with options

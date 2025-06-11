@@ -690,6 +690,14 @@ updateQuotationStatus: async (updateData: {
       valor_declarado?: number;
       costo_seguro?: number;
       costo_envio: number;
+      costo_sobrepeso?: number;
+      costo_reexpedicion?: number;
+      costo_empaque?: number;
+      costo_recoleccion?: number;
+          descuento_tipo?: 'porcentaje' | 'fijo' | 'codigo' | null;
+    descuento_valor?: number;
+    descuento_codigo?: string;
+    subtotal_antes_descuento?: number;
       iva: number;
       total: number;
       tipo_paquete: string;
@@ -728,8 +736,12 @@ updateQuotationStatus: async (updateData: {
       }
       
       // Define fields that should be handled as numeric values for explicit conversion
-      const numericFields = ['peso_real', 'peso_volumetrico', 'peso_facturable', 'costo_neto', 
-                            'valor_declarado', 'costo_seguro', 'costo_envio', 'iva', 'total'];
+        const numericFields = [
+    'peso_real', 'peso_volumetrico', 'peso_facturable', 'costo_neto', 
+    'valor_declarado', 'costo_seguro', 'costo_envio', 'iva', 'total',
+    'costo_sobrepeso', 'costo_empaque', 'costo_recoleccion', 'costo_reexpedicion',
+    'descuento_valor', 'subtotal_antes_descuento' // NEW: Include discount numeric fields
+  ];
       
       // Add all shipment data to the FormData
       Object.entries(shipmentData).forEach(([key, value]) => {
@@ -1160,6 +1172,79 @@ saveUserPreferences: async (preferences: {
   }
 },
 
+// Discount code validation and management
+validateDiscountCode: async (code: string): Promise<{
+  valid: boolean;
+  data?: {
+    codigo: string;
+    tipo: 'porcentaje' | 'fijo';
+    valor: number;
+    descripcion: string;
+    valor_minimo?: number;
+    valor_maximo?: number;
+  };
+  error?: string;
+}> => {
+  try {
+    const response = await api.get('/discount-codes.php', {
+      params: { code: code.trim() }
+    });
+
+    if (response.data?.success) {
+      return {
+        valid: true,
+        data: response.data.data
+      };
+    } else {
+      return {
+        valid: false,
+        error: response.data?.error || 'Código de descuento inválido'
+      };
+    }
+  } catch (error) {
+    console.error('Error validating discount code:', error);
+    if (axios.isAxiosError(error) && error.response?.data?.error) {
+      return {
+        valid: false,
+        error: error.response.data.error
+      };
+    }
+    return {
+      valid: false,
+      error: 'Error al validar el código de descuento'
+    };
+  }
+},
+
+applyDiscountCode: async (code: string): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const response = await api.post('/discount-codes.php', {
+      code: code.trim()
+    });
+
+    if (response.data?.success) {
+      return { success: true };
+    } else {
+      return {
+        success: false,
+        error: response.data?.error || 'Error al aplicar el código de descuento'
+      };
+    }
+  } catch (error) {
+    console.error('Error applying discount code:', error);
+    if (axios.isAxiosError(error) && error.response?.data?.error) {
+      return {
+        success: false,
+        error: error.response.data.error
+      };
+    }
+    return {
+      success: false,
+      error: 'Error al aplicar el código de descuento'
+    };
+  }
+},
+
 
   
   // This function extends your existing createUser method
@@ -1187,6 +1272,8 @@ saveUserPreferences: async (preferences: {
   }
 
 };
+
+
 
 
 

@@ -127,30 +127,88 @@ export function createShipmentData(
   externalCost?: number | null,
   selectedManuableService?: any,
   tempCotizacionId?: string,
-  manuableLabelData?: { tracking_number?: string; label_url?: string; price?: string }
+  manuableLabelData?: { tracking_number?: string; label_url?: string; price?: string },
+  empaqueCharge?: number,
+  seguroCharge?: number,
+  recoleccionCharge?: number,
+  reexpedicionCharge?: number,
+  discountData?: {
+    tipo: 'porcentaje' | 'fijo' | 'codigo' | '';
+    valor: number;
+    codigo?: string;
+    aplicado: boolean;
+    subtotalBeforeDiscount?: number;
+    discountAmount?: number;
+  }
+
 ): any {
+
+const baseServiceCost = selectedService.precioBase + (selectedService.cargoSobrepeso || 0);
+  const totalAdditionalCharges = (empaqueCharge || 0) + (seguroCharge || 0) + (recoleccionCharge || 0) + (reexpedicionCharge || 0);
+  const subtotalBeforeDiscount = baseServiceCost + totalAdditionalCharges;
+
+  // Calculate discount amount
+  let discountAmount = 0;
+  if (discountData?.aplicado && discountData.valor > 0) {
+    switch (discountData.tipo) {
+      case 'porcentaje':
+        discountAmount = subtotalBeforeDiscount * (discountData.valor / 100);
+        break;
+      case 'fijo':
+      case 'codigo':
+        discountAmount = Math.min(discountData.valor, subtotalBeforeDiscount);
+        break;
+    }
+  }
+
+  // Calculate final amounts
+  const subtotalAfterDiscount = subtotalBeforeDiscount - discountAmount;
+  const ivaAmount = subtotalAfterDiscount * 0.16; // 16% IVA
+  const totalWithIva = subtotalAfterDiscount + ivaAmount;
+
   const shipmentData: any = {
     cliente_id: clienteId,
     destino_id: destinoId,
     servicio_id: selectedService.sku,
-    peso_real: selectedService.pesoFacturable || 1,
-    peso_volumetrico: selectedService.pesoFacturable || 1,
+    
+    // Weight mapping - use actual weight values from service
+    peso_real: selectedService.peso || 1,
+    peso_volumetrico: selectedService.pesoVolumetrico || 1,
+    peso_facturable: selectedService.pesoFacturable || Math.max(selectedService.peso || 1, selectedService.pesoVolumetrico || 1),
+    
     valor_declarado: selectedService.valorSeguro || 0,
-    costo_seguro: selectedService.costoSeguro || 0,
-    costo_envio: selectedService.precioFinal,
-    iva: selectedService.precioConIva - selectedService.precioFinal,
-    total: selectedService.precioConIva,
+    
+    // Individual charge mapping
+    costo_seguro: seguroCharge || selectedService.costoSeguro || 0,
+    costo_sobrepeso: selectedService.cargoSobrepeso || 0,
+    costo_empaque: empaqueCharge || 0,
+    costo_recoleccion: recoleccionCharge || 0,
+    costo_reexpedicion: reexpedicionCharge || 0,
+    
+    // Discount fields
+    descuento_tipo: discountData?.aplicado ? discountData.tipo : null,
+    descuento_valor: discountData?.aplicado ? discountData.valor : 0,
+    descuento_codigo: discountData?.aplicado && discountData.tipo === 'codigo' ? discountData.codigo : null,
+    subtotal_antes_descuento: subtotalBeforeDiscount,
+    
+    // Base shipping cost (service base price)
+    costo_envio: selectedService.precioBase,
+    
+    // Calculated IVA and total
+    iva: ivaAmount,
+    total: totalWithIva,
+    
     tipo_paquete: selectedService.tipoPaquete || 'paquete',
     opcion_empaque: selectedService.opcionEmpaque || undefined,
-    requiere_recoleccion: selectedService.requiereRecoleccion || false,
-    estatus: 'preparacion', // Set default status to 'preparacion'
-    contenido: contenido, // Add content field
+    requiere_recoleccion: (recoleccionCharge && recoleccionCharge > 0) || selectedService.requiereRecoleccion || false,
+    estatus: 'preparacion',
+    contenido: contenido, // Use correct field name (assuming DB is fixed)
     
     // Set method based on selected option
     metodo_creacion: selectedOption === 'external' ? 'externo' : 
                     selectedOption === 'manuable' ? 'manuable' : 'interno',
     
-    // Add the temporary ID from quotation to link records - handle empty string
+    // Add the temporary ID from quotation to link records
     temp_cotizacion_id: tempCotizacionId ? tempCotizacionId : undefined
   };
 
