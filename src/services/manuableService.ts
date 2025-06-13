@@ -1,6 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
 import { manuableConfig, updateManuableServiceConfig } from '../config/manuableConfig';
-import { RectangleHorizontal } from 'lucide-react';
 
 // Initialize configuration 
 updateManuableServiceConfig();
@@ -109,6 +108,28 @@ export interface ManuableSurchargesResponse {
     total_pages: number;
     total_items: number;
   };
+}
+
+export type CancellationReason = 'wrong_data' | 'will_no_longer_be_used';
+
+export interface ManuableCancellationRequest {
+  [reason: string]: {
+    additional_comments: string;
+    label_tokens: string[];
+  };
+}
+
+export interface ManuableCancellationResponse {
+  message: string;
+  data: Array<{
+    label_token: string;
+    tracking_number: string;
+    token: string;
+    reason: string;
+    refund_status: string;
+    additional_info: string;
+    used_after_cancellation: string;
+  }>;
 }
 
 class ManuableService {
@@ -332,7 +353,7 @@ class ManuableService {
    */
   async getLabels(params?: {
     tracking_number?: string;
-    page?: number;
+    page?: string;
   }): Promise<ManuableLabelsListResponse> {
     try {
       // Ensure we're authenticated
@@ -347,9 +368,9 @@ class ManuableService {
       if (params?.tracking_number) {
         queryParams.append('tracking_number', params.tracking_number);
       }
-      if (params?.page && params.page > 1) {
-        queryParams.append('page', params.page.toString());
-      }
+      if (params?.page) {
+      queryParams.append('page', params.page); 
+    }
       
       // Create the URL with query parameters
       const endpoint = manuableConfig.endpoints.getLabels;
@@ -380,8 +401,8 @@ class ManuableService {
         labelsData.meta = response.data.meta;
       } else if (response.data.current_page || response.data.total_pages) {
         labelsData.meta = {
-          current_page: response.data.current_page || 1,
-          total_pages: response.data.total_pages || 1,
+          current_page: response.data.current_page || null,
+          total_pages: response.data.total_pages || null,
           total_items: response.data.total_items || labelsData.data.length
         };
       }
@@ -483,6 +504,42 @@ class ManuableService {
     }
   }
 
+  async cancelLabels(
+  labelTokens: string[], 
+  reason: CancellationReason = 'wrong_data',
+  additionalComments: string
+): Promise<ManuableCancellationResponse> {
+  try {
+    if (!this.token) {
+      await this.login();
+    }
+
+    const params: ManuableCancellationRequest = {
+      [reason]: {
+        additional_comments: additionalComments,
+        label_tokens: labelTokens
+      }
+    };
+
+    const response = await this.api.post(manuableConfig.endpoints.cancellations, params);
+    return response.data;
+  } catch (error) {
+    console.error('Manuable cancel labels error:', error);
+
+    if (axios.isAxiosError(error)) {
+      console.error('API response status:', error.response?.status);
+      console.error('API response data:', JSON.stringify(error.response?.data));
+
+      if (error.response?.status === 422) {
+        // Pass through the validation errors
+        throw error;
+      }
+    }
+
+    throw new Error('Error cancelling shipping labels');
+  }
+}
+
   /**
    * Ensure all required fields are present in the request
    * This is to prevent common validation issues
@@ -492,7 +549,7 @@ class ManuableService {
     if (params.address_from) {
       params.address_from = {
         ...params.address_from,
-        external_number: params.address_from.external_number || 'S/N',
+        external_number: params.address_from.external_number || '0',
         email: params.address_from.email || 'contacto@enviadores.com.mx'
       };
     }
@@ -501,7 +558,7 @@ class ManuableService {
     if (params.address_to) {
       params.address_to = {
         ...params.address_to,
-        external_number: params.address_to.external_number || 'S/N',
+        external_number: params.address_to.external_number || '0',
         email: params.address_to.email || 'contacto@enviadores.com.mx'
       };
     }
@@ -543,7 +600,7 @@ class ManuableService {
       name: fullName,
       street1: fullAddress,
       neighborhood: data.colonia,
-      external_number: '.',
+      external_number: '0',
       city: data.municipio,
       state: data.estado,
       phone: data.telefono,
@@ -572,12 +629,13 @@ class ManuableService {
     pais?: string;
     referencia?: string;
     numero_exterior?: string;
+    alias?: string;
   }): ManuableAddress {
     return {
       name: data.nombre_destinatario,
       street1: data.direccion,
       neighborhood: data.colonia,
-      external_number: '.', // Use provided or default
+      external_number: '0', // Use provided or default
       city: data.ciudad,
       state: data.estado,
       phone: data.telefono,
@@ -586,6 +644,7 @@ class ManuableService {
       country_code: 'MX', // Default to Mexico
       reference: data.referencia || '',
       zip_code: data.codigo_postal,
+      company: data.alias || '',
     };
   }
 

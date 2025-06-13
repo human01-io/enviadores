@@ -25,7 +25,8 @@ export const manuableConfig = {
     labels: `?endpoint=labels&env=${import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production'}`,
     balance: `?endpoint=accounts/balance&env=${import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production'}`,
     getLabels: `?endpoint=labels&env=${import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production'}`,
-    surcharges: `?endpoint=surcharges&env=${import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production'}`
+    surcharges: `?endpoint=surcharges&env=${import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production'}`,
+    cancellations: `?endpoint=cancellations&env=${import.meta.env.VITE_MANUABLE_ENVIRONMENT || 'production'}`
   },
   
   // Default values for API requests
@@ -71,6 +72,7 @@ export const updateManuableServiceConfig = () => {
     labels: `?endpoint=labels&env=${env}`,
     balance: `?endpoint=accounts/balance&env=${env}`,
     getLabels: `?endpoint=labels&env=${env}`,
-    surcharges: `?endpoint=surcharges&env=${env}`
+    surcharges: `?endpoint=surcharges&env=${env}`,
+    cancellations: `?endpoint=cancellations&env=${env}`
   };
 };

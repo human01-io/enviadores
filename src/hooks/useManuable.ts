@@ -251,7 +251,7 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
       // Get labels from service
       const response = await manuableService.getLabels({
         tracking_number: params?.tracking_number,
-        page
+        page: page.toString()
       });
       
       console.log('Labels retrieved:', response);
@@ -318,6 +318,24 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
     }
   }, [isAuthenticated, autoLogin, login, surchargesPage]);
 
+  const cancelLabels = useCallback(async (
+  labelTokens: string[], 
+  reason: 'wrong_data' | 'will_no_longer_be_used',
+  additionalComments: string
+) => {
+  setIsLoading(true);
+  try {
+    const response = await manuableService.cancelLabels(
+      labelTokens,
+      reason,
+      additionalComments
+    );
+    return response;
+  } finally {
+    setIsLoading(false);
+  }
+}, [isAuthenticated, autoLogin, login]);
+
   /**
    * Logout from Manuable
    */
@@ -349,6 +367,7 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
     createLabel,
     getLabels,
     getSurcharges,
-    logout
+    logout,
+    cancelLabels
   };
 }
