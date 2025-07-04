@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Combobox } from '@headlessui/react';
 import { apiService } from '../../services/apiService';
 import { Cliente } from '../../types';
+import { toast } from '../ui/Toast'; // ADD: Import your toast function
 import {
   User,
   Phone,
@@ -17,7 +18,6 @@ import {
   FileText,
   Globe,
   Loader2,
-  ChevronDown,
   Plus,
   ChevronsUpDown
 } from 'lucide-react';
@@ -343,6 +343,7 @@ export default function ClienteFormModal({
     );
   };
 
+  // UPDATED: handleSaveCustomer with toast notifications
   const handleSaveCustomer = async () => {
     if (!validateForm() || !cliente) return;
 
@@ -364,9 +365,51 @@ export default function ClienteFormModal({
         setIsExistingCustomer(true);
         onClientSaved(updatedCliente);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving customer:', error);
-      alert('Error al guardar el cliente. Por favor intenta nuevamente.');
+      
+      // Type guard for error handling
+      let errorMessage = 'Unknown error';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = String((error as any).message);
+      }
+      
+      console.log('Processing error message:', errorMessage);
+      
+      // Handle duplicate errors with toast notifications
+      if (errorMessage.includes('DUPLICATE_PHONE:') || 
+          (errorMessage.includes('Duplicate entry') && errorMessage.includes("for key 'telefono'"))) {
+        console.log('Detected phone duplicate error');
+        
+        // Clear the phone field so user can enter a new one
+        setCliente(prev => prev ? { ...prev, telefono: '' } : prev);
+        
+        // Show toast notification
+        toast.error("Teléfono ya registrado");
+        
+      } else if (errorMessage.includes('DUPLICATE_EMAIL:') || 
+                 (errorMessage.includes('Duplicate entry') && errorMessage.includes("for key 'email'"))) {
+        console.log('Detected email duplicate error');
+        
+        setCliente(prev => prev ? { ...prev, email: '' } : prev);
+        toast.error("Email ya registrado");
+        
+      } else if (errorMessage.includes('DUPLICATE_RFC:') || 
+                 (errorMessage.includes('Duplicate entry') && errorMessage.includes("for key 'rfc'"))) {
+        console.log('Detected RFC duplicate error');
+        
+        setCliente(prev => prev ? { ...prev, rfc: '' } : prev);
+        toast.error("RFC ya registrado");
+        
+      } else {
+        // Generic error
+        console.log('Using generic error toast for:', errorMessage);
+        toast.error("Error al guardar el cliente");
+      }
     }
   };
 
@@ -579,17 +622,17 @@ export default function ClienteFormModal({
               {/* Business Info */}
               <div className="space-y-3">
                 <FormField label="Tipo de Cliente" required>
-  <select
-    name="tipo"
-    value={cliente.tipo}
-    onChange={handleClienteChange}
-    className={inputClassName(getFieldError('tipo'))}
-  >
-    <option value="persona">Persona Física</option>
-    <option value="empresa">Empresa</option>
-    <option value="gobierno">Gobierno</option>
-  </select>
-</FormField>
+                  <select
+                    name="tipo"
+                    value={cliente.tipo}
+                    onChange={handleClienteChange}
+                    className={inputClassName(getFieldError('tipo'))}
+                  >
+                    <option value="persona">Persona Física</option>
+                    <option value="empresa">Empresa</option>
+                    <option value="gobierno">Gobierno</option>
+                  </select>
+                </FormField>
 
                 {cliente.tipo === 'empresa' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-blue-50 rounded-lg">

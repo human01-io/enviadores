@@ -152,18 +152,87 @@ advancedSearchCustomers: async (filters: Record<string, string>, mode: 'all' | '
 
   createCustomer: async (customerData: Omit<Cliente, 'id'>): Promise<Cliente> => {
     try {
-      const response = await api.post('/customers.php', customerData);
-
-      const responseId = response.data?.id || response.data?.data?.id || null;
-      if (!responseId) {
-        throw new Error('Server did not return customer ID');
+      // Log the data being sent
+      console.log('Sending customer data:', customerData);
+      
+      // Validate required fields on frontend before sending
+      const requiredFields = ['nombre', 'telefono', 'calle', 'colonia', 'municipio', 'estado', 'codigo_postal'];
+      const missingFields = requiredFields.filter(field => 
+        !customerData[field] || String(customerData[field]).trim() === ''
+      );
+      
+      if (missingFields.length > 0) {
+        console.error('Missing required fields:', missingFields);
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
       }
       
-      return { ...customerData, id: responseId };
-    } catch (error) {
-      console.error('Create customer error:', error);
-      throw new Error('Failed to create customer. Please try again.');
+      // Clean the data before sending - only include database fields
+      const cleanedData = {
+        nombre: String(customerData.nombre || '').trim(),
+        apellido_paterno: String(customerData.apellido_paterno || '').trim(),
+        apellido_materno: String(customerData.apellido_materno || '').trim(),
+        razon_social: String(customerData.razon_social || '').trim(),
+        rfc: String(customerData.rfc || '').trim(),
+        telefono: String(customerData.telefono || '').trim(),
+        telefono_alternativo: String(customerData.telefono_alternativo || '').trim(),
+        email: String(customerData.email || '').trim(),
+        tipo: customerData.tipo || 'persona',
+        calle: String(customerData.calle || '').trim(),
+        numero_exterior: String(customerData.numero_exterior || '').trim(),
+        numero_interior: String(customerData.numero_interior || '').trim(),
+        colonia: String(customerData.colonia || '').trim(),
+        municipio: String(customerData.municipio || '').trim(),
+        estado: String(customerData.estado || '').trim(),
+        codigo_postal: String(customerData.codigo_postal || '').trim(),
+        pais: String(customerData.pais || 'México').trim(),
+        referencia: String(customerData.referencia || '').trim(),
+        notas: String(customerData.notas || '').trim(),
+        activo: Number(customerData.activo ?? 1)
+        // Note: Deliberately excluding 'ciudad' and 'colonias' - these are UI-only fields
+      };
+      
+      console.log('Cleaned data being sent:', cleanedData);
+      
+      const response = await api.post('/customers.php', cleanedData);
+    
+    const responseId = response.data?.id || response.data?.data?.id || null;
+    if (!responseId) {
+      throw new Error('Server did not return customer ID');
     }
+    
+    return { ...cleanedData, id: responseId };
+  } catch (error) {
+    console.error('Create customer error:', error);
+    
+    if (error.response?.data?.error) {
+      const serverError = error.response.data.error;
+      
+      // Handle specific error types from server
+      if (serverError.includes('DUPLICATE_PHONE|')) {
+        const message = serverError.split('|')[1];
+        throw new Error(`DUPLICATE_PHONE: ${message}`);
+      } else if (serverError.includes('DUPLICATE_EMAIL|')) {
+        const message = serverError.split('|')[1];
+        throw new Error(`DUPLICATE_EMAIL: ${message}`);
+      } else if (serverError.includes('DUPLICATE_RFC|')) {
+        const message = serverError.split('|')[1];
+        throw new Error(`DUPLICATE_RFC: ${message}`);
+      } else if (serverError.includes('DUPLICATE_ENTRY|')) {
+        const message = serverError.split('|')[1];
+        throw new Error(`DUPLICATE_ENTRY: ${message}`);
+      } else {
+        // Other server errors
+        throw new Error(`Server error: ${serverError}`);
+      }
+    }
+    
+    // Handle network/other errors
+    if (error.request) {
+      throw new Error('No response from server. Please check your connection.');
+    }
+    
+    throw new Error('Failed to create customer. Please try again.');
+  }
   },
 
   updateCustomer: async (id: string, updates: Partial<Cliente>): Promise<void> => {
