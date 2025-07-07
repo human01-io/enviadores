@@ -28,6 +28,7 @@ import { Label } from '../ui/Label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/SelectComponent';
 import { Input } from '../ui/Input';
 import { apiService } from '../../services/apiService';
+import ProviderCostsView from './ProviderCostsView';
 
 interface QuoteResultsSectionProps {
   servicios: ServicioCotizado[];
@@ -830,6 +831,20 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
           );
         })}
       </div>
+
+      <ProviderCostsView
+  originZip={state.originZip}
+  destZip={state.destZip}
+  packageDetails={{
+    peso: parseFloat(state.weight),
+    alto: state.height ? parseFloat(state.height) : undefined,
+    largo: state.length ? parseFloat(state.length) : undefined,
+    ancho: state.width ? parseFloat(state.width) : undefined,
+    valor_declarado: state.insurance && state.insuranceValue ? parseFloat(state.insuranceValue) : undefined,
+    content: "GIFT" // or whatever default content you use
+  }}
+/>
+      
 
       {/* Weight and Additional Charges Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
