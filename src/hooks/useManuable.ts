@@ -5,7 +5,8 @@ import {
   ManuableLabelResponse, 
   ManuableBalanceResponse, 
   ManuableLabelsListResponse,
-  ManuableSurchargesResponse
+  ManuableSurchargesResponse,
+  ManuableCancellationsHistoryResponse
 } from '../services/manuableService';
 import { Cliente, Destino } from '../types';
 
@@ -29,6 +30,9 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
   const [labelsPage, setLabelsPage] = useState<number>(1);
   const [surchargesList, setSurchargesList] = useState<ManuableSurchargesResponse>({ data: [] });
   const [surchargesPage, setSurchargesPage] = useState<number>(1);
+
+const [cancellationsHistory, setCancellationsHistory] = useState<ManuableCancellationsHistoryResponse>({ data: [] });
+const [cancellationsPage, setCancellationsPage] = useState<number>(1);
 
   /**
    * Login to Manuable API
@@ -336,6 +340,55 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
   }
 }, [isAuthenticated, autoLogin, login]);
 
+/**
+ * Get cancellations history with optional filters and pagination
+ */
+const getCancellationsHistory = useCallback(async (params?: {
+  reason?: 'will_no_longer_be_used' | 'wrong_data';
+  refund_status?: 'pending' | 'done' | 'not_refundable';
+  label_token?: string;
+  page?: number;
+}) => {
+  setIsLoading(true);
+  setError(null);
+  try {
+    // First ensure we're authenticated
+    if (!isAuthenticated && autoLogin) {
+      await login();
+    }
+
+    // Use provided page or current state
+    const page = params?.page || cancellationsPage;
+    
+    // Get cancellations history from service
+    const response = await manuableService.getCancellationsHistory({
+      reason: params?.reason,
+      refund_status: params?.refund_status,
+      label_token: params?.label_token,
+      page
+    });
+    
+    console.log('Cancellations history retrieved:', response);
+    
+    // Update state with response
+    setCancellationsHistory(response);
+    
+    // Update page state if it changed
+    if (params?.page) {
+      setCancellationsPage(params.page);
+    }
+    
+    return response;
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to retrieve cancellations history';
+    console.error('Error getting cancellations history:', errorMessage);
+    setError(errorMessage);
+    return { data: [] } as ManuableCancellationsHistoryResponse;
+  } finally {
+    setIsLoading(false);
+  }
+}, [isAuthenticated, autoLogin, login, cancellationsPage]);
+
   /**
    * Logout from Manuable
    */
@@ -368,6 +421,9 @@ export function useManuable({ autoLogin = true }: UseManuableProps = {}) {
     getLabels,
     getSurcharges,
     logout,
-    cancelLabels
+    cancelLabels,
+      cancellationsHistory,
+  cancellationsPage,
+  getCancellationsHistory,
   };
 }

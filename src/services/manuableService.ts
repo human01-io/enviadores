@@ -132,6 +132,28 @@ export interface ManuableCancellationResponse {
   }>;
 }
 
+// Interface for cancellation history item
+export interface ManuableCancellationHistoryItem {
+  reason: 'will_no_longer_be_used' | 'wrong_data';
+  token: string;
+  used_after_cancellation: boolean;
+  refund_status: 'pending' | 'done' | 'not_refundable';
+  additional_info: string;
+  tracking_number: string;
+  label_token: string;
+}
+
+// Interface for cancellations history response
+export interface ManuableCancellationsHistoryResponse {
+  data: ManuableCancellationHistoryItem[];
+  pagination?: {
+    total_pages: number;
+    total_entries: number;
+    page_size: number;
+    page_number: number;
+  };
+}
+
 class ManuableService {
   private api: AxiosInstance;
   private token: string | null = null;
@@ -537,6 +559,88 @@ class ManuableService {
     }
 
     throw new Error('Error cancelling shipping labels');
+  }
+}
+
+/**
+ * Get cancellations history with optional filters and pagination
+ */
+async getCancellationsHistory(params?: {
+  reason?: 'will_no_longer_be_used' | 'wrong_data';
+  refund_status?: 'pending' | 'done' | 'not_refundable';
+  label_token?: string;
+  page?: number;
+}): Promise<ManuableCancellationsHistoryResponse> {
+  try {
+    // Ensure we're authenticated
+    if (!this.token) {
+      await this.login();
+    }
+
+    console.log('Getting cancellations history from Manuable API with params:', params);
+    
+    // Build query parameters
+    const queryParams = new URLSearchParams();
+    if (params?.reason) {
+      queryParams.append('reason', params.reason);
+    }
+    if (params?.refund_status) {
+      queryParams.append('refund_status', params.refund_status);
+    }
+    if (params?.label_token) {
+      queryParams.append('label_token', params.label_token);
+    }
+    if (params?.page && params.page > 1) {
+      queryParams.append('page', params.page.toString());
+    }
+    
+    // Create the URL with query parameters
+    const endpoint = manuableConfig.endpoints.cancellations; // You'll need to add this to your config
+    const url = queryParams.toString() ? `${endpoint}?${queryParams.toString()}` : endpoint;
+    
+    console.log('Fetching cancellations history with URL:', url);
+    const response = await this.api.get(url);
+    console.log('Received cancellations history response:', response.data);
+    
+    // Process and normalize the response
+    let cancellationsData: ManuableCancellationsHistoryResponse = { data: [] };
+    
+    // Check if the data is directly in the response or nested
+    if (Array.isArray(response.data)) {
+      cancellationsData = { data: response.data };
+    } else if (response.data && Array.isArray(response.data.data)) {
+      cancellationsData = response.data;
+    } else if (response.data && typeof response.data === 'object') {
+      // Try to extract data if it's in a different structure
+      const possibleData = Object.values(response.data).find(v => Array.isArray(v));
+      if (possibleData) {
+        cancellationsData = { data: possibleData as ManuableCancellationHistoryItem[] };
+      }
+    }
+    
+    // Add pagination metadata if available
+    if (response.data.pagination) {
+      cancellationsData.pagination = response.data.pagination;
+    }
+    
+    return cancellationsData;
+  } catch (error) {
+    console.error('Manuable get cancellations history error:', error);
+
+    // If it's an Axios error with a response, we can provide more details
+    if (axios.isAxiosError(error)) {
+      console.error('API response status:', error.response?.status);
+      console.error('API response data:', JSON.stringify(error.response?.data));
+
+      // For authentication issues, try to login again
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        this.token = null; // Clear invalid token
+        throw new Error('Authentication required to get cancellations history');
+      }
+    }
+
+    // For other types of errors, just throw a generic message
+    throw new Error('Error retrieving cancellations history');
   }
 }
 

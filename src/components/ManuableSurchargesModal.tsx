@@ -55,20 +55,10 @@ export const ManuableSurchargesModal: React.FC<ManuableSurchargesModalProps> = (
     loadSurcharges(newPage);
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString('es-MX', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      });
-    } catch (error) {
-      return dateString;
-    }
-  };
 
-  const formatPrice = (price: string) => {
-    const numericPrice = parseFloat(price);
+
+  const formatPrice = (price: string | number) => {
+    const numericPrice = typeof price === 'string' ? parseFloat(price) : price;
     if (isNaN(numericPrice)) return price;
     
     return new Intl.NumberFormat('es-MX', {
@@ -83,6 +73,7 @@ export const ManuableSurchargesModal: React.FC<ManuableSurchargesModalProps> = (
     switch(status.toLowerCase()) {
       case 'active':
       case 'activo':
+      case 'collected':
         return 'bg-green-100 text-green-800';
       case 'inactive':
       case 'inactivo':
@@ -91,6 +82,40 @@ export const ManuableSurchargesModal: React.FC<ManuableSurchargesModalProps> = (
         return 'bg-blue-100 text-blue-800';
     }
   };
+
+  const getSurchargeTypeName = (surchargeType: string) => {
+    switch(surchargeType) {
+      case 'additional_fee':
+        return 'Tarifa adicional';
+      case 'weight_difference':
+        return 'Diferencia de peso';
+      default:
+        return surchargeType || 'Estándar';
+    }
+  };
+
+  // Get the actual surcharges data - handle both formats
+  const getSurchargesData = () => {
+    // Check if surchargesList.data exists and has items
+    if (surchargesList?.data && Array.isArray(surchargesList.data) && surchargesList.data.length > 0) {
+      return surchargesList.data;
+    }
+    
+    // If not, check if the response has numbered keys (0, 1, 2, etc.)
+    if (surchargesList && typeof surchargesList === 'object') {
+      const keys = Object.keys(surchargesList).filter(key => 
+        !isNaN(Number(key)) && key !== 'data' && key !== 'pagination'
+      );
+      
+      if (keys.length > 0) {
+        return keys.map(key => (surchargesList as any)[key]);
+      }
+    }
+    
+    return [];
+  };
+
+  const surchargesData = getSurchargesData();
 
   return (
     <CSSTransition
@@ -106,7 +131,7 @@ export const ManuableSurchargesModal: React.FC<ManuableSurchargesModalProps> = (
           <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
           <div 
-            className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full"
+            className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-6xl sm:w-full"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
@@ -156,48 +181,61 @@ export const ManuableSurchargesModal: React.FC<ManuableSurchargesModalProps> = (
                       <thead className="bg-gray-50">
                         <tr>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Nombre
+                            Número de seguimiento
                           </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Precio
+                            Monto
                           </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Estado
                           </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Tipo
+                            Tipo de sobrecargo
                           </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Descripción
                           </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Sobrepeso (kg)
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {surchargesList.data.length === 0 ? (
+                        {surchargesData.length === 0 ? (
                           <tr>
-                            <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                            <td colSpan={6} className="px-6 py-4 text-center text-sm text-gray-500">
                               No se encontraron sobrecargos
                             </td>
                           </tr>
                         ) : (
-                          surchargesList.data.map((surcharge) => (
-                            <tr key={surcharge.id} className="hover:bg-gray-50">
+                          surchargesData.map((surcharge, index) => (
+                            <tr key={surcharge.uuid || `surcharge-${index}`} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {surcharge.name}
+                                {surcharge.tracking_number || 'N/A'}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {formatPrice(surcharge.price)}
+                                {formatPrice(surcharge.amount_collected || surcharge.amount_to_collect || '0')}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm">
                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(surcharge.status)}`}>
-                                  {surcharge.status || 'No especificado'}
+                                  {surcharge.status === 'collected' ? 'Cobrado' : surcharge.status || 'No especificado'}
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {surcharge.type || 'Estándar'}
+                                {getSurchargeTypeName(surcharge.surcharge_type)}
                               </td>
-                              <td className="px-6 py-4 text-sm text-gray-500 max-w-md truncate">
-                                {surcharge.description || 'Sin descripción'}
+                              <td className="px-6 py-4 text-sm text-gray-500 max-w-md">
+                                {surcharge.additional_fee_info ? (
+                                  <div>
+                                    <div className="font-medium">{surcharge.additional_fee_info.name}</div>
+                                    <div className="text-xs text-gray-400 mt-1">{surcharge.additional_fee_info.description}</div>
+                                  </div>
+                                ) : (
+                                  surcharge.surcharge_type === 'weight_difference' ? 'Diferencia de peso detectada' : 'Sin descripción'
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {surcharge.overweight ? `${surcharge.overweight} kg` : '-'}
                               </td>
                             </tr>
                           ))
@@ -206,8 +244,8 @@ export const ManuableSurchargesModal: React.FC<ManuableSurchargesModalProps> = (
                     </table>
                   </div>
 
-                  {/* Pagination */}
-                  {surchargesList.meta && surchargesList.meta.total_pages > 1 && (
+                  {/* Pagination - only show if we have pagination data */}
+                  {(surchargesList as any)?.pagination && (surchargesList as any).pagination.total_pages > 1 && (
                     <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
                       <div className="flex justify-between flex-1 sm:hidden">
                         <button
@@ -223,9 +261,9 @@ export const ManuableSurchargesModal: React.FC<ManuableSurchargesModalProps> = (
                         </button>
                         <button
                           onClick={() => handlePageChange(surchargesPage + 1)}
-                          disabled={surchargesList.meta && surchargesPage >= surchargesList.meta.total_pages}
+                          disabled={(surchargesList as any).pagination && surchargesPage >= (surchargesList as any).pagination.total_pages}
                           className={`relative inline-flex items-center px-4 py-2 ml-3 text-sm font-medium rounded-md ${
-                            surchargesList.meta && surchargesPage >= surchargesList.meta.total_pages
+                            (surchargesList as any).pagination && surchargesPage >= (surchargesList as any).pagination.total_pages
                               ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
                               : 'text-gray-700 bg-white hover:bg-gray-50'
                           }`}
@@ -239,7 +277,7 @@ export const ManuableSurchargesModal: React.FC<ManuableSurchargesModalProps> = (
                             Mostrando{' '}
                             <span className="font-medium">página {surchargesPage}</span>{' '}
                             de{' '}
-                            <span className="font-medium">{surchargesList.meta?.total_pages || 1}</span>{' '}
+                            <span className="font-medium">{(surchargesList as any).pagination?.total_pages || 1}</span>{' '}
                             páginas
                           </p>
                         </div>
@@ -267,9 +305,9 @@ export const ManuableSurchargesModal: React.FC<ManuableSurchargesModalProps> = (
                             
                             <button
                               onClick={() => handlePageChange(surchargesPage + 1)}
-                              disabled={surchargesList.meta && surchargesPage >= surchargesList.meta.total_pages}
+                              disabled={(surchargesList as any).pagination && surchargesPage >= (surchargesList as any).pagination.total_pages}
                               className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
-                                surchargesList.meta && surchargesPage >= surchargesList.meta.total_pages
+                                (surchargesList as any).pagination && surchargesPage >= (surchargesList as any).pagination.total_pages
                                   ? 'text-gray-300 cursor-not-allowed'
                                   : 'text-gray-500 hover:bg-gray-50'
                               }`}

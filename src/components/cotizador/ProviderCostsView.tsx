@@ -148,8 +148,8 @@ const ProviderCostsView: React.FC<ProviderCostsViewProps> = ({
           {/* Loading State */}
           {isLoading && (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin h-6 w-6 border-2 border-orange-500 border-t-transparent rounded-full mr-3"></div>
-              <p className="text-orange-700">Obteniendo costos de proveedor...</p>
+              <div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full mr-3"></div>
+              <p className="text-blue-700">Obteniendo costos de proveedor...</p>
             </div>
           )}
 
@@ -176,7 +176,7 @@ const ProviderCostsView: React.FC<ProviderCostsViewProps> = ({
               <div className="hidden md:block">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-orange-50">
+                    <thead className="bg-blue-50">
                       <tr>
                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                           Paquetería

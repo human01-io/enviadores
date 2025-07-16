@@ -68,6 +68,11 @@ const ManuableSurchargesModal = lazy(() =>
     default: module.ManuableSurchargesModal 
   }))
 );
+const ManuableCancellationsModal = lazy(() => 
+  import('./ManuableCancellationsModal').then(module => ({ 
+    default: module.ManuableCancellationsModal 
+  }))
+);
 
 interface UserData {
   name: string;
@@ -113,6 +118,7 @@ export default function ImprovedDashboard() {
   const manuableAccountModal = useModal();
   const manuableLabelsModal = useModal();
   const manuableSurchargesModal = useModal();
+  const manuableCancellationsModal = useModal();
   const userModal = useModal();
   const accountModal = useModal();
   const passwordModal = useModal();
@@ -265,37 +271,39 @@ export default function ImprovedDashboard() {
 
   // Keyboard event handler for accessibility
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Close modals with Escape key
-      if (event.key === 'Escape') {
-        if (clientModal.isOpen) clientModal.close();
-        if (destinoModal.isOpen) destinoModal.close();
-        if (manuableAccountModal.isOpen) manuableAccountModal.close();
-        if (manuableLabelsModal.isOpen) manuableLabelsModal.close();
-        if (manuableSurchargesModal.isOpen) manuableSurchargesModal.close();
-        if (userModal.isOpen) userModal.close();
-        if (accountModal.isOpen) accountModal.close();
-        if (passwordModal.isOpen) passwordModal.close();
-        
-        // Close dropdowns
-        setShowClientOptions(false);
-        setShowDestinoOptions(false);
-        setShowManuableOptions(false);
-      }
-    };
+  const handleKeyDown = (event: KeyboardEvent) => {
+    // Close modals with Escape key
+    if (event.key === 'Escape') {
+      if (clientModal.isOpen) clientModal.close();
+      if (destinoModal.isOpen) destinoModal.close();
+      if (manuableAccountModal.isOpen) manuableAccountModal.close();
+      if (manuableLabelsModal.isOpen) manuableLabelsModal.close();
+      if (manuableSurchargesModal.isOpen) manuableSurchargesModal.close();
+      if (manuableCancellationsModal.isOpen) manuableCancellationsModal.close();
+      if (userModal.isOpen) userModal.close();
+      if (accountModal.isOpen) accountModal.close();
+      if (passwordModal.isOpen) passwordModal.close();
+      
+      // Close dropdowns
+      setShowClientOptions(false);
+      setShowDestinoOptions(false);
+      setShowManuableOptions(false);
+    }
+  };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [
-    clientModal, 
-    destinoModal, 
-    manuableAccountModal, 
-    manuableLabelsModal, 
-    manuableSurchargesModal, 
-    userModal, 
-    accountModal, 
-    passwordModal
-  ]);
+  document.addEventListener('keydown', handleKeyDown);
+  return () => document.removeEventListener('keydown', handleKeyDown);
+}, [
+  clientModal, 
+  destinoModal, 
+  manuableAccountModal, 
+  manuableLabelsModal, 
+  manuableSurchargesModal, 
+  manuableCancellationsModal,
+  userModal, 
+  accountModal, 
+  passwordModal
+]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -558,37 +566,46 @@ export default function ImprovedDashboard() {
                   isDropdownOpen={showManuableOptions}
                 />
                 {/* Manuable Options Dropdown */}
-                {showManuableOptions && (
-                  <div className="absolute top-full left-0 right-0 z-50 bg-white shadow-lg rounded-lg border border-gray-200 py-1 mt-1">
-                    <button
-                      onClick={() => {
-                        manuableAccountModal.open();
-                        setShowManuableOptions(false);
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
-                    >
-                      Ver saldo de cuenta
-                    </button>
-                    <button
-                      onClick={() => {
-                        manuableLabelsModal.open();
-                        setShowManuableOptions(false);
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
-                    >
-                      Ver guías generadas
-                    </button>
-                    <button
-                      onClick={() => {
-                        manuableSurchargesModal.open();
-                        setShowManuableOptions(false);
-                      }}
-                      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
-                    >
-                      Ver sobrecargos
-                    </button>
-                  </div>
-                )}
+{showManuableOptions && (
+  <div className="absolute top-full left-0 right-0 z-50 bg-white shadow-lg rounded-lg border border-gray-200 py-1 mt-1">
+    <button
+      onClick={() => {
+        manuableAccountModal.open();
+        setShowManuableOptions(false);
+      }}
+      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
+    >
+      Ver saldo de cuenta
+    </button>
+    <button
+      onClick={() => {
+        manuableLabelsModal.open();
+        setShowManuableOptions(false);
+      }}
+      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
+    >
+      Ver guías generadas
+    </button>
+    <button
+      onClick={() => {
+        manuableSurchargesModal.open();
+        setShowManuableOptions(false);
+      }}
+      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
+    >
+      Ver sobrecargos
+    </button>
+    <button
+      onClick={() => {
+        manuableCancellationsModal.open();
+        setShowManuableOptions(false);
+      }}
+      className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors duration-150 text-sm"
+    >
+      Historial de cancelaciones
+    </button>
+  </div>
+)}
               </div>
               <DashboardItem 
                 icon={TruckIcon} 
@@ -716,6 +733,13 @@ export default function ImprovedDashboard() {
             onClose={manuableSurchargesModal.close}
           />
         )}
+        {/* Manuable Cancellations Modal */}
+{manuableCancellationsModal.isOpen && (
+  <ManuableCancellationsModal
+    isOpen={manuableCancellationsModal.isOpen}
+    onClose={manuableCancellationsModal.close}
+  />
+)}
 
         {/* User Creation Modal */}
         {userModal.isOpen && (
