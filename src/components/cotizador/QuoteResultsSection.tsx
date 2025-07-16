@@ -637,6 +637,19 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
         </CardContent>
       </Card>
 
+            <ProviderCostsView
+  originZip={state.originZip}
+  destZip={state.destZip}
+  packageDetails={{
+    peso: parseFloat(state.weight),
+    alto: state.height ? parseFloat(state.height) : undefined,
+    largo: state.length ? parseFloat(state.length) : undefined,
+    ancho: state.width ? parseFloat(state.width) : undefined,
+    valor_declarado: state.insurance && state.insuranceValue ? parseFloat(state.insuranceValue) : undefined,
+    content: "GIFT" // or whatever default content you use
+  }}
+/>
+
       {/* Header Section */}
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
         <div>
@@ -832,18 +845,7 @@ export const QuoteResultsSection: React.FC<QuoteResultsSectionProps> = ({
         })}
       </div>
 
-      <ProviderCostsView
-  originZip={state.originZip}
-  destZip={state.destZip}
-  packageDetails={{
-    peso: parseFloat(state.weight),
-    alto: state.height ? parseFloat(state.height) : undefined,
-    largo: state.length ? parseFloat(state.length) : undefined,
-    ancho: state.width ? parseFloat(state.width) : undefined,
-    valor_declarado: state.insurance && state.insuranceValue ? parseFloat(state.insuranceValue) : undefined,
-    content: "GIFT" // or whatever default content you use
-  }}
-/>
+
       
 
       {/* Weight and Additional Charges Summary */}

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, FileText, Truck, Upload, CheckCircle2, Download, Loader2, AlertTriangle } from 'lucide-react';
+import { X, FileText, Truck, Upload, CheckCircle2, Download, Loader2, AlertTriangle, Clock } from 'lucide-react';
 import { Cliente, Destino } from '../../types';
 import { ManuableRate, ManuableLabelResponse } from '../../services/manuableService';
 import ManuableRatesComponent from './ManuableRatesComponent';
@@ -15,7 +15,7 @@ interface ShippingOptionsModalProps {
     externalCost?: number | null;
     selectedManuableService?: ManuableRate | null;
     labelData?: ManuableLabelResponse | null;
-  }) => Promise<void>; // Make this async to handle loading states
+  }) => Promise<void>;
   originZip: string;
   destZip: string;
   packageDetails: {
@@ -56,10 +56,19 @@ export default function ShippingOptionsModal({
   const [selectedManuableService, setSelectedManuableService] = useState<ManuableRate | null>(null);
   const [labelData, setLabelData] = useState<ManuableLabelResponse | null>(null);
 
-  // **NEW: Loading and error states**
+  // Loading and error states
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // **NEW: Auto-submit timer state**
+  const [autoSubmitCountdown, setAutoSubmitCountdown] = useState<number | null>(null);
+  const [isAutoSubmitEnabled, setIsAutoSubmitEnabled] = useState(true);
+  const autoSubmitTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // **NEW: Constants for timer**
+  const AUTO_SUBMIT_DELAY = 60; // 60 seconds
 
   // Reset states when modal opens/closes or option changes
   useEffect(() => {
@@ -82,6 +91,57 @@ export default function ShippingOptionsModal({
     }
   }, [selectedOption]);
 
+  // **NEW: Auto-submit timer effect**
+  useEffect(() => {
+    // Only start timer if label was successfully generated and we can submit
+    if (labelData && isManuableComplete() && isAutoSubmitEnabled && !isSubmitting) {
+      console.log('Starting auto-submit timer for 60 seconds...');
+      
+      // Start countdown
+      setAutoSubmitCountdown(AUTO_SUBMIT_DELAY);
+      
+      // Countdown timer (updates every second)
+      countdownTimerRef.current = setInterval(() => {
+        setAutoSubmitCountdown(prev => {
+          if (prev === null || prev <= 1) {
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      // Auto-submit timer (triggers after full delay)
+      autoSubmitTimerRef.current = setTimeout(() => {
+        console.log('Auto-submitting after 60 seconds...');
+        handleSubmit();
+      }, AUTO_SUBMIT_DELAY * 1000);
+
+      // Cleanup function
+      return () => {
+        if (autoSubmitTimerRef.current) {
+          clearTimeout(autoSubmitTimerRef.current);
+          autoSubmitTimerRef.current = null;
+        }
+        if (countdownTimerRef.current) {
+          clearInterval(countdownTimerRef.current);
+          countdownTimerRef.current = null;
+        }
+      };
+    }
+  }, [labelData, isAutoSubmitEnabled, isSubmitting]);
+
+  // **NEW: Clear timers when conditions change**
+  useEffect(() => {
+    return () => {
+      if (autoSubmitTimerRef.current) {
+        clearTimeout(autoSubmitTimerRef.current);
+      }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+    };
+  }, []);
+
   const resetAllStates = () => {
     setStep('select');
     setSelectedOption(null);
@@ -89,23 +149,55 @@ export default function ShippingOptionsModal({
     setExternalCost(null);
     setSelectedManuableService(null);
     setLabelData(null);
-    // **NEW: Reset loading states**
     setIsSubmitting(false);
     setSubmitError(null);
     setSubmitSuccess(false);
+    
+    // **NEW: Reset timer states**
+    setAutoSubmitCountdown(null);
+    setIsAutoSubmitEnabled(true);
+    
+    // **NEW: Clear any running timers**
+    if (autoSubmitTimerRef.current) {
+      clearTimeout(autoSubmitTimerRef.current);
+      autoSubmitTimerRef.current = null;
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+  };
+
+  // **NEW: Cancel auto-submit timer**
+  const cancelAutoSubmit = () => {
+    setIsAutoSubmitEnabled(false);
+    setAutoSubmitCountdown(null);
+    
+    if (autoSubmitTimerRef.current) {
+      clearTimeout(autoSubmitTimerRef.current);
+      autoSubmitTimerRef.current = null;
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    
+    console.log('Auto-submit timer cancelled by user');
   };
 
   const handleLabelGenerated = (data: ManuableLabelResponse) => {
     console.log('Label generated:', data);
     setLabelData(data);
-    setSubmitError(null); // Clear any previous errors
+    setSubmitError(null);
+    // Timer will start automatically via useEffect
   };
 
   const handleBack = () => {
     if (step === 'configure') {
       setStep('select');
       setSelectedOption(null);
-      setSubmitError(null); // Clear errors when going back
+      setSubmitError(null);
+      cancelAutoSubmit(); // Cancel timer when going back
     } else {
       onClose();
     }
@@ -123,15 +215,17 @@ export default function ShippingOptionsModal({
   };
 
   const canSubmit = () => {
-    if (isSubmitting) return false; // Can't submit while submitting
+    if (isSubmitting) return false;
     if (selectedOption === 'external') return isExternalComplete();
     if (selectedOption === 'manuable') return isManuableComplete();
     return false;
   };
 
-  // **ENHANCED: Submit handler with loading states**
   const handleSubmit = async () => {
     if (!canSubmit()) return;
+
+    // **NEW: Cancel auto-submit timer when manually submitting**
+    cancelAutoSubmit();
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -146,10 +240,8 @@ export default function ShippingOptionsModal({
         labelData: selectedOption === 'manuable' ? labelData : undefined
       });
 
-      // If we get here, submission was successful
       setSubmitSuccess(true);
       
-      // Close modal after a brief success message
       setTimeout(() => {
         onClose();
       }, 1500);
@@ -168,10 +260,9 @@ export default function ShippingOptionsModal({
     }
   };
 
-  // **NEW: Handle closing modal when submitting (prevent accidental close)**
   const handleClose = () => {
     if (isSubmitting) {
-      return; // Don't allow closing while submitting
+      return;
     }
     onClose();
   };
@@ -199,7 +290,7 @@ export default function ShippingOptionsModal({
               exit={{ opacity: 0, scale: 0.95 }}
               className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
             >
-              {/* **NEW: Loading Overlay** */}
+              {/* Loading Overlay */}
               {isSubmitting && (
                 <div className="absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center z-10">
                   <div className="text-center">
@@ -215,7 +306,7 @@ export default function ShippingOptionsModal({
                 </div>
               )}
 
-              {/* **NEW: Success Overlay** */}
+              {/* Success Overlay */}
               {submitSuccess && (
                 <div className="absolute inset-0 bg-white bg-opacity-95 flex items-center justify-center z-10">
                   <div className="text-center">
@@ -244,9 +335,33 @@ export default function ShippingOptionsModal({
                 </button>
               </div>
 
+              {/* **NEW: Auto-submit countdown banner** */}
+              {autoSubmitCountdown !== null && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-blue-50 border-b border-blue-200 px-6 py-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Clock className="w-4 h-4 text-blue-600 mr-2" />
+                      <span className="text-sm text-blue-800">
+                        El envío se finalizará automáticamente en <strong>{autoSubmitCountdown}</strong> segundos
+                      </span>
+                    </div>
+                    <button
+                      onClick={cancelAutoSubmit}
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
               {/* Content */}
               <div className="p-6 overflow-y-auto max-h-[calc(90vh-8rem)]">
-                {/* **NEW: Error Alert** */}
+                {/* Error Alert */}
                 {submitError && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
@@ -459,6 +574,28 @@ export default function ShippingOptionsModal({
                                 <p><strong>Servicio:</strong> {selectedManuableService?.carrier} - {selectedManuableService?.service}</p>
                                 <p><strong>Precio:</strong> ${labelData.price} MXN</p>
                               </div>
+                              
+                              {/* **NEW: Auto-submit notification** */}
+                              {autoSubmitCountdown !== null && (
+                                <motion.div
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  className="mt-4 p-3 bg-blue-100 border border-blue-300 rounded-lg"
+                                >
+                                  <div className="flex items-center text-blue-800">
+                                    <Clock className="w-4 h-4 mr-2" />
+                                    <span className="text-sm">
+                                      El envío se finalizará automáticamente en <strong>{autoSubmitCountdown}s</strong>
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={cancelAutoSubmit}
+                                    className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline"
+                                  >
+                                    Cancelar finalización automática
+                                  </button>
+                                </motion.div>
+                              )}
                             </div>
                           </div>
                         </motion.div>
@@ -478,6 +615,7 @@ export default function ShippingOptionsModal({
                             onClick={() => {
                               setLabelData(null);
                               setSelectedManuableService(null);
+                              cancelAutoSubmit(); // Cancel timer when changing service
                             }}
                             disabled={isSubmitting}
                             className={`px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors ${
@@ -518,7 +656,12 @@ export default function ShippingOptionsModal({
                     }`}
                   >
                     {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {isSubmitting ? 'Procesando...' : 'Finalizar Envío'}
+                    {autoSubmitCountdown !== null && (
+                      <Clock className="w-4 h-4" />
+                    )}
+                    {isSubmitting ? 'Procesando...' : 
+                     autoSubmitCountdown !== null ? `Finalizar (${autoSubmitCountdown}s)` : 
+                     'Finalizar Envío'}
                   </button>
                 )}
               </div>
