@@ -255,7 +255,7 @@ export const postalRanges = [
     { id_rango: "ad", cpostal_inicio: 42200, cpostal_fin: 42215, grupo: "N" },
     { id_rango: "ud", cpostal_inicio: 43230, cpostal_fin: 43245, grupo: "N" },
     { id_rango: "cg", cpostal_inicio: 69980, cpostal_fin: 69995, grupo: "B" },
-    { id_rango: "nc", cpostal_inicio: 40880, cpostal_fin: 40894, grupo: "R" },
+    { id_rango: "nc", cpostal_inicio: 40880, cpostal_fin: 40897, grupo: "R" },
     { id_rango: "je", cpostal_inicio: 58740, cpostal_fin: 58754, grupo: "J" },
     { id_rango: "gg", cpostal_inicio: 70200, cpostal_fin: 70214, grupo: "B" },
     { id_rango: "zj", cpostal_inicio: 76550, cpostal_fin: 76564, grupo: "L" },
