@@ -653,7 +653,7 @@ async getCancellationsHistory(params?: {
     if (params.address_from) {
       params.address_from = {
         ...params.address_from,
-        external_number: params.address_from.external_number || '0',
+        external_number: params.address_from.external_number || '*',
         email: params.address_from.email || 'contacto@enviadores.com.mx'
       };
     }
@@ -662,7 +662,7 @@ async getCancellationsHistory(params?: {
     if (params.address_to) {
       params.address_to = {
         ...params.address_to,
-        external_number: params.address_to.external_number || '0',
+        external_number: params.address_to.external_number || '*',
         email: params.address_to.email || 'contacto@enviadores.com.mx'
       };
     }
@@ -704,7 +704,7 @@ async getCancellationsHistory(params?: {
       name: fullName,
       street1: fullAddress,
       neighborhood: data.colonia,
-      external_number: '0',
+      external_number: '*',
       city: data.municipio,
       state: data.estado,
       phone: data.telefono,
@@ -739,7 +739,7 @@ async getCancellationsHistory(params?: {
       name: data.nombre_destinatario,
       street1: data.direccion,
       neighborhood: data.colonia,
-      external_number: '0', // Use provided or default
+      external_number: '*', // Use provided or default
       city: data.ciudad,
       state: data.estado,
       phone: data.telefono,
